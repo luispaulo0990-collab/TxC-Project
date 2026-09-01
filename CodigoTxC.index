@@ -1,0 +1,1094 @@
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import * as XLSX from "xlsx";
+import {
+  Plus, Trash2, Copy, Save, Download, Upload, ZoomIn, ZoomOut, Maximize2,
+  Layers, Building2, AlertTriangle, Check, FolderOpen, X, Wand2, BarChart3,
+  ChevronRight, ChevronDown, PanelRightOpen, Sun, Moon, FileSpreadsheet,
+  TrendingUp, CalendarClock, Gauge, ArrowLeft
+} from "lucide-react";
+
+/* ═══════════════════════════════════════════════════════════════
+   TEMPO × CAMINHO · UNITÀ ENGENHARIA
+   Identidade: Pantone Orange 021 C · All Black · 447 C · Cool Gray 2 C
+   Tipografia: Helvetica Now (fallback Helvetica Neue / Arial)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* paleta oficial da marca */
+const ORANGE = "#FE5000";   // Pantone Orange 021 C · RGB 254 80 0
+const BLACK = "#000000";    // All Black
+const P447 = "#373A36";     // Pantone 447 C · grafite esverdeado
+const COOL2 = "#D0D0CE";    // Pantone Cool Gray 2 C
+const ERRO = "#D64545";     // realizado / conflito
+const OK = "#2E9E63";
+
+const THEME = {
+  claro: {
+    bg: "#ECEDEB", chrome: BLACK, panel: "#FFFFFF", raised: "#F5F5F3", hover: "#ECEDEA",
+    line: "#DEDEDB", text: BLACK, muted: "#6A6E69", dim: "#A6A8A3",
+    surface: "#FFFFFF", band: "#F6F6F4", grid: "#E7E7E4", gridMes: "#C6C7C2", row: "#EDEDEA",
+    label: BLACK, labelAlt: "#6A6E69", labelBg: "#FFFFFF", labelBgAlt: "#F6F6F4",
+    strip: P447, stripText: "#FFFFFF", input: "#FFFFFF", scheme: "light", logoInk: BLACK,
+  },
+  escuro: {
+    bg: "#111310", chrome: BLACK, panel: "#1A1C19", raised: "#22241F", hover: "#2A2C27",
+    line: "#33352F", text: "#ECEDEB", muted: "#9DA098", dim: "#63665F",
+    surface: "#15170F", band: "#1B1D16", grid: "#282A22", gridMes: "#3E4138", row: "#212319",
+    label: "#ECEDEB", labelAlt: "#9DA098", labelBg: "#191B14", labelBgAlt: "#1F2119",
+    strip: BLACK, stripText: "#FFFFFF", input: "#22241F", scheme: "dark", logoInk: "#FFFFFF",
+  },
+};
+
+const FONT = "'Helvetica Now Display','Helvetica Now Text','Helvetica Now','Helvetica Neue',Helvetica,Arial,sans-serif";
+const NUM = { fontFamily: FONT, fontVariantNumeric: "tabular-nums", fontFeatureSettings: "'tnum'" };
+
+const PALETTE = [
+  BLACK, "#1F4E79", "#2E86AB", "#4CA1A3", "#2E9E63", "#7FB069",
+  "#C9A227", ORANGE, "#D64545", "#B5446E", "#7D5BA6", P447,
+];
+
+const LABEL_W = 210;
+const TOWER_STRIP = 26;
+const HEADER_H = 46;
+const MESES_ABR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const DIAS_MES = 30;
+
+/* ─── datas ─────────────────────────────────────────────────── */
+const D = (s) => new Date(s + "T00:00:00");
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+const diffDays = (a, b) => Math.round((b - a) / 86400000);
+const fmtBR = (d) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+const uid = () => Math.random().toString(36).slice(2, 10);
+const hoje = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); };
+
+const contraste = (hex) => {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? "#000000" : "#FFFFFF";
+};
+const normalizar = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+function parseData(v) {
+  if (v == null || v === "") return null;
+  if (v instanceof Date && !isNaN(v)) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  if (typeof v === "number") {
+    const d = new Date(Math.round((v - 25569) * 86400000));
+    return isNaN(d) ? null : new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) { const ano = m[3].length === 2 ? 2000 + +m[3] : +m[3]; const d = new Date(ano, +m[2] - 1, +m[1]); return isNaN(d) ? null : d; }
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  const d = new Date(s);
+  return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/* ─── logo Unità (reconstrução vetorial do wordmark) ────────── */
+const LogoUnita = ({ ink = "#fff", height = 20 }) => {
+  const w = height * (918 / 355) * 0.62;
+  return (
+    <svg width={w} height={height} viewBox="0 0 260 96" style={{ display: "block" }} aria-label="Unità">
+      <g fill={ink}>
+        {/* u */}
+        <path d="M2 30 h16 v34 c0 8 5 13 13 13 s13-5 13-13 V30 h16 v64 H44 v-7 c-4 5-10 8-18 8 C13 95 2 84 2 68 Z" />
+        {/* n */}
+        <path d="M70 30 h16 v7 c4-5 10-8 18-8 13 0 24 11 24 27 v38 h-16 V60 c0-8-5-13-13-13 s-13 5-13 13 v34 H70 Z" />
+        {/* i */}
+        <rect x="136" y="30" width="16" height="64" />
+        <rect x="136" y="8" width="16" height="15" />
+        {/* t */}
+        <path d="M160 30 h10 V13 h16 v17 h14 v14 h-14 v28 c0 4 2 6 6 6 h8 v14 h-12 c-12 0-18-6-18-18 V44 h-10 Z" />
+        {/* a */}
+        <path d="M210 47 c3-12 12-18 26-18 16 0 24 9 24 25 v40 h-15 v-7 c-4 5-10 8-17 8-12 0-21-8-21-19 0-12 9-18 24-20 l14-2 v-1 c0-6-4-9-10-9-5 0-9 2-10 7 Z M255 68 l-11 2 c-7 1-10 4-10 8 0 5 4 8 9 8 7 0 12-5 12-12 Z" />
+        {/* acento à — laranja */}
+        <path d="M236 0 l22 -0 l-4 16 l-22 0 Z" fill={ORANGE} transform="translate(6,2) rotate(-14 247 8)" />
+      </g>
+    </svg>
+  );
+};
+
+/* ─── projeto semente ───────────────────────────────────────── */
+function seedProject() {
+  const torreId = uid();
+  const locais = [];
+  const push = (nome, tipo, ordem) => locais.push({ id: uid(), torreId, nome, tipo, ordem });
+  push("Térreo", "TERREO", 0);
+  for (let i = 1; i <= 25; i++) push(`${i}º Pavimento${i === 25 ? "/Duplex" : ""}`, "TIPO", i);
+  push("Cobertura/Casa de máquina", "COBERTURA", 26);
+  push("Tampa cobertura", "TECNICO", 27);
+
+  const byOrd = (o) => locais.find((l) => l.ordem === o).id;
+  const A = (nome, cor, modo, oi, of_, di, df) => ({
+    id: uid(), torreId, nome, cor, modo, visivel: true,
+    locIniId: byOrd(oi), locFimId: byOrd(of_), dataIni: di, dataFim: df,
+    realIni: null, realFim: null,
+  });
+
+  const atividades = [
+    A("Impermeabilização + Proteção e CP", "#2E86AB", "BLOCO", 26, 27, "2026-07-01", "2026-08-14"),
+    A("Telhado / Rufo", "#C9A227", "BLOCO", 26, 26, "2026-06-01", "2026-07-03"),
+    A("Alvenaria + Acabamentos elevador", ORANGE, "BLOCO", 26, 27, "2026-08-17", "2026-10-02"),
+    A("Skim Coat + Forro e Sanca", "#7D5BA6", "LINHA", 1, 25, "2026-04-06", "2026-07-24"),
+    A("Piso Cerâmico + Azulejo", "#2E86AB", "LINHA", 1, 25, "2026-04-20", "2026-08-07"),
+    A("Textura sacada", "#5C6F82", "LINHA", 1, 25, "2026-05-04", "2026-08-21"),
+    A("Louças + Emassamento e 1ª Demão", "#1F4E79", "LINHA", 1, 25, "2026-05-18", "2026-09-04"),
+    A("Bancadas + Ventokit", "#7FB069", "LINHA", 1, 25, "2026-06-01", "2026-09-18"),
+    A("Cerâmica Hall + Rejunte", "#2E9E63", "LINHA", 1, 25, "2026-06-15", "2026-10-02"),
+    A("Miolo de Tomada", "#B5446E", "LINHA", 1, 25, "2026-06-29", "2026-10-16"),
+    A("Portas de madeira", "#4CA1A3", "LINHA", 1, 25, "2026-07-06", "2026-10-23"),
+    A("Metais", "#D64545", "LINHA", 1, 25, "2026-07-20", "2026-11-06"),
+    A("Disjuntor + Limpeza Grossa", BLACK, "LINHA", 0, 25, "2026-08-03", "2026-11-20"),
+    A("Testes Elétricos", "#E0862A", "LINHA", 0, 25, "2026-06-08", "2026-09-25"),
+    A("Stop Fire", "#D64545", "BLOCO", 2, 5, "2026-06-22", "2026-07-10"),
+    A("Teste de Telefonia", "#4CA1A3", "BLOCO", 0, 4, "2026-07-13", "2026-08-28"),
+  ];
+
+  return {
+    id: uid(), nome: "Artur Alvim", dataZero: "2026-04-01",
+    torres: [{ id: torreId, nome: "Torre 1", offsetDias: 0, origem: null }],
+    locais, atividades,
+    marcos: [
+      { id: uid(), nome: "Liberação de recurso", data: "2026-06-15", cor: ORANGE, dinamico: false },
+      { id: uid(), nome: "Data de status", data: "2026-07-06", cor: P447, dinamico: false },
+    ],
+  };
+}
+
+/* ─── geometria ─────────────────────────────────────────────── */
+function segIntersect(p1, p2, p3, p4) {
+  const d = (p2.x - p1.x) * (p4.y - p3.y) - (p2.y - p1.y) * (p4.x - p3.x);
+  if (Math.abs(d) < 1e-9) return null;
+  const t = ((p3.x - p1.x) * (p4.y - p3.y) - (p3.y - p1.y) * (p4.x - p3.x)) / d;
+  const u = ((p3.x - p1.x) * (p2.y - p1.y) - (p3.y - p1.y) * (p2.x - p1.x)) / d;
+  if (t <= 0.001 || t >= 0.999 || u <= 0.001 || u >= 0.999) return null;
+  return { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+export default function App() {
+  const [proj, setProj] = useState(seedProject);
+  const [selId, setSelId] = useState(null);
+  const [pxPerDay, setPxPerDay] = useState(3.4);
+  const [rowH] = useState(23);
+  const [snapWeek, setSnapWeek] = useState(false);
+  const [tab, setTab] = useState("atividades");
+  const [filtroTorre, setFiltroTorre] = useState("TODAS");
+  const [salvos, setSalvos] = useState([]);
+  const [status, setStatus] = useState("");
+  const [modal, setModal] = useState(null);
+  const [collapsed, setCollapsed] = useState({});
+  const [showProps, setShowProps] = useState(true);
+  const [tema, setTema] = useState("claro");
+  const [vista, setVista] = useState("grafico");   // grafico | resumo
+
+  const T = THEME[tema];
+  const chartRef = useRef(null);
+  const axisRef = useRef(null);
+  const fileRef = useRef(null);
+  const importTipo = useRef("plan");   // plan | real | falta
+  const drag = useRef(null);
+  const saveTimer = useRef(null);
+
+  function flash(m) { setStatus(m); setTimeout(() => setStatus(""), 2800); }
+
+  /* ─── persistência ────────────────────────────────────────── */
+  const listar = useCallback(async () => {
+    if (!window.storage) return;
+    try { const r = await window.storage.get("lob:index"); setSalvos(r ? JSON.parse(r.value) : []); }
+    catch { setSalvos([]); }
+  }, []);
+  useEffect(() => { listar(); }, [listar]);
+
+  const salvar = useCallback(async (p, silencioso = false) => {
+    if (!window.storage) { if (!silencioso) flash("Armazenamento indisponível"); return; }
+    try {
+      await window.storage.set(`lob:proj:${p.id}`, JSON.stringify(p));
+      let idx = [];
+      try { const r = await window.storage.get("lob:index"); idx = r ? JSON.parse(r.value) : []; } catch { idx = []; }
+      const novo = [{ id: p.id, nome: p.nome, em: Date.now() }, ...idx.filter((e) => e.id !== p.id)];
+      await window.storage.set("lob:index", JSON.stringify(novo));
+      setSalvos(novo);
+      if (!silencioso) flash("Empreendimento salvo");
+    } catch { if (!silencioso) flash("Não foi possível salvar"); }
+  }, []);
+
+  useEffect(() => {
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => salvar(proj, true), 1200);
+    return () => clearTimeout(saveTimer.current);
+  }, [proj, salvar]);
+
+  const abrir = async (id) => {
+    try {
+      const r = await window.storage.get(`lob:proj:${id}`);
+      if (r) { setProj(JSON.parse(r.value)); setSelId(null); setModal(null); flash("Empreendimento aberto"); }
+    } catch { flash("Empreendimento não encontrado"); }
+  };
+
+  /* ─── eixo Y ──────────────────────────────────────────────── */
+  const rows = useMemo(() => {
+    const out = [];
+    proj.torres.forEach((t) => {
+      if (filtroTorre !== "TODAS" && filtroTorre !== t.id) return;
+      if (collapsed[t.id]) return;
+      proj.locais.filter((l) => l.torreId === t.id).sort((a, b) => b.ordem - a.ordem).forEach((l) => out.push({ ...l, torre: t }));
+    });
+    return out;
+  }, [proj, filtroTorre, collapsed]);
+  const rowIdx = useMemo(() => { const m = {}; rows.forEach((r, i) => (m[r.id] = i)); return m; }, [rows]);
+
+  const grupos = useMemo(() => {
+    const g = [];
+    rows.forEach((r, i) => {
+      const last = g[g.length - 1];
+      if (last && last.torreId === r.torreId) last.fim = i;
+      else g.push({ torreId: r.torreId, nome: r.torre.nome, ini: i, fim: i });
+    });
+    return g;
+  }, [rows]);
+
+  /* ─── eixo X ──────────────────────────────────────────────── */
+  const [t0, t1] = useMemo(() => {
+    const ds = [];
+    proj.atividades.forEach((a) => {
+      ds.push(D(a.dataIni), D(a.dataFim));
+      if (a.realIni) ds.push(D(a.realIni)); if (a.realFim) ds.push(D(a.realFim));
+    });
+    proj.marcos.forEach((m) => ds.push(D(m.data)));
+    if (!ds.length) { const z = D(proj.dataZero); return [z, addDays(z, 180)]; }
+    return [addDays(new Date(Math.min(...ds.map(Number))), -12), addDays(new Date(Math.max(...ds.map(Number))), 16)];
+  }, [proj]);
+
+  const chartW = Math.round(Math.max(1, diffDays(t0, t1)) * pxPerDay);
+  const chartH = rows.length * rowH;
+  const xOf = useCallback((d) => diffDays(t0, d) * pxPerDay, [t0, pxPerDay]);   // não renomear: colide com <X/>
+  const yMid = useCallback((id) => (rowIdx[id] ?? 0) * rowH + rowH / 2, [rowIdx, rowH]);
+
+  const meses = useMemo(() => {
+    const out = [];
+    let cur = new Date(t0.getFullYear(), t0.getMonth(), 1);
+    while (cur <= t1) {
+      const prox = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+      const semanas = [];
+      [1, 8, 15, 22, 29].forEach((dia, i) => {
+        const d = new Date(cur.getFullYear(), cur.getMonth(), dia);
+        if (d < prox && d >= t0 && d <= t1) semanas.push({ d, n: i + 1 });
+      });
+      out.push({ ini: cur, fim: prox, label: `${MESES_ABR[cur.getMonth()]}/${String(cur.getFullYear()).slice(2)}`, semanas });
+      cur = prox;
+    }
+    return out;
+  }, [t0, t1]);
+
+  /* ─── métricas ────────────────────────────────────────────── */
+  const metrica = useCallback((a) => {
+    const i = rowIdx[a.locIniId], f = rowIdx[a.locFimId];
+    const nLoc = i == null || f == null ? 0 : Math.abs(f - i) + 1;
+    const dias = Math.max(1, diffDays(D(a.dataIni), D(a.dataFim)));
+    return { nLoc, dias, ritmoMes: (nLoc / dias) * DIAS_MES, diasPorPav: dias / Math.max(1, nLoc), meses: dias / DIAS_MES };
+  }, [rowIdx]);
+
+  /* ─── cruzamentos ─────────────────────────────────────────── */
+  const alertas = useMemo(() => {
+    const linhas = proj.atividades.filter((a) => a.modo === "LINHA" && a.visivel !== false && rowIdx[a.locIniId] != null && rowIdx[a.locFimId] != null);
+    const out = [];
+    for (let i = 0; i < linhas.length; i++) for (let j = i + 1; j < linhas.length; j++) {
+      const a = linhas[i], b = linhas[j];
+      if (a.torreId !== b.torreId) continue;
+      const p = segIntersect(
+        { x: diffDays(t0, D(a.dataIni)), y: rowIdx[a.locIniId] }, { x: diffDays(t0, D(a.dataFim)), y: rowIdx[a.locFimId] },
+        { x: diffDays(t0, D(b.dataIni)), y: rowIdx[b.locIniId] }, { x: diffDays(t0, D(b.dataFim)), y: rowIdx[b.locFimId] }
+      );
+      if (p) {
+        const r = rows[Math.round(p.y)];
+        out.push({ id: `${a.id}-${b.id}`, aId: a.id, bId: b.id, texto: `${a.nome} cruza ${b.nome}`, onde: r ? r.nome : "—", quando: fmtBR(addDays(t0, Math.round(p.x))), x: p.x * pxPerDay, y: p.y * rowH + rowH / 2 });
+      }
+    }
+    return out;
+  }, [proj.atividades, rowIdx, rows, t0, pxPerDay, rowH]);
+
+  /* ─── mutações ────────────────────────────────────────────── */
+  const upA = (id, patch) => setProj((p) => ({ ...p, atividades: p.atividades.map((a) => (a.id === id ? { ...a, ...patch } : a)) }));
+  const sel = proj.atividades.find((a) => a.id === selId) || null;
+  const torreAtiva = () => proj.torres.find((x) => x.id === filtroTorre) || proj.torres[0];
+
+  const novaAtividade = () => {
+    const t = torreAtiva();
+    const ls = proj.locais.filter((l) => l.torreId === t.id).sort((a, b) => a.ordem - b.ordem);
+    if (!ls.length) return flash("Crie pavimentos antes de criar atividades");
+    const base = D(proj.dataZero);
+    const a = { id: uid(), torreId: t.id, nome: "Nova atividade", cor: BLACK, modo: "LINHA", visivel: true, locIniId: ls[0].id, locFimId: ls[ls.length - 1].id, dataIni: iso(base), dataFim: iso(addDays(base, 90)), realIni: null, realFim: null };
+    setProj((p) => ({ ...p, atividades: [...p.atividades, a] }));
+    setSelId(a.id); setShowProps(true); setTab("atividades");
+  };
+  const duplicar = (a) => { const n = { ...a, id: uid(), nome: a.nome + " (cópia)" }; setProj((p) => ({ ...p, atividades: [...p.atividades, n] })); setSelId(n.id); };
+  const excluir = (id) => { setProj((p) => ({ ...p, atividades: p.atividades.filter((a) => a.id !== id) })); if (selId === id) setSelId(null); };
+
+  /* ─── importação (planejado / realizado / a executar) ─────── */
+  const abrirImport = (tipo) => { importTipo.current = tipo; setModal("importar"); };
+
+  const importarArquivo = async (file) => {
+    if (!file) return;
+    const t = torreAtiva();
+    const ls = proj.locais.filter((l) => l.torreId === t.id).sort((a, b) => a.ordem - b.ordem);
+    if (!ls.length) { setModal(null); return flash("Crie pavimentos antes de importar"); }
+    const tipo = importTipo.current;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const linhas = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+      let hi = -1, cA = -1, cI = -1, cF = -1;
+      for (let i = 0; i < Math.min(linhas.length, 20); i++) {
+        const cols = (linhas[i] || []).map(normalizar);
+        const a = cols.findIndex((c) => c.startsWith("atividade") || c === "servico" || c === "serviço");
+        const b = cols.findIndex((c) => c.startsWith("inicio"));
+        const f = cols.findIndex((c) => c.startsWith("fim") || c.startsWith("termino"));
+        if (a >= 0 && b >= 0 && f >= 0) { hi = i; cA = a; cI = b; cF = f; break; }
+      }
+      if (hi < 0) { setModal(null); return flash("Cabeçalho não encontrado. Use Atividade, Inicio e Fim."); }
+
+      const registros = [];
+      for (let i = hi + 1; i < linhas.length; i++) {
+        const r = linhas[i] || [];
+        const nome = String(r[cA] ?? "").trim();
+        if (!nome) continue;
+        const di = parseData(r[cI]), df = parseData(r[cF]);
+        if (!di || !df || df <= di) continue;
+        registros.push({ nome, di, df });
+      }
+      if (!registros.length) { setModal(null); return flash("Nenhuma linha válida na planilha"); }
+
+      if (tipo === "plan" || tipo === "falta") {
+        const novas = registros.map((r) => ({
+          id: uid(), torreId: t.id, nome: r.nome, cor: BLACK, modo: "LINHA", visivel: true,
+          locIniId: ls[0].id, locFimId: ls[ls.length - 1].id, dataIni: iso(r.di), dataFim: iso(r.df),
+          realIni: null, realFim: null,
+        }));
+        setProj((p) => ({ ...p, atividades: [...p.atividades, ...novas] }));
+        setModal(null); setFiltroTorre(t.id);
+        flash(`${novas.length} atividades ${tipo === "falta" ? "a executar " : ""}importadas para ${t.nome}`);
+      } else {
+        /* realizado: casa por nome com atividades existentes da torre */
+        const existentes = proj.atividades.filter((a) => a.torreId === t.id);
+        let casadas = 0; const upd = {};
+        registros.forEach((r) => {
+          const alvo = existentes.find((a) => normalizar(a.nome) === normalizar(r.nome));
+          if (alvo) { upd[alvo.id] = { realIni: iso(r.di), realFim: iso(r.df) }; casadas++; }
+        });
+        setProj((p) => ({ ...p, atividades: p.atividades.map((a) => (upd[a.id] ? { ...a, ...upd[a.id] } : a)) }));
+        setModal(null);
+        flash(casadas ? `Realizado importado · ${casadas} atividades casadas por nome` : "Nenhum nome coincidiu com as atividades da torre");
+      }
+    } catch { setModal(null); flash("Não foi possível ler o arquivo"); }
+  };
+
+  /* ─── arraste (corpo move; pontas mudam ritmo/escopo) ─────── */
+  const onDown = (e, a, modo) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setSelId(a.id);
+    drag.current = { id: a.id, modo, x0: e.clientX, y0: e.clientY, di: a.dataIni, df: a.dataFim, li: a.locIniId, lf: a.locFimId };
+  };
+  const onMove = (e) => {
+    const g = drag.current; if (!g) return;
+    const snap = snapWeek ? 7 : 1;
+    const dd = Math.round((e.clientX - g.x0) / pxPerDay / snap) * snap;
+    const dr = Math.round((e.clientY - g.y0) / rowH);
+    if (g.modo === "move") { upA(g.id, { dataIni: iso(addDays(D(g.di), dd)), dataFim: iso(addDays(D(g.df), dd)) }); return; }
+    const alvo = (locId) => {
+      const i = rowIdx[locId]; if (i == null) return locId;
+      const tw = rows[i].torreId; const k = Math.max(0, Math.min(rows.length - 1, i + dr));
+      return rows[k].torreId === tw ? rows[k].id : locId;
+    };
+    if (g.modo === "ini") {
+      const nd = addDays(D(g.di), dd); if (diffDays(nd, D(g.df)) < 1) return;
+      upA(g.id, { dataIni: iso(nd), locIniId: alvo(g.li) });
+    } else {
+      const nd = addDays(D(g.df), dd); if (diffDays(D(g.di), nd) < 1) return;
+      upA(g.id, { dataFim: iso(nd), locFimId: alvo(g.lf) });
+    }
+  };
+  const onUp = (e) => { if (drag.current) { try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {} } drag.current = null; };
+
+  /* ─── exportações (com nome escolhido) ────────────────────── */
+  const baixar = (nome, conteudo, tipo) => {
+    try {
+      const b = conteudo instanceof Blob ? conteudo : new Blob([conteudo], { type: tipo });
+      const u = URL.createObjectURL(b);
+      const a = document.createElement("a");
+      a.href = u;
+      a.download = nome;
+      a.rel = "noopener";
+      a.style.display = "none";
+      document.body.appendChild(a);        // precisa estar no DOM para o clique disparar
+      a.click();
+      setTimeout(() => {
+        try { document.body.removeChild(a); } catch {}
+        URL.revokeObjectURL(u);
+      }, 1500);
+      return true;
+    } catch {
+      // fallback: abre em nova aba caso o navegador bloqueie o download
+      try {
+        const b = conteudo instanceof Blob ? conteudo : new Blob([conteudo], { type: tipo });
+        const u = URL.createObjectURL(b);
+        const w = window.open(u, "_blank");
+        setTimeout(() => URL.revokeObjectURL(u), 4000);
+        if (!w) flash("Permita downloads/pop-ups para exportar");
+        return !!w;
+      } catch {
+        flash("Download bloqueado pelo navegador");
+        return false;
+      }
+    }
+  };
+
+  const buildSVG = () => {
+    const TOP = 46;
+    const W = LABEL_W + chartW, H = TOP + HEADER_H + chartH;
+    let labels = "";
+    grupos.forEach((g) => {
+      const y = g.ini * rowH, h = (g.fim - g.ini + 1) * rowH;
+      labels += `<rect x="0" y="${y}" width="${TOWER_STRIP}" height="${h}" fill="${T.strip}"/>`;
+      labels += `<text x="${TOWER_STRIP / 2}" y="${y + h / 2}" fill="${T.stripText}" font-family="${FONT}" font-size="11" font-weight="700" text-anchor="middle" transform="rotate(-90 ${TOWER_STRIP / 2} ${y + h / 2})">${g.nome}</text>`;
+    });
+    rows.forEach((r, i) => {
+      labels += `<rect x="${TOWER_STRIP}" y="${i * rowH}" width="${LABEL_W - TOWER_STRIP}" height="${rowH}" fill="${r.tipo === "TIPO" ? T.labelBg : T.labelBgAlt}" stroke="${T.row}" stroke-width="0.5"/>`;
+      labels += `<text x="${LABEL_W - 8}" y="${i * rowH + rowH / 2 + 3.5}" fill="${r.tipo === "TIPO" ? T.label : T.labelAlt}" font-family="${FONT}" font-size="9.5" text-anchor="end">${r.nome}</text>`;
+    });
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<rect width="${W}" height="${H}" fill="${T.surface}"/>
+<rect width="${W}" height="${TOP}" fill="${BLACK}"/>
+<text x="14" y="28" fill="#fff" font-family="${FONT}" font-size="15" font-weight="700" letter-spacing="1">UNITÀ · TEMPO × CAMINHO — ${proj.nome.toUpperCase()}</text>
+<rect x="${W-56}" y="14" width="42" height="18" fill="${ORANGE}"/>
+<text x="${W-35}" y="27" fill="#fff" font-family="${FONT}" font-size="10" font-weight="700" text-anchor="middle">UNITÀ</text>
+<g transform="translate(${LABEL_W},${TOP})">${axisRef.current ? axisRef.current.innerHTML : ""}</g>
+<g transform="translate(0,${TOP + HEADER_H})">${labels}</g>
+<g transform="translate(${LABEL_W},${TOP + HEADER_H})">${chartRef.current ? chartRef.current.innerHTML : ""}</g>
+</svg>`;
+  };
+
+  const doExport = (formato, nomeBase) => {
+    const nome = (nomeBase || proj.nome || "tempo-x-caminho").replace(/[\/\\:*?"<>|]/g, "-");
+    if ((formato === "svg" || formato === "png") && !chartRef.current) {
+      flash("Abra a aba Gráfico para exportar a imagem");
+      return;
+    }
+    if (formato === "svg") { baixar(`${nome}.svg`, buildSVG(), "image/svg+xml"); flash("SVG exportado"); return; }
+    if (formato === "csv") {
+      const linhas = ["empreendimento;torre;pavimento;atividade;modo;inicio_plan;fim_plan;ritmo_pav_mes"];
+      proj.atividades.forEach((a) => {
+        const t = proj.torres.find((x) => x.id === a.torreId);
+        const i = rowIdx[a.locIniId], f = rowIdx[a.locFimId]; if (i == null || f == null) return;
+        const m = metrica(a); const lo = Math.min(i, f), hi = Math.max(i, f);
+        const di = D(a.dataIni), df = D(a.dataFim), total = diffDays(di, df);
+        for (let u = lo; u <= hi; u++) {
+          let ii, ff;
+          if (a.modo === "BLOCO" || hi === lo) { ii = di; ff = df; }
+          else { const p = (u - i) / (f - i), pn = (u + Math.sign(f - i) - i) / (f - i); ii = addDays(di, Math.round(p * total)); ff = addDays(di, Math.round(Math.min(1, Math.max(0, pn)) * total)); if (diffDays(ii, ff) <= 0) ff = addDays(ii, 1); }
+          linhas.push(`${proj.nome};${t ? t.nome : ""};${rows[u].nome};${a.nome};${a.modo};${fmtBR(ii)};${fmtBR(ff)};${a.modo === "BLOCO" ? "" : m.ritmoMes.toFixed(2)}`);
+        }
+      });
+      baixar(`${nome}.csv`, "\uFEFF" + linhas.join("\n"), "text/csv;charset=utf-8"); flash("CSV exportado"); return;
+    }
+    // png
+    const svg = buildSVG(); const img = new Image();
+    img.onload = () => {
+      const s = 2, cv = document.createElement("canvas");
+      cv.width = img.width * s; cv.height = img.height * s;
+      const ctx = cv.getContext("2d");
+      ctx.fillStyle = T.surface; ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.scale(s, s); ctx.drawImage(img, 0, 0);
+      cv.toBlob((b) => { if (b) { baixar(`${nome}.png`, b, "image/png"); flash("PNG exportado"); } else flash("Falha ao gerar PNG"); }, "image/png");
+    };
+    img.onerror = () => flash("Falha ao gerar PNG");
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
+  };
+
+  /* ─── estrutura ───────────────────────────────────────────── */
+  const gerarPavimentos = (torreId, { subsolos, tipo, cobertura, tampa }) => {
+    const ls = []; let o = 0;
+    for (let i = subsolos; i >= 1; i--) ls.push({ id: uid(), torreId, nome: `${i}º Subsolo`, tipo: "SUBSOLO", ordem: o++ });
+    ls.push({ id: uid(), torreId, nome: "Térreo", tipo: "TERREO", ordem: o++ });
+    for (let i = 1; i <= tipo; i++) ls.push({ id: uid(), torreId, nome: `${i}º Pavimento`, tipo: "TIPO", ordem: o++ });
+    if (cobertura) ls.push({ id: uid(), torreId, nome: "Cobertura", tipo: "COBERTURA", ordem: o++ });
+    if (tampa) ls.push({ id: uid(), torreId, nome: "Tampa cobertura", tipo: "TECNICO", ordem: o++ });
+    setProj((p) => ({ ...p, locais: [...p.locais.filter((l) => l.torreId !== torreId), ...ls], atividades: p.atividades.filter((a) => a.torreId !== torreId) }));
+    setModal(null); flash(`${ls.length} pavimentos gerados`);
+  };
+  const replicarTorre = (origemId, offset) => {
+    const orig = proj.torres.find((t) => t.id === origemId);
+    const novaId = uid(); const mapa = {};
+    const nLocais = proj.locais.filter((l) => l.torreId === origemId).map((l) => { const id = uid(); mapa[l.id] = id; return { ...l, id, torreId: novaId }; });
+    const nAtivs = proj.atividades.filter((a) => a.torreId === origemId).map((a) => ({ ...a, id: uid(), torreId: novaId, locIniId: mapa[a.locIniId], locFimId: mapa[a.locFimId], dataIni: iso(addDays(D(a.dataIni), offset)), dataFim: iso(addDays(D(a.dataFim), offset)), realIni: null, realFim: null }));
+    const nome = `Torre ${proj.torres.length + 1}`;
+    setProj((p) => ({ ...p, torres: [...p.torres, { id: novaId, nome, offsetDias: offset, origem: origemId }], locais: [...p.locais, ...nLocais], atividades: [...p.atividades, ...nAtivs] }));
+    setModal(null); flash(`${nome} replicada de ${orig.nome} · defasagem ${offset} dias`);
+  };
+  const excluirTorre = (id) => {
+    if (proj.torres.length <= 1) return flash("O empreendimento precisa de ao menos uma torre");
+    setProj((p) => ({ ...p, torres: p.torres.filter((t) => t.id !== id), locais: p.locais.filter((l) => l.torreId !== id), atividades: p.atividades.filter((a) => a.torreId !== id) }));
+    if (filtroTorre === id) setFiltroTorre("TODAS");
+  };
+
+  const ativVisiveis = proj.atividades.filter((a) => a.visivel !== false && rowIdx[a.locIniId] != null && rowIdx[a.locFimId] != null);
+
+  /* pavimento onde a atividade está hoje (interpolação sobre o planejado) */
+  const pavimentoHoje = useCallback((a) => {
+    const i = rowIdx[a.locIniId], f = rowIdx[a.locFimId];
+    if (i == null || f == null) return null;
+    const di = D(a.dataIni), df = D(a.dataFim), h = hoje();
+    if (h <= di) return { estado: "não iniciada", loc: null };
+    if (h >= df) return { estado: "concluída", loc: null };
+    const p = diffDays(di, h) / Math.max(1, diffDays(di, df));
+    const idxLoc = Math.round(i + p * (f - i));
+    const r = rows[idxLoc];
+    return { estado: "em execução", loc: r ? r.nome : null };
+  }, [rowIdx, rows]);
+
+  /* ═══════════════ render ═══════════════ */
+  return (
+    <div className="w-full h-screen flex flex-col" style={{ background: T.bg, fontFamily: FONT, color: T.text }}>
+
+      <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
+        onChange={(e) => { importarArquivo(e.target.files?.[0]); e.target.value = ""; }} />
+
+      {/* ── barra superior ── */}
+      <header className="flex items-center gap-3 px-4 h-14 shrink-0" style={{ background: BLACK, color: "#fff" }}>
+        <div className="flex items-center gap-3 pr-4" style={{ borderRight: "1px solid rgba(255,255,255,0.14)" }}>
+          <LogoUnita ink="#fff" height={22} />
+          <span className="text-xs" style={{ letterSpacing: 2, fontWeight: 500, color: "rgba(255,255,255,0.72)" }}>TEMPO × CAMINHO</span>
+        </div>
+
+        <input value={proj.nome} onChange={(e) => setProj((p) => ({ ...p, nome: e.target.value }))}
+          className="bg-transparent text-sm outline-none px-2 py-1"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.18)", width: 160, fontWeight: 500, color: "#fff" }} />
+
+        {/* alternância gráfico / resumo */}
+        <div className="flex" style={{ border: "1px solid rgba(255,255,255,0.14)" }}>
+          {[["grafico", "Gráfico"], ["resumo", "Resumo"]].map(([k, l]) => (
+            <button key={k} onClick={() => setVista(k)} className="text-xs px-3 py-1.5"
+              style={{ background: vista === k ? ORANGE : "transparent", color: "#fff", fontWeight: vista === k ? 700 : 400 }}>{l}</button>
+          ))}
+        </div>
+
+        {vista === "grafico" && (
+          <select value={filtroTorre} onChange={(e) => setFiltroTorre(e.target.value)} className="text-xs px-2 py-1.5 outline-none"
+            style={{ background: "rgba(255,255,255,0.07)", color: "#fff", border: "1px solid rgba(255,255,255,0.14)" }}>
+            <option value="TODAS" style={{ color: "#000" }}>Todas as torres</option>
+            {proj.torres.map((t) => <option key={t.id} value={t.id} style={{ color: "#000" }}>{t.nome}</option>)}
+          </select>
+        )}
+
+        <div className="flex items-center ml-auto gap-1">
+          <IconBtn onClick={() => setTema((t) => (t === "claro" ? "escuro" : "claro"))} title="Alternar tema">
+            {tema === "claro" ? <Moon size={15} /> : <Sun size={15} />}
+          </IconBtn>
+          {vista === "grafico" && (
+            <>
+              <div className="w-px h-5 mx-1" style={{ background: "rgba(255,255,255,0.14)" }} />
+              <IconBtn onClick={() => setPxPerDay((z) => Math.max(1.2, z / 1.3))} title="Reduzir zoom"><ZoomOut size={15} /></IconBtn>
+              <span className="text-xs px-1 w-12 text-center" style={{ ...NUM, color: "rgba(255,255,255,0.5)" }}>{Math.round(pxPerDay * 30)}%</span>
+              <IconBtn onClick={() => setPxPerDay((z) => Math.min(14, z * 1.3))} title="Ampliar zoom"><ZoomIn size={15} /></IconBtn>
+              <IconBtn onClick={() => setPxPerDay(3.4)} title="Ajustar"><Maximize2 size={15} /></IconBtn>
+            </>
+          )}
+          <div className="w-px h-5 mx-1" style={{ background: "rgba(255,255,255,0.14)" }} />
+          <IconBtn onClick={() => setModal("abrir")} title="Abrir"><FolderOpen size={15} /></IconBtn>
+          <IconBtn onClick={() => salvar(proj)} title="Salvar"><Save size={15} /></IconBtn>
+          <div className="w-px h-5 mx-1" style={{ background: "rgba(255,255,255,0.14)" }} />
+          <button onClick={() => setModal("importmenu")} className="text-xs px-2.5 py-1.5 flex items-center gap-1.5"
+            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)", color: "#fff" }}>
+            <Upload size={13} /> Importar
+          </button>
+          <button onClick={() => setModal("exportar")} className="text-xs px-2.5 py-1.5 flex items-center gap-1.5"
+            style={{ background: ORANGE, color: "#fff", fontWeight: 700 }}><Download size={13} /> Exportar</button>
+        </div>
+      </header>
+
+      {vista === "resumo" ? (
+        <Resumo T={T} proj={proj} metrica={metrica} pavimentoHoje={pavimentoHoje} rowIdx={rowIdx} onVoltar={() => setVista("grafico")} onSelect={(id) => { setSelId(id); setVista("grafico"); setShowProps(true); }} />
+      ) : (
+        <div className="flex-1 flex min-h-0">
+
+          {/* ── painel esquerdo ── */}
+          <aside className="w-64 shrink-0 flex flex-col" style={{ background: T.panel, borderRight: `1px solid ${T.line}` }}>
+            <div className="flex shrink-0" style={{ borderBottom: `1px solid ${T.line}` }}>
+              {[["atividades", "Atividades", Layers], ["estrutura", "Estrutura", Building2]].map(([k, l, Ic]) => (
+                <button key={k} onClick={() => setTab(k)} className="flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5"
+                  style={{ color: tab === k ? T.text : T.dim, background: tab === k ? T.panel : T.raised, borderBottom: tab === k ? `2px solid ${ORANGE}` : "2px solid transparent", fontWeight: 500 }}>
+                  <Ic size={13} />{l}</button>
+              ))}
+            </div>
+
+            {tab === "atividades" ? (
+              <>
+                <div className="px-3 pt-3 pb-1 flex gap-1.5">
+                  <button onClick={novaAtividade} className="flex-1 py-2 text-xs flex items-center justify-center gap-1.5" style={{ background: ORANGE, color: "#fff", fontWeight: 700 }}>
+                    <Plus size={13} /> Nova atividade
+                  </button>
+                  <button onClick={() => setModal("importmenu")} title="Importar planilha" className="px-2.5" style={{ border: `1px solid ${T.line}`, background: T.raised, color: T.muted }}>
+                    <FileSpreadsheet size={14} />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-1.5 py-2">
+                  {proj.torres.map((t) => {
+                    if (filtroTorre !== "TODAS" && filtroTorre !== t.id) return null;
+                    const as = proj.atividades.filter((a) => a.torreId === t.id);
+                    return (
+                      <div key={t.id} className="mb-2">
+                        <div className="px-2 py-1 text-xs flex items-center gap-1.5" style={{ ...NUM, color: T.dim, letterSpacing: 0.5 }}>
+                          <span>{t.nome}</span><span>·</span><span>{as.length}</span>
+                        </div>
+                        {as.map((a) => {
+                          const m = metrica(a);
+                          const alerta = alertas.some((x) => x.aId === a.id || x.bId === a.id);
+                          const on = selId === a.id;
+                          return (
+                            <div key={a.id} onClick={() => { setSelId(a.id); setShowProps(true); }} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
+                              style={{ background: on ? T.hover : "transparent", borderLeft: `2px solid ${on ? ORANGE : "transparent"}` }}>
+                              <button onClick={(e) => { e.stopPropagation(); upA(a.id, { visivel: a.visivel === false }); }} className="shrink-0"
+                                style={{ width: 10, height: 10, background: a.visivel === false ? "transparent" : a.cor, border: `1.5px solid ${a.cor}` }} />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs truncate flex items-center gap-1" style={{ color: a.visivel === false ? T.dim : T.text }}>
+                                  {a.nome}
+                                  {a.realIni && <span style={{ width: 5, height: 5, borderRadius: 5, background: ERRO, display: "inline-block" }} title="tem realizado" />}
+                                </div>
+                                <div style={{ ...NUM, fontSize: 10, color: T.dim }}>{a.modo === "BLOCO" ? `bloco · ${m.meses.toFixed(1)} mês` : `${m.ritmoMes.toFixed(1)} pav/mês`}</div>
+                              </div>
+                              {alerta && <AlertTriangle size={12} style={{ color: ERRO }} />}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 overflow-y-auto p-3">
+                <button onClick={() => setModal("replicar")} className="w-full py-2 mb-2 text-xs flex items-center justify-center gap-1.5" style={{ background: ORANGE, color: "#fff", fontWeight: 700 }}>
+                  <Copy size={13} /> Replicar torre com defasagem
+                </button>
+                {proj.torres.map((t) => {
+                  const n = proj.locais.filter((l) => l.torreId === t.id).length;
+                  return (
+                    <div key={t.id} className="mb-2 p-2.5" style={{ border: `1px solid ${T.line}`, background: T.raised }}>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setCollapsed((c) => ({ ...c, [t.id]: !c[t.id] }))} style={{ color: T.muted }}>
+                          {collapsed[t.id] ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                        </button>
+                        <input value={t.nome} onChange={(e) => setProj((p) => ({ ...p, torres: p.torres.map((x) => x.id === t.id ? { ...x, nome: e.target.value } : x) }))}
+                          className="flex-1 text-xs bg-transparent outline-none" style={{ fontWeight: 700, color: T.text }} />
+                        <button onClick={() => excluirTorre(t.id)}><Trash2 size={12} style={{ color: T.dim }} /></button>
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between" style={{ ...NUM, fontSize: 10, color: T.dim }}>
+                        <span>{n} pavimentos</span>{t.origem && <span style={{ color: ORANGE }}>+{t.offsetDias}d</span>}
+                      </div>
+                      <button onClick={() => setModal({ tipo: "gerar", torreId: t.id })} className="mt-2 w-full py-1.5 text-xs flex items-center justify-center gap-1.5"
+                        style={{ border: `1px solid ${T.line}`, background: T.panel, color: T.text }}><Wand2 size={12} /> Gerar pavimentos</button>
+                    </div>
+                  );
+                })}
+                <button onClick={() => setProj((p) => ({ ...p, torres: [...p.torres, { id: uid(), nome: `Torre ${p.torres.length + 1}`, offsetDias: 0, origem: null }] }))}
+                  className="w-full py-2 text-xs flex items-center justify-center gap-1.5" style={{ border: `1px dashed ${T.line}`, color: T.muted }}>
+                  <Plus size={13} /> Adicionar torre vazia
+                </button>
+              </div>
+            )}
+          </aside>
+
+          {/* ── gráfico ── */}
+          <main className="flex-1 min-w-0 flex flex-col" style={{ background: T.bg }}>
+            <div className="flex-1 overflow-auto" onClick={() => setSelId(null)}>
+              <div style={{ width: LABEL_W + chartW, position: "relative" }}>
+
+                <div className="flex sticky top-0" style={{ zIndex: 20 }}>
+                  <div className="sticky left-0 flex items-center px-3" style={{ width: LABEL_W, height: HEADER_H, background: BLACK, zIndex: 30, gap: 8 }}>
+                    <LogoUnita ink="#fff" height={16} />
+                    <div className="flex flex-col">
+                      <span style={{ fontSize: 9, letterSpacing: 1.5, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>CAMINHO</span>
+                      <span style={{ ...NUM, fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{rows.length} locais</span>
+                    </div>
+                  </div>
+                  <svg ref={axisRef} width={chartW} height={HEADER_H} style={{ display: "block" }}>
+                    <rect x={0} y={0} width={chartW} height={HEADER_H} fill={BLACK} />
+                    {meses.map((m, i) => {
+                      const x0 = Math.max(0, xOf(m.ini)), x1 = Math.min(chartW, xOf(m.fim));
+                      return (
+                        <g key={i}>
+                          <rect x={x0} y={0} width={Math.max(0, x1 - x0)} height={24} fill={i % 2 ? "rgba(255,255,255,0.05)" : "transparent"} />
+                          {x1 - x0 > 34 && <text x={(x0 + x1) / 2} y={16} fill="#fff" fontFamily={FONT} fontSize={11} fontWeight="500" textAnchor="middle" letterSpacing="1">{m.label}</text>}
+                          <line x1={x0} y1={0} x2={x0} y2={HEADER_H} stroke="rgba(255,255,255,0.28)" strokeWidth={1} />
+                          {m.semanas.map((s, j) => { const sx = xOf(s.d); return (<g key={j}><line x1={sx} y1={24} x2={sx} y2={HEADER_H} stroke="rgba(255,255,255,0.1)" strokeWidth={0.6} />{pxPerDay > 2 && <text x={sx + 3.5 * pxPerDay} y={39} fill="rgba(255,255,255,0.45)" fontFamily={FONT} fontSize={8.5} textAnchor="middle">{s.n}</text>}</g>); })}
+                        </g>
+                      );
+                    })}
+                    <line x1={0} y1={24} x2={chartW} y2={24} stroke="rgba(255,255,255,0.22)" strokeWidth={0.6} />
+                    {proj.marcos.map((mk) => <rect key={mk.id} x={xOf(D(mk.data)) - 2} y={26} width={4} height={20} fill={mk.cor} />)}
+                  </svg>
+                </div>
+
+                <div className="flex">
+                  <div className="sticky left-0" style={{ width: LABEL_W, zIndex: 10, background: T.labelBg, borderRight: `1px solid ${T.line}` }}>
+                    {grupos.map((g) => (
+                      <div key={g.torreId} className="flex" style={{ height: (g.fim - g.ini + 1) * rowH }}>
+                        <div className="flex items-center justify-center" style={{ width: TOWER_STRIP, background: T.strip }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: T.stripText, writingMode: "vertical-rl", transform: "rotate(180deg)", letterSpacing: 2 }}>{g.nome}</span>
+                        </div>
+                        <div className="flex-1">
+                          {rows.slice(g.ini, g.fim + 1).map((r) => (
+                            <div key={r.id} className="flex items-center justify-end pr-2" style={{ height: rowH, borderBottom: `0.5px solid ${T.row}`, background: r.tipo === "TIPO" ? T.labelBg : T.labelBgAlt }}>
+                              <span style={{ ...NUM, fontSize: Math.min(10, rowH * 0.44), color: r.tipo === "TIPO" ? T.label : T.labelAlt }}>{r.nome}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <svg ref={chartRef} width={chartW} height={chartH} style={{ display: "block", background: T.surface }} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
+                    {rows.map((r, i) => (<rect key={r.id} x={0} y={i * rowH} width={chartW} height={rowH} fill={r.tipo === "TIPO" ? T.surface : T.band} />))}
+                    {meses.map((m, i) => (<g key={i}>{m.semanas.map((s, j) => <line key={j} x1={xOf(s.d)} y1={0} x2={xOf(s.d)} y2={chartH} stroke={T.grid} strokeWidth={0.5} />)}<line x1={xOf(m.ini)} y1={0} x2={xOf(m.ini)} y2={chartH} stroke={T.gridMes} strokeWidth={0.8} /></g>))}
+                    {rows.map((r, i) => <line key={r.id} x1={0} y1={(i + 1) * rowH} x2={chartW} y2={(i + 1) * rowH} stroke={T.row} strokeWidth={0.5} />)}
+                    {grupos.map((g) => <line key={g.torreId} x1={0} y1={g.ini * rowH} x2={chartW} y2={g.ini * rowH} stroke={T.gridMes} strokeWidth={1.2} />)}
+                    {proj.marcos.map((mk) => <line key={mk.id} x1={xOf(D(mk.data))} y1={0} x2={xOf(D(mk.data))} y2={chartH} stroke={mk.cor} strokeWidth={1.4} strokeDasharray="5 3" opacity={0.8} />)}
+
+                    {/* blocos */}
+                    {ativVisiveis.filter((a) => a.modo === "BLOCO").map((a) => {
+                      const i = rowIdx[a.locIniId], f = rowIdx[a.locFimId];
+                      const y = Math.min(i, f) * rowH, h = (Math.abs(f - i) + 1) * rowH;
+                      const x = xOf(D(a.dataIni)), w = Math.max(3, xOf(D(a.dataFim)) - x);
+                      const on = selId === a.id; const cabe = w > a.nome.length * 5.4; const tc = contraste(a.cor);
+                      return (
+                        <g key={a.id} style={{ cursor: "grab" }} onPointerDown={(e) => onDown(e, a, "move")} onPointerMove={onMove} onPointerUp={onUp}>
+                          {on && <rect x={x - 2.5} y={y - 0.5} width={w + 5} height={h - 1} fill="none" stroke={ORANGE} strokeWidth={2} />}
+                          <rect x={x} y={y + 2} width={w} height={h - 4} fill={a.cor} fillOpacity={0.92} stroke={a.cor} strokeWidth={0.5} />
+                          {cabe ? <text x={x + w / 2} y={y + h / 2 + 3.5} fill={tc} fontFamily={FONT} fontSize={Math.min(10.5, h * 0.5)} fontWeight="700" textAnchor="middle">{a.nome}</text>
+                                : <text x={x + w / 2} y={y + h / 2} fill={tc} fontFamily={FONT} fontSize={9} fontWeight="700" textAnchor="middle" transform={`rotate(-90 ${x + w / 2} ${y + h / 2})`}>{a.nome}</text>}
+                          {on && [["ini", x], ["fim", x + w]].map(([k, hx]) => (<rect key={k} x={hx - 3} y={y + h / 2 - 6} width={6} height={12} fill={ORANGE} style={{ cursor: "ew-resize" }} onPointerDown={(e) => onDown(e, a, k)} onPointerMove={onMove} onPointerUp={onUp} />))}
+                        </g>
+                      );
+                    })}
+
+                    {/* linha realizada (tracejada, vermelha) */}
+                    {ativVisiveis.filter((a) => a.modo === "LINHA" && a.realIni && a.realFim).map((a) => {
+                      const x1 = xOf(D(a.realIni)), y1 = yMid(a.locIniId), x2 = xOf(D(a.realFim)), y2 = yMid(a.locFimId);
+                      return <line key={"r" + a.id} x1={x1} y1={y1} x2={x2} y2={y2} stroke={ERRO} strokeWidth={2} strokeDasharray="6 4" pointerEvents="none" />;
+                    })}
+
+                    {/* linhas planejadas */}
+                    {ativVisiveis.filter((a) => a.modo === "LINHA").map((a) => {
+                      const x1 = xOf(D(a.dataIni)), y1 = yMid(a.locIniId), x2 = xOf(D(a.dataFim)), y2 = yMid(a.locFimId);
+                      const on = selId === a.id; const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                      const mx = x1 + (x2 - x1) * 0.5, my = y1 + (y2 - y1) * 0.5 - 5;
+                      return (
+                        <g key={a.id}>
+                          <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={12} style={{ cursor: "grab" }} onPointerDown={(e) => onDown(e, a, "move")} onPointerMove={onMove} onPointerUp={onUp} />
+                          {on && <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={ORANGE} strokeWidth={6} opacity={0.28} pointerEvents="none" />}
+                          <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={a.cor} strokeWidth={on ? 2.6 : 1.8} pointerEvents="none" />
+                          {pxPerDay > 2.2 && <text x={mx} y={my} fill={a.cor} fontFamily={FONT} fontSize={9.5} fontWeight="500" textAnchor="middle" pointerEvents="none" transform={`rotate(${ang} ${mx} ${my})`}>{a.nome}</text>}
+                          {on && (
+                            <>
+                              {/* ponta inicial: muda início/ritmo */}
+                              <circle cx={x1} cy={y1} r={5} fill={T.surface} stroke={ORANGE} strokeWidth={2} style={{ cursor: "ns-resize" }} onPointerDown={(e) => onDown(e, a, "ini")} onPointerMove={onMove} onPointerUp={onUp} />
+                              {/* ponta final (topo da linha): muda velocidade — arraste horizontal */}
+                              <circle cx={x2} cy={y2} r={6} fill={ORANGE} stroke={T.surface} strokeWidth={2} style={{ cursor: "ew-resize" }} onPointerDown={(e) => onDown(e, a, "fim")} onPointerMove={onMove} onPointerUp={onUp} />
+                              <title>Arraste a ponta do topo para acelerar ou desacelerar a atividade</title>
+                            </>
+                          )}
+                        </g>
+                      );
+                    })}
+
+                    {alertas.map((al) => (
+                      <g key={al.id} pointerEvents="none">
+                        <circle cx={al.x} cy={al.y} r={7.5} fill={T.surface} stroke={ERRO} strokeWidth={1.8} />
+                        <path d={`M${al.x - 3},${al.y - 3} L${al.x + 3},${al.y + 3} M${al.x + 3},${al.y - 3} L${al.x - 3},${al.y + 3}`} stroke={ERRO} strokeWidth={1.8} />
+                      </g>
+                    ))}
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-3 px-4 h-9 overflow-x-auto" style={{ background: T.panel, borderTop: `1px solid ${T.line}` }}>
+              {alertas.length === 0 ? (
+                <span className="text-xs flex items-center gap-1.5" style={{ color: T.muted }}><Check size={13} style={{ color: OK }} /> Nenhum cruzamento de linhas detectado</span>
+              ) : (
+                <>
+                  <span className="text-xs flex items-center gap-1.5 shrink-0" style={{ color: ERRO, fontWeight: 700 }}><AlertTriangle size={13} /> {alertas.length} conflito{alertas.length > 1 ? "s" : ""}</span>
+                  {alertas.slice(0, 4).map((al) => (
+                    <button key={al.id} onClick={() => { setSelId(al.aId); setShowProps(true); }} className="text-xs whitespace-nowrap px-2 py-0.5 shrink-0"
+                      style={{ ...NUM, fontSize: 10.5, color: T.text, background: T.raised, border: `1px solid ${T.line}` }}>{al.texto} · {al.onde} · {al.quando}</button>
+                  ))}
+                </>
+              )}
+              <span className="ml-auto text-xs shrink-0 flex items-center gap-3">
+                <span className="flex items-center gap-1" style={{ color: T.dim, fontSize: 10.5 }}><span style={{ width: 14, height: 0, borderTop: `2px dashed ${ERRO}`, display: "inline-block" }} /> realizado</span>
+                {status && <span style={{ color: ORANGE, fontWeight: 500 }}>{status}</span>}
+              </span>
+            </div>
+          </main>
+
+          {/* ── propriedades ── */}
+          {!showProps ? (
+            <button onClick={() => setShowProps(true)} title="Abrir propriedades" className="w-9 shrink-0 flex items-start justify-center pt-4" style={{ background: T.panel, borderLeft: `1px solid ${T.line}`, color: T.muted }}>
+              <PanelRightOpen size={16} />
+            </button>
+          ) : (
+            <aside className="w-72 shrink-0 overflow-y-auto relative" style={{ background: T.panel, borderLeft: `1px solid ${T.line}` }}>
+              <button onClick={() => setShowProps(false)} title="Fechar painel" className="absolute top-3 right-3 p-1" style={{ color: T.dim, zIndex: 5, lineHeight: 0 }}><X size={15} /></button>
+              {!sel ? (
+                <div className="p-5 pt-12">
+                  <div className="text-xs leading-relaxed" style={{ color: T.muted }}>Selecione uma atividade no gráfico ou na lista para editar suas propriedades.</div>
+                  <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${T.line}` }}>
+                    <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: T.dim, fontWeight: 700, marginBottom: 10 }}>ATALHOS DE ARRASTE</div>
+                    {[["arrastar corpo", "move no tempo"], ["ponta laranja (topo)", "muda a velocidade"], ["ponta inicial", "muda início / escopo"]].map(([a, b]) => (
+                      <div key={a} className="flex justify-between items-baseline py-1" style={{ fontSize: 10.5 }}><span style={{ color: T.text }}>{a}</span><span style={{ color: T.dim }}>{b}</span></div>
+                    ))}
+                  </div>
+                </div>
+              ) : (() => {
+                const m = metrica(sel);
+                const locais = proj.locais.filter((l) => l.torreId === sel.torreId).sort((a, b) => a.ordem - b.ordem);
+                const alertasSel = alertas.filter((x) => x.aId === sel.id || x.bId === sel.id);
+                return (
+                  <div className="p-4">
+                    <div className="flex items-start gap-2 mb-4 pr-6"><div className="w-1 self-stretch" style={{ background: sel.cor }} /><input value={sel.nome} onChange={(e) => upA(sel.id, { nome: e.target.value })} className="flex-1 text-sm bg-transparent outline-none py-0.5" style={{ fontWeight: 700, color: T.text }} /></div>
+                    <Campo T={T} label="Cor">
+                      <div className="grid grid-cols-6 gap-1">{PALETTE.map((c) => (<button key={c} onClick={() => upA(sel.id, { cor: c })} style={{ background: c, height: 20, border: `1px solid ${T.line}`, outline: sel.cor === c ? `2px solid ${ORANGE}` : "none", outlineOffset: 1 }} />))}</div>
+                    </Campo>
+                    <Campo T={T} label="Modo de desenho">
+                      <div className="flex">{["LINHA", "BLOCO"].map((mm) => (<button key={mm} onClick={() => upA(sel.id, { modo: mm })} className="flex-1 py-1.5 text-xs" style={{ background: sel.modo === mm ? ORANGE : T.raised, color: sel.modo === mm ? "#fff" : T.muted, border: `1px solid ${sel.modo === mm ? ORANGE : T.line}`, fontWeight: sel.modo === mm ? 700 : 400 }}>{mm.toLowerCase()}</button>))}</div>
+                    </Campo>
+                    <Campo T={T} label="Escopo de pavimentos"><div className="grid grid-cols-2 gap-1.5"><Sel T={T} value={sel.locIniId} onChange={(v) => upA(sel.id, { locIniId: v })} opts={locais} /><Sel T={T} value={sel.locFimId} onChange={(v) => upA(sel.id, { locFimId: v })} opts={locais} /></div></Campo>
+                    <Campo T={T} label="Datas planejadas"><div className="grid grid-cols-2 gap-1.5">{["dataIni", "dataFim"].map((k) => (<input key={k} type="date" value={sel[k]} onChange={(e) => upA(sel.id, { [k]: e.target.value })} className="text-xs px-1.5 py-1.5 outline-none" style={{ ...NUM, border: `1px solid ${T.line}`, background: T.input, color: T.text, colorScheme: T.scheme }} />))}</div></Campo>
+
+                    <div className="mt-4 p-3" style={{ background: T.raised, border: `1px solid ${T.line}` }}>
+                      <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: T.dim, fontWeight: 700, marginBottom: 8 }}>CALCULADO</div>
+                      <Metr T={T} k="Velocidade" v={sel.modo === "BLOCO" ? "—" : `${m.ritmoMes.toFixed(2)} pav/mês`} destaque />
+                      <Metr T={T} k="Dias por pavimento" v={sel.modo === "BLOCO" ? "—" : m.diasPorPav.toFixed(1)} />
+                      <Metr T={T} k="Pavimentos no escopo" v={m.nLoc} />
+                      <Metr T={T} k="Duração" v={`${m.meses.toFixed(1)} mês · ${m.dias} dias`} />
+                    </div>
+
+                    {sel.realIni && (
+                      <div className="mt-3 p-3" style={{ background: "rgba(214,69,69,0.07)", border: `1px solid rgba(214,69,69,0.3)` }}>
+                        <div className="text-xs flex items-center gap-1.5 mb-1" style={{ color: ERRO, fontWeight: 700 }}><TrendingUp size={12} /> Realizado</div>
+                        <div style={{ ...NUM, fontSize: 10.5, color: T.text }}>{fmtBR(D(sel.realIni))} → {fmtBR(D(sel.realFim))}</div>
+                        <button onClick={() => upA(sel.id, { realIni: null, realFim: null })} className="mt-1.5 text-xs" style={{ color: T.muted, textDecoration: "underline" }}>remover realizado</button>
+                      </div>
+                    )}
+
+                    {alertasSel.length > 0 && (
+                      <div className="mt-3 p-3" style={{ background: "rgba(214,69,69,0.08)", border: `1px solid rgba(214,69,69,0.35)` }}>
+                        <div className="text-xs flex items-center gap-1.5 mb-2" style={{ color: ERRO, fontWeight: 700 }}><AlertTriangle size={12} /> {alertasSel.length} cruzamento{alertasSel.length > 1 ? "s" : ""}</div>
+                        {alertasSel.map((al) => (<div key={al.id} className="mb-1.5" style={{ fontSize: 10.5, color: T.text, lineHeight: 1.45 }}>{al.texto}<br /><span style={{ ...NUM, color: T.muted }}>{al.onde} · {al.quando}</span></div>))}
+                      </div>
+                    )}
+
+                    <div className="flex gap-1.5 mt-4">
+                      <button onClick={() => duplicar(sel)} className="flex-1 py-2 text-xs flex items-center justify-center gap-1.5" style={{ border: `1px solid ${T.line}`, color: T.text, background: T.raised }}><Copy size={12} /> Duplicar</button>
+                      <button onClick={() => excluir(sel.id)} className="flex-1 py-2 text-xs flex items-center justify-center gap-1.5" style={{ border: `1px solid ${T.line}`, color: ERRO, background: T.raised }}><Trash2 size={12} /> Excluir</button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </aside>
+          )}
+        </div>
+      )}
+
+      {/* ── modais ── */}
+      {modal === "importmenu" && (
+        <Modal T={T} titulo="Importar planilha" onClose={() => setModal(null)}>
+          <p className="text-xs mb-4" style={{ color: T.muted, lineHeight: 1.6 }}>Escolha o que importar para a torre <strong style={{ color: T.text }}>{torreAtiva()?.nome}</strong>. A planilha precisa ter as colunas <strong style={{ color: T.text }}>Atividade</strong>, <strong style={{ color: T.text }}>Inicio</strong> e <strong style={{ color: T.text }}>Fim</strong>.</p>
+          {[
+            ["plan", "Planejado", "Cria as atividades em preto, como linhas", Layers],
+            ["falta", "A executar (o que falta)", "Importa o saldo pendente como novas atividades", CalendarClock],
+            ["real", "Realizado", "Desenha linha tracejada vermelha; casa por nome com o planejado", TrendingUp],
+          ].map(([k, titulo, desc, Ic]) => (
+            <button key={k} onClick={() => abrirImport(k)} className="w-full text-left p-3 mb-2 flex items-start gap-3" style={{ border: `1px solid ${T.line}`, background: T.raised }}>
+              <Ic size={18} style={{ color: k === "real" ? ERRO : ORANGE, marginTop: 2 }} />
+              <div><div className="text-xs" style={{ fontWeight: 700, color: T.text }}>{titulo}</div><div style={{ fontSize: 10.5, color: T.muted, marginTop: 2 }}>{desc}</div></div>
+            </button>
+          ))}
+        </Modal>
+      )}
+
+      {modal === "importar" && (
+        <Modal T={T} titulo={`Importar · ${importTipo.current === "real" ? "Realizado" : importTipo.current === "falta" ? "A executar" : "Planejado"}`} onClose={() => setModal(null)}>
+          <div className="mb-3 p-2.5" style={{ ...NUM, fontSize: 11, background: T.raised, border: `1px solid ${T.line}` }}>
+            <div className="grid grid-cols-3 gap-2" style={{ fontWeight: 700, color: T.text }}><span>Atividade</span><span>Inicio</span><span>Fim</span></div>
+            <div className="grid grid-cols-3 gap-2 mt-1" style={{ color: T.dim }}><span>Reboco interno</span><span>01/04/2026</span><span>28/07/2026</span></div>
+          </div>
+          {importTipo.current === "real" && <p className="text-xs mb-3" style={{ color: T.muted, lineHeight: 1.6 }}>O nome de cada linha precisa coincidir com uma atividade já existente na torre. As datas viram a linha tracejada vermelha do realizado.</p>}
+          <button onClick={() => fileRef.current?.click()} className="w-full py-2.5 text-xs flex items-center justify-center gap-2" style={{ background: ORANGE, color: "#fff", fontWeight: 700 }}><Upload size={14} /> Escolher arquivo .xlsx</button>
+        </Modal>
+      )}
+
+      {modal === "exportar" && <ModalExport T={T} nomePadrao={proj.nome} onClose={() => setModal(null)} onOk={doExport} />}
+
+      {modal === "abrir" && (
+        <Modal T={T} onClose={() => setModal(null)} titulo="Abrir empreendimento">
+          {salvos.length === 0 ? <p className="text-xs" style={{ color: T.muted }}>Nenhum empreendimento salvo ainda.</p>
+            : salvos.map((s) => (<button key={s.id} onClick={() => abrir(s.id)} className="w-full text-left px-3 py-2.5 mb-1 flex items-center justify-between" style={{ border: `1px solid ${s.id === proj.id ? ORANGE : T.line}`, background: T.raised }}><span className="text-xs" style={{ fontWeight: 700 }}>{s.nome}</span><span style={{ ...NUM, fontSize: 10, color: T.dim }}>{new Date(s.em).toLocaleDateString("pt-BR")}</span></button>))}
+          <button onClick={() => { setProj(seedProject()); setSelId(null); setModal(null); }} className="w-full mt-2 py-2 text-xs" style={{ border: `1px dashed ${T.line}`, color: T.muted }}>Restaurar exemplo Artur Alvim</button>
+        </Modal>
+      )}
+      {modal === "replicar" && <ModalReplicar T={T} proj={proj} onClose={() => setModal(null)} onOk={replicarTorre} />}
+      {modal?.tipo === "gerar" && <ModalGerar T={T} onClose={() => setModal(null)} onOk={(cfg) => gerarPavimentos(modal.torreId, cfg)} />}
+    </div>
+  );
+}
+
+/* ─── TELA DE RESUMO ────────────────────────────────────────── */
+function Resumo({ T, proj, metrica, pavimentoHoje, rowIdx, onVoltar, onSelect }) {
+  const ativs = proj.atividades.filter((a) => rowIdx[a.locIniId] != null && rowIdx[a.locFimId] != null);
+  const datas = ativs.flatMap((a) => [D(a.dataIni), D(a.dataFim)]);
+  const inicio = datas.length ? new Date(Math.min(...datas.map(Number))) : null;
+  const termino = datas.length ? new Date(Math.max(...datas.map(Number))) : null;
+  const durMeses = inicio && termino ? (diffDays(inicio, termino) / DIAS_MES).toFixed(1) : "—";
+  const h = hoje();
+  const emExec = ativs.filter((a) => { const s = pavimentoHoje(a); return s && s.estado === "em execução"; });
+  const concl = ativs.filter((a) => D(a.dataFim) <= h).length;
+  const naoIni = ativs.filter((a) => D(a.dataIni) > h).length;
+  const comReal = ativs.filter((a) => a.realIni).length;
+  const velMedia = (() => { const ls = ativs.filter((a) => a.modo === "LINHA"); if (!ls.length) return "—"; return (ls.reduce((s, a) => s + metrica(a).ritmoMes, 0) / ls.length).toFixed(1); })();
+
+  const Card = ({ icon: Ic, label, valor, sub, cor }) => (
+    <div className="p-4" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
+      <div className="flex items-center gap-2 mb-2" style={{ color: T.muted }}><Ic size={15} style={{ color: cor || ORANGE }} /><span style={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase" }}>{label}</span></div>
+      <div style={{ ...NUM, fontSize: 24, fontWeight: 700, color: T.text, lineHeight: 1.1 }}>{valor}</div>
+      {sub && <div style={{ ...NUM, fontSize: 11, color: T.dim, marginTop: 3 }}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div className="flex-1 overflow-y-auto" style={{ background: T.bg }}>
+      <div className="max-w-5xl mx-auto p-6">
+        <div className="flex items-center gap-3 mb-1">
+          <button onClick={onVoltar} className="p-1.5" style={{ color: T.muted, border: `1px solid ${T.line}`, background: T.panel }}><ArrowLeft size={15} /></button>
+          <LogoUnita ink={T.logoInk} height={22} />
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: T.text, lineHeight: 1.1 }}>{proj.nome}</h1>
+            <span style={{ fontSize: 11, color: T.muted }}>Resumo da obra · {proj.torres.length} torre{proj.torres.length > 1 ? "s" : ""} · {ativs.length} atividades</span>
+          </div>
+          <div className="ml-auto px-3 py-1.5" style={{ background: ORANGE }}><span style={{ fontSize: 10, letterSpacing: 1.5, color: "#fff", fontWeight: 700 }}>UNITÀ ENGENHARIA</span></div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+          <Card icon={CalendarClock} label="Início da obra" valor={inicio ? fmtBR(inicio) : "—"} sub="primeira atividade" />
+          <Card icon={CalendarClock} label="Término previsto" valor={termino ? fmtBR(termino) : "—"} sub={`${durMeses} meses de duração`} cor={ERRO} />
+          <Card icon={Gauge} label="Velocidade média" valor={`${velMedia}`} sub="pav/mês (linhas)" />
+          <Card icon={TrendingUp} label="Andamento" valor={`${concl}/${ativs.length}`} sub={`${emExec.length} em execução · ${naoIni} a iniciar`} cor={OK} />
+        </div>
+
+        {/* pavimento atual de cada atividade */}
+        <div className="mt-6" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${T.line}` }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>Situação por atividade</span>
+            <span style={{ fontSize: 10.5, color: T.dim }}>referência: hoje, {fmtBR(h)}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full" style={{ ...NUM, fontSize: 11.5, borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ color: T.dim, textAlign: "left" }}>
+                  {["Atividade", "Torre", "Estado", "Pavimento atual", "Velocidade", "Início", "Término", "Realizado"].map((h2, i) => (
+                    <th key={i} className="px-4 py-2" style={{ fontSize: 9.5, letterSpacing: 0.8, fontWeight: 700, textTransform: "uppercase", borderBottom: `1px solid ${T.line}`, whiteSpace: "nowrap" }}>{h2}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ativs.map((a) => {
+                  const m = metrica(a); const s = pavimentoHoje(a);
+                  const torre = proj.torres.find((t) => t.id === a.torreId);
+                  const corEstado = s?.estado === "em execução" ? ORANGE : s?.estado === "concluída" ? OK : T.dim;
+                  return (
+                    <tr key={a.id} onClick={() => onSelect(a.id)} className="cursor-pointer" style={{ borderBottom: `1px solid ${T.line}` }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = T.hover)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                      <td className="px-4 py-2"><span className="flex items-center gap-2" style={{ color: T.text, fontFamily: FONT }}><span style={{ width: 9, height: 9, background: a.cor, flexShrink: 0 }} />{a.nome}</span></td>
+                      <td className="px-4 py-2" style={{ color: T.muted }}>{torre?.nome || "—"}</td>
+                      <td className="px-4 py-2"><span style={{ color: corEstado, fontWeight: 700, fontFamily: FONT, fontSize: 10.5 }}>{s?.estado || "—"}</span></td>
+                      <td className="px-4 py-2" style={{ color: T.text }}>{s?.loc || (s?.estado === "concluída" ? "— topo —" : "—")}</td>
+                      <td className="px-4 py-2" style={{ color: T.text }}>{a.modo === "BLOCO" ? "bloco" : `${m.ritmoMes.toFixed(1)} pav/mês`}</td>
+                      <td className="px-4 py-2" style={{ color: T.muted }}>{fmtBR(D(a.dataIni))}</td>
+                      <td className="px-4 py-2" style={{ color: T.muted }}>{fmtBR(D(a.dataFim))}</td>
+                      <td className="px-4 py-2">{a.realIni ? <span style={{ color: ERRO, fontWeight: 700, fontFamily: FONT, fontSize: 10.5 }}>importado</span> : <span style={{ color: T.dim }}>—</span>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {comReal > 0 && <div className="px-4 py-2.5" style={{ borderTop: `1px solid ${T.line}`, fontSize: 10.5, color: T.muted }}><span style={{ color: ERRO, fontWeight: 700 }}>{comReal}</span> atividades com realizado importado</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── auxiliares ────────────────────────────────────────────── */
+const IconBtn = ({ children, ...p }) => (<button {...p} className="p-1.5 flex items-center justify-center" style={{ color: "rgba(255,255,255,0.75)" }}>{children}</button>);
+const Campo = ({ T, label, children }) => (<div className="mb-3.5"><div style={{ fontSize: 9.5, letterSpacing: 1.1, color: T.dim, fontWeight: 700, marginBottom: 6 }}>{label.toUpperCase()}</div>{children}</div>);
+const Sel = ({ T, value, onChange, opts }) => (<select value={value} onChange={(e) => onChange(e.target.value)} className="text-xs px-1.5 py-1.5 outline-none" style={{ ...NUM, border: `1px solid ${T.line}`, background: T.input, color: T.text }}>{opts.map((o) => <option key={o.id} value={o.id}>{o.nome}</option>)}</select>);
+const Metr = ({ T, k, v, destaque }) => (<div className="flex items-baseline justify-between py-0.5 gap-2"><span style={{ fontSize: 10.5, color: T.muted }}>{k}</span><span style={{ ...NUM, fontSize: destaque ? 14 : 11, fontWeight: destaque ? 700 : 400, color: destaque ? ORANGE : T.text, whiteSpace: "nowrap" }}>{v}</span></div>);
+
+const Modal = ({ T, titulo, children, onClose }) => (
+  <div className="fixed inset-0 flex items-center justify-center p-6" style={{ background: "rgba(0,0,0,0.62)", zIndex: 50 }} onClick={onClose}>
+    <div className="w-full max-w-sm p-5" style={{ background: T.panel, border: `1px solid ${T.line}`, fontFamily: FONT, color: T.text }} onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between mb-4"><h2 className="text-sm" style={{ fontWeight: 700 }}>{titulo}</h2><button onClick={onClose} style={{ lineHeight: 0 }}><X size={16} style={{ color: T.dim }} /></button></div>
+      {children}
+    </div>
+  </div>
+);
+
+function ModalExport({ T, nomePadrao, onClose, onOk }) {
+  const [nome, setNome] = useState(nomePadrao || "tempo-x-caminho");
+  const botao = (fmt, label) => (
+    <button onClick={() => { onOk(fmt, nome); onClose(); }} className="flex-1 py-2.5 text-xs" style={{ background: fmt === "png" ? ORANGE : T.raised, color: fmt === "png" ? "#fff" : T.text, border: `1px solid ${fmt === "png" ? ORANGE : T.line}`, fontWeight: 700 }}>{label}</button>
+  );
+  return (
+    <Modal T={T} titulo="Exportar" onClose={onClose}>
+      <Campo T={T} label="Nome do arquivo">
+        <div className="flex items-center" style={{ border: `1px solid ${T.line}`, background: T.input }}>
+          <input value={nome} onChange={(e) => setNome(e.target.value)} className="flex-1 text-xs px-2 py-2 outline-none bg-transparent" style={{ ...NUM, color: T.text }} autoFocus />
+          <span className="px-2 text-xs" style={{ color: T.dim }}>.ext</span>
+        </div>
+      </Campo>
+      <div style={{ fontSize: 9.5, letterSpacing: 1.1, color: T.dim, fontWeight: 700, marginBottom: 6 }}>FORMATO</div>
+      <div className="flex gap-1.5 mb-2">{botao("png", "PNG")}{botao("svg", "SVG")}{botao("csv", "CSV")}</div>
+      <p className="text-xs" style={{ color: T.dim, lineHeight: 1.5 }}>PNG e SVG geram o gráfico; CSV gera a tabela por pavimento para Excel e Power BI.</p>
+    </Modal>
+  );
+}
+
+function ModalGerar({ T, onClose, onOk }) {
+  const [f, setF] = useState({ subsolos: 0, tipo: 25, cobertura: true, tampa: true });
+  const n = f.subsolos + 1 + f.tipo + (f.cobertura ? 1 : 0) + (f.tampa ? 1 : 0);
+  return (
+    <Modal T={T} titulo="Gerar pavimentos" onClose={onClose}>
+      <p className="text-xs mb-4" style={{ color: T.muted }}>Isto substitui os pavimentos e as atividades existentes desta torre.</p>
+      {[["subsolos", "Subsolos"], ["tipo", "Pavimentos tipo"]].map(([k, l]) => (<Campo key={k} T={T} label={l}><input type="number" min={0} max={80} value={f[k]} onChange={(e) => setF({ ...f, [k]: Math.max(0, +e.target.value || 0) })} className="w-full text-xs px-2 py-1.5 outline-none" style={{ ...NUM, border: `1px solid ${T.line}`, background: T.input, color: T.text }} /></Campo>))}
+      {[["cobertura", "Cobertura"], ["tampa", "Tampa cobertura"]].map(([k, l]) => (<label key={k} className="flex items-center gap-2 mb-2 text-xs cursor-pointer" style={{ color: T.text }}><input type="checkbox" checked={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.checked })} />{l}</label>))}
+      <div className="mt-4 mb-4 p-2.5 text-xs" style={{ ...NUM, background: T.raised, color: T.text, border: `1px solid ${T.line}` }}>{n} locais serão criados</div>
+      <button onClick={() => onOk(f)} className="w-full py-2 text-xs" style={{ background: ORANGE, color: "#fff", fontWeight: 700 }}>Gerar pavimentos</button>
+    </Modal>
+  );
+}
+
+function ModalReplicar({ T, proj, onClose, onOk }) {
+  const [origem, setOrigem] = useState(proj.torres[0].id);
+  const [offset, setOffset] = useState(45);
+  return (
+    <Modal T={T} titulo="Replicar torre com defasagem" onClose={onClose}>
+      <p className="text-xs mb-4" style={{ color: T.muted }}>Copia pavimentos e atividades da torre de origem, deslocando todas as datas.</p>
+      <Campo T={T} label="Torre de origem"><select value={origem} onChange={(e) => setOrigem(e.target.value)} className="w-full text-xs px-2 py-1.5 outline-none" style={{ ...NUM, border: `1px solid ${T.line}`, background: T.input, color: T.text }}>{proj.torres.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}</select></Campo>
+      <Campo T={T} label="Defasagem em dias corridos"><input type="number" value={offset} onChange={(e) => setOffset(+e.target.value || 0)} className="w-full text-xs px-2 py-1.5 outline-none" style={{ ...NUM, border: `1px solid ${T.line}`, background: T.input, color: T.text }} /></Campo>
+      <button onClick={() => onOk(origem, offset)} className="w-full py-2 text-xs mt-2" style={{ background: ORANGE, color: "#fff", fontWeight: 700 }}>Replicar torre</button>
+    </Modal>
+  );
+}
