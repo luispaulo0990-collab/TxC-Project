@@ -10,10 +10,8 @@ import {
   Upload,
   Download,
   ChevronLeft,
-  Share2,
-  Check,
+  Layers,
 } from "lucide-react";
-import { LogoUnita } from "../common/LogoUnita";
 import { IconBtn } from "../common/IconBtn";
 import { BLACK, ORANGE, NUM } from "../../constants/theme";
 
@@ -32,17 +30,6 @@ export const Header = ({
   onSalvar,
   onVoltarHome,
 }) => {
-  const [copiado, setCopiado] = React.useState(false);
-
-  const handleCompartilhar = () => {
-    if (!proj?.id) return;
-    const url = `${window.location.origin}${window.location.pathname}?obra=${encodeURIComponent(proj.id)}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2500);
-    });
-  };
-
   return (
     <header className="flex items-center gap-3 px-4 h-14 shrink-0 shadow-sm" style={{ background: BLACK, color: "#fff" }}>
       {/* Botão voltar para Home */}
@@ -58,9 +45,14 @@ export const Header = ({
         </button>
       )}
 
-      <div className="flex items-center gap-3 pr-4" style={{ borderRight: "1px solid rgba(255,255,255,0.14)" }}>
-        <LogoUnita ink="#fff" height={22} />
-        <span className="text-xs tracking-widest font-medium" style={{ letterSpacing: 2, color: "rgba(255,255,255,0.72)" }}>
+      <div className="flex items-center gap-2 pr-4" style={{ borderRight: "1px solid rgba(255,255,255,0.14)" }}>
+        <div
+          className="w-6 h-6 rounded flex items-center justify-center font-bold text-xs"
+          style={{ background: ORANGE, color: "#fff" }}
+        >
+          <Layers size={14} />
+        </div>
+        <span className="text-xs tracking-widest font-bold" style={{ letterSpacing: 2, color: "#fff" }}>
           TEMPO × CAMINHO
         </span>
       </div>
@@ -150,23 +142,6 @@ export const Header = ({
         </IconBtn>
 
         <div className="w-px h-5 mx-1" style={{ background: "rgba(255,255,255,0.14)" }} />
-        
-        {/* Botão Compartilhar Link */}
-        <button
-          onClick={handleCompartilhar}
-          className="text-xs px-2.5 py-1.5 flex items-center gap-1.5 rounded transition-all hover:bg-white/15"
-          style={{
-            background: copiado ? "rgba(46, 125, 50, 0.4)" : "rgba(255,255,255,0.08)",
-            border: `1px solid ${copiado ? "#4CAF50" : "rgba(255,255,255,0.18)"}`,
-            color: copiado ? "#81C784" : "#fff",
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-          title="Copiar link direto para compartilhar esta obra"
-        >
-          {copiado ? <Check size={13} color="#81C784" /> : <Share2 size={13} />}
-          <span>{copiado ? "Link Copiado!" : "Compartilhar"}</span>
-        </button>
 
         <button
           onClick={() => onAbrirModal("importmenu")}

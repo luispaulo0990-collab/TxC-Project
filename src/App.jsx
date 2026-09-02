@@ -5,7 +5,7 @@ import { THEME, FONT, BLACK, DIAS_MES } from "./constants/theme";
 import { D, iso, addDays, diffDays, uid, hoje, parseData, fmtBR } from "./utils/dateUtils";
 import { segIntersect, normalizar } from "./utils/geometryUtils";
 import { storage } from "./utils/storageUtils";
-import { buildSVG, exportarPNG, exportarCSV, exportarJSON, exportarExcel, exportarXML, exportarModeloReplanejamento } from "./utils/exportUtils";
+import { buildSVG, exportarPNG, baixar, exportarCSV, exportarJSON, exportarExcel, exportarXML, exportarModeloReplanejamento } from "./utils/exportUtils";
 import { seedProject } from "./data/seedProject";
 
 import { Header } from "./components/layout/Header";
@@ -27,10 +27,15 @@ import { ModalReplanejamento } from "./components/modals/ModalReplanejamento";
 import { ModalNovaObra } from "./components/modals/ModalNovaObra";
 import { ModalAplicarMacrofluxo } from "./components/modals/ModalAplicarMacrofluxo";
 import { HomeScreen } from "./components/views/HomeScreen";
+import { AuthScreen } from "./components/views/AuthScreen";
 import { gerarAtividadesDoMacrofluxo } from "./utils/macrofluxoUtils";
 import { apiClient } from "./utils/apiClient";
+import { obterSessao, logout } from "./utils/supabaseClient";
+import { Loader2 } from "lucide-react";
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [tela, setTela] = useState("home"); // "home" | "editor"
   const [proj, setProj] = useState(null);
   const [selId, setSelId] = useState(null);
@@ -115,8 +120,33 @@ export default function App() {
     }
   }, []);
 
+  // Verificar sessão ativa do Supabase na inicialização
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const session = await obterSessao();
+        if (session?.user) {
+          setUser(session.user);
+        } else {
+          const localUser = localStorage.getItem("lob:user");
+          if (localUser) {
+            try {
+              setUser(JSON.parse(localUser));
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.warn("Auth check error:", err);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
   // Na inicialização: carregar lista e verificar se há parâmetro ?obra=ID ou ?p=ID na URL
   useEffect(() => {
+    if (!user) return;
     const params = new URLSearchParams(window.location.search);
     const obraId = params.get("obra") || params.get("p") || params.get("projeto");
     if (obraId) {
@@ -124,7 +154,15 @@ export default function App() {
     } else {
       listar();
     }
-  }, [listar]);
+  }, [user, listar]);
+
+  const handleLogout = async () => {
+    await logout();
+    setUser(null);
+    setProj(null);
+    setTela("home");
+    flash("Sessão encerrada com sucesso");
+  };
 
   const salvar = useCallback(
     async (p, silencioso = false) => {
@@ -813,8 +851,8 @@ export default function App() {
         T,
       });
       const nome = (nomeBase || proj.nome || "tempo-x-caminho").replace(/[\/\\:*?"<>|]/g, "-");
-      exportarPNG({ svgString, surfaceColor: T.surface, nomeBase: nome, flash }); // ou baixar SVG
-      flash("SVG exportado");
+      baixar(`${nome}.svg`, svgString, "image/svg+xml;charset=utf-8", flash);
+      if (flash) flash("SVG exportado");
       return;
     }
 
@@ -987,7 +1025,31 @@ export default function App() {
     [rowIdx, rows]
   );
 
-  /* ─── Render: HomeScreen ou Editor ──────────────────────────── */
+  /* ─── Render: Autenticação, HomeScreen ou Editor ──────────── */
+  if (authLoading) {
+    return (
+      <div
+        className="w-full h-screen flex flex-col items-center justify-center gap-3 select-none"
+        style={{ background: T.bg, color: T.text, fontFamily: FONT }}
+      >
+        <Loader2 size={32} className="animate-spin" style={{ color: "#FE5000" }} />
+        <span style={{ fontSize: 13, color: T.muted }}>Carregando autenticação...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <AuthScreen
+        tema={tema}
+        onLoginSuccess={(loggedUser) => {
+          setUser(loggedUser);
+          listar();
+        }}
+      />
+    );
+  }
+
   if (tela === "home") {
     return (
       <>
@@ -995,6 +1057,8 @@ export default function App() {
           salvos={salvos}
           projAtualId={proj?.id}
           tema={tema}
+          user={user}
+          onLogout={handleLogout}
           onSelecionarObra={selecionarObra}
           onNovaObra={() => setModal("novaObra")}
           onExcluirObra={excluirObra}
@@ -1206,11 +1270,6 @@ export default function App() {
           onClose={() => setModal(null)}
           onAbrir={abrir}
           onCarregarJSON={carregarProjetoJSON}
-          onRestaurarExemplo={() => {
-            setProj(seedProject());
-            setSelId(null);
-            setModal(null);
-          }}
         />
       )}
 

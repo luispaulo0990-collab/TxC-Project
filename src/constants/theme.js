@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   TEMPO × CAMINHO · UNITÀ ENGENHARIA
+   TEMPO × CAMINHO
    Identidade: Pantone Orange 021 C · All Black · 447 C · Cool Gray 2 C
    Tipografia: Helvetica Now (fallback Helvetica Neue / Inter / Arial)
    ═══════════════════════════════════════════════════════════════ */

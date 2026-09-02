@@ -3,7 +3,7 @@ import { Modal } from "../common/Modal";
 import { NUM, ORANGE } from "../../constants/theme";
 import { Upload } from "lucide-react";
 
-export const ModalAbrir = ({ T, projId, salvos = [], onClose, onAbrir, onRestaurarExemplo, onCarregarJSON }) => {
+export const ModalAbrir = ({ T, projId, salvos = [], onClose, onAbrir, onCarregarJSON }) => {
   const jsonInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -49,20 +49,13 @@ export const ModalAbrir = ({ T, projId, salvos = [], onClose, onAbrir, onRestaur
         </div>
       )}
 
-      <div className="flex gap-2 mt-3">
+      <div className="mt-3">
         <button
           onClick={() => jsonInputRef.current?.click()}
-          className="flex-1 py-2 text-xs flex items-center justify-center gap-1.5 transition-colors hover:brightness-95"
+          className="w-full py-2.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors hover:brightness-95 rounded"
           style={{ border: `1px solid ${T.line}`, background: T.raised, color: T.text }}
         >
           <Upload size={13} /> Carregar arquivo .json
-        </button>
-        <button
-          onClick={onRestaurarExemplo}
-          className="flex-1 py-2 text-xs transition-colors hover:bg-black/5"
-          style={{ border: `1px dashed ${T.line}`, color: T.muted }}
-        >
-          Restaurar exemplo
         </button>
       </div>
     </Modal>

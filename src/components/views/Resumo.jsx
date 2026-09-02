@@ -1,6 +1,5 @@
 import React from "react";
-import { ArrowLeft, CalendarClock, Gauge, TrendingUp } from "lucide-react";
-import { LogoUnita } from "../common/LogoUnita";
+import { ArrowLeft, CalendarClock, Gauge, TrendingUp, Building2 } from "lucide-react";
 import { ORANGE, ERRO, OK, FONT, NUM, DIAS_MES } from "../../constants/theme";
 import { D, diffDays, fmtBR, hoje } from "../../utils/dateUtils";
 
@@ -47,15 +46,11 @@ export const Resumo = ({ T, proj, metrica, pavimentoHoje, rowIdx, onVoltar, onSe
           >
             <ArrowLeft size={15} />
           </button>
-          <LogoUnita ink={T.logoInk} height={22} />
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: T.text, lineHeight: 1.1 }}>{proj.nome}</h1>
             <span style={{ fontSize: 11, color: T.muted }}>
               Resumo da obra · {proj.torres.length} torre{proj.torres.length > 1 ? "s" : ""} · {ativs.length} atividades
             </span>
-          </div>
-          <div className="ml-auto px-3 py-1.5 rounded-xs" style={{ background: ORANGE }}>
-            <span style={{ fontSize: 10, letterSpacing: 1.5, color: "#fff", fontWeight: 700 }}>UNITÀ ENGENHARIA</span>
           </div>
         </div>
 

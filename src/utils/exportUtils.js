@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 import { LABEL_W, TOWER_STRIP, HEADER_H, FONT, ORANGE, BLACK } from "../constants/theme";
-import { D, diffDays, addDays, fmtBR } from "./dateUtils";
+import { D, diffDays, addDays, fmtBR, hoje } from "./dateUtils";
 
 
 /* ─── Utilitários de Download e Exportação ───────────────────── */
@@ -39,9 +39,12 @@ export const baixar = (nome, conteudo, tipo, flash) => {
 };
 
 export const buildSVG = ({ proj, rows, grupos, chartW, chartH, axisSvgContent, chartSvgContent, T }) => {
-  const TOP = 46;
-  const W = LABEL_W + chartW;
-  const H = TOP + HEADER_H + chartH;
+  const PAD = 24;
+  const TOP = 52;
+  const contentW = LABEL_W + chartW;
+  const contentH = TOP + HEADER_H + chartH;
+  const W = contentW + PAD * 2;
+  const H = contentH + PAD * 2;
 
   let labels = "";
   grupos.forEach((g) => {
@@ -57,15 +60,40 @@ export const buildSVG = ({ proj, rows, grupos, chartW, chartH, axisSvgContent, c
     labels += `<text x="${LABEL_W - 8}" y="${i * rowH + rowH / 2 + 3.5}" fill="${r.tipo === "TIPO" ? T.label : T.labelAlt}" font-family="${FONT}" font-size="9.5" text-anchor="end">${r.nome}</text>`;
   });
 
+  const projNome = (proj?.nome || "EMPREENDIMENTO").toUpperCase();
+  const nAtivs = proj?.atividades?.length || 0;
+  const dataHojeStr = fmtBR(hoje());
+
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-<rect width="${W}" height="${H}" fill="${T.surface}"/>
-<rect width="${W}" height="${TOP}" fill="${BLACK}"/>
-<text x="14" y="28" fill="#fff" font-family="${FONT}" font-size="15" font-weight="700" letter-spacing="1">UNITÀ · TEMPO × CAMINHO — ${(proj.nome || "OBRA").toUpperCase()}</text>
-<rect x="${W - 56}" y="14" width="42" height="18" fill="${ORANGE}"/>
-<text x="${W - 35}" y="27" fill="#fff" font-family="${FONT}" font-size="10" font-weight="700" text-anchor="middle">UNITÀ</text>
-<g transform="translate(${LABEL_W},${TOP})">${axisSvgContent || ""}</g>
-<g transform="translate(0,${TOP + HEADER_H})">${labels}</g>
-<g transform="translate(${LABEL_W},${TOP + HEADER_H})">${chartSvgContent || ""}</g>
+<defs>
+  <style>
+    text { font-family: ${FONT}; }
+  </style>
+</defs>
+<rect width="${W}" height="${H}" fill="${T.surface || '#FFFFFF'}"/>
+<!-- Container Frame -->
+<g transform="translate(${PAD},${PAD})">
+  <!-- Top Header Bar -->
+  <rect width="${contentW}" height="${TOP}" fill="${BLACK}" rx="3"/>
+  <rect x="14" y="14" width="24" height="24" rx="4" fill="${ORANGE}"/>
+  <text x="26" y="30" fill="#ffffff" font-size="10.5" font-weight="800" text-anchor="middle">TxC</text>
+  <text x="46" y="27" fill="#ffffff" font-size="13" font-weight="800" letter-spacing="0.8">TEMPO × CAMINHO</text>
+  <text x="46" y="42" fill="rgba(255,255,255,0.7)" font-size="10.5" font-weight="500">${projNome}</text>
+  <text x="${contentW - 14}" y="27" fill="rgba(255,255,255,0.85)" font-size="10.5" font-weight="600" text-anchor="end">${rows.length} pavimentos · ${nAtivs} atividades</text>
+  <text x="${contentW - 14}" y="42" fill="rgba(255,255,255,0.5)" font-size="9.5" text-anchor="end">Linha de Balanço · Emissão ${dataHojeStr}</text>
+
+  <!-- Axis Header -->
+  <g transform="translate(${LABEL_W},${TOP})">${axisSvgContent || ""}</g>
+
+  <!-- Y Labels -->
+  <g transform="translate(0,${TOP + HEADER_H})">${labels}</g>
+
+  <!-- Flowline Chart Content -->
+  <g transform="translate(${LABEL_W},${TOP + HEADER_H})">${chartSvgContent || ""}</g>
+
+  <!-- Outer Border Frame -->
+  <rect width="${contentW}" height="${contentH}" fill="none" stroke="${T.line || '#DEDEDB'}" stroke-width="1" rx="3"/>
+</g>
 </svg>`;
 };
 
@@ -116,6 +144,8 @@ export const exportarPNG = ({ svgString, surfaceColor, nomeBase, flash }) => {
     cv.width = img.width * s;
     cv.height = img.height * s;
     const ctx = cv.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.fillStyle = surfaceColor || "#FFFFFF";
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.scale(s, s);
@@ -124,18 +154,19 @@ export const exportarPNG = ({ svgString, surfaceColor, nomeBase, flash }) => {
       (b) => {
         if (b) {
           baixar(`${nome}.png`, b, "image/png", flash);
-          if (flash) flash("PNG exportado");
+          if (flash) flash("PNG exportado com sucesso");
         } else if (flash) {
           flash("Falha ao gerar PNG");
         }
       },
-      "image/png"
+      "image/png",
+      1.0
     );
   };
   img.onerror = () => {
     if (flash) flash("Falha ao gerar PNG");
   };
-  img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgString)));
+  img.src = "data:image/svg+xml;charset=utf-8;base64," + btoa(unescape(encodeURIComponent(svgString)));
 };
 
 export const exportarJSON = ({ proj, nomeBase, flash }) => {

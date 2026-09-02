@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Building2, Trash2, Calendar, Layers, ChevronRight, FolderOpen } from "lucide-react";
-import { LogoUnita } from "../common/LogoUnita";
+import { Plus, Building2, Trash2, Calendar, Layers, ChevronRight, FolderOpen, LogOut, User } from "lucide-react";
 import { ORANGE, BLACK, P447, COOL2, FONT } from "../../constants/theme";
 
 /* ─── Formatação de data relativa ───────────────────────────── */
@@ -202,7 +201,7 @@ function NovaObraCard({ onClick, tema }) {
 }
 
 /* ─── Tela Principal ─────────────────────────────────────────── */
-export function HomeScreen({ salvos, projAtualId, tema, onSelecionarObra, onNovaObra, onExcluirObra }) {
+export function HomeScreen({ salvos, projAtualId, tema, user, onLogout, onSelecionarObra, onNovaObra, onExcluirObra }) {
   const isDark = tema === "escuro";
   const bg = isDark ? "#111310" : "#ECEDEB";
   const textColor = isDark ? "#ECEDEB" : BLACK;
@@ -219,22 +218,57 @@ export function HomeScreen({ salvos, projAtualId, tema, onSelecionarObra, onNova
       {/* ── Topo ── */}
       <header style={{
         background: BLACK, color: "#fff",
-        padding: "0 40px", height: 56,
-        display: "flex", alignItems: "center", gap: 16,
+        padding: "0 32px", height: 56,
+        display: "flex", alignItems: "center", gap: 12,
         flexShrink: 0,
       }}>
-        <LogoUnita ink="#fff" height={22} />
+        <div
+          style={{
+            width: 28, height: 28, borderRadius: 6,
+            background: ORANGE, display: "flex",
+            alignItems: "center", justifyContent: "center",
+            color: "#fff",
+          }}
+        >
+          <Layers size={16} />
+        </div>
         <span style={{
-          fontSize: 11, letterSpacing: 2, fontWeight: 500,
-          color: "rgba(255,255,255,0.65)", textTransform: "uppercase",
+          fontSize: 12, letterSpacing: 2, fontWeight: 700,
+          color: "#fff", textTransform: "uppercase",
         }}>
           Tempo × Caminho
         </span>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-            Unità Engenharia
-          </span>
-        </div>
+
+        {user && (
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
+              <User size={14} color="rgba(255,255,255,0.5)" />
+              <span>{user.email}</span>
+            </div>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "#fff",
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  fontSize: 11,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  cursor: "pointer",
+                  transition: "background 0.15s ease",
+                }}
+                title="Desconectar do sistema"
+              >
+                <LogOut size={13} />
+                <span>Sair</span>
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
       {/* ── Conteúdo ── */}
@@ -314,7 +348,7 @@ export function HomeScreen({ salvos, projAtualId, tema, onSelecionarObra, onNova
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <span style={{ fontSize: 11, color: mutedColor }}>
-          Tempo × Caminho · Unità Engenharia
+          Tempo × Caminho · Linha de Balanço
         </span>
         <span style={{ fontSize: 11, color: isDark ? "#33352F" : "#CCCCC9" }}>
           v1.0

@@ -1,5 +1,4 @@
 import React from "react";
-import { LogoUnita } from "../common/LogoUnita";
 import {
   LABEL_W,
   TOWER_STRIP,
@@ -56,18 +55,15 @@ export const FlowlineChart = ({
           {/* Cabeçalho do Eixo X fixo no topo */}
           <div className="flex sticky top-0" style={{ zIndex: 20 }}>
             <div
-              className="sticky left-0 flex items-center px-3 shadow-sm"
-              style={{ width: LABEL_W, height: HEADER_H, background: BLACK, zIndex: 30, gap: 8 }}
+              className="sticky left-0 flex items-center justify-between px-3.5 shadow-sm"
+              style={{ width: LABEL_W, height: HEADER_H, background: BLACK, zIndex: 30 }}
             >
-              <LogoUnita ink="#fff" height={16} />
-              <div className="flex flex-col">
-                <span style={{ fontSize: 9, letterSpacing: 1.5, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>
-                  CAMINHO
-                </span>
-                <span style={{ ...NUM, fontSize: 9, color: "rgba(255,255,255,0.4)" }}>
-                  {rows.length} locais
-                </span>
-              </div>
+              <span style={{ fontSize: 10, letterSpacing: 2, color: "#fff", fontWeight: 700 }}>
+                CAMINHO
+              </span>
+              <span style={{ ...NUM, fontSize: 9.5, color: "rgba(255,255,255,0.5)" }}>
+                {rows.length} locais
+              </span>
             </div>
 
             <svg ref={axisRef} width={chartW} height={HEADER_H} style={{ display: "block" }}>

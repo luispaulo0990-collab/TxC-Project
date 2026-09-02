@@ -17,7 +17,6 @@ import {
   FileText,
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import { LogoUnita } from "../common/LogoUnita";
 import { Modal } from "../common/Modal";
 import { ORANGE, ERRO, OK, FONT, NUM, THEME, DIAS_MES } from "../../constants/theme";
 import { D, iso, addDays, fmtBR, hoje, diffDays } from "../../utils/dateUtils";
@@ -194,7 +193,6 @@ export const MetasView = ({
           >
             <ArrowLeft size={15} />
           </button>
-          <LogoUnita ink={T.logoInk} height={22} />
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: T.text, lineHeight: 1.1 }}>
               Metas de Produção & Lookahead
