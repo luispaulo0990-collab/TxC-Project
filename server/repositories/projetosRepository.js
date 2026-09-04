@@ -9,27 +9,12 @@ export const projetosRepository = {
       return [];
     }
 
-    // Buscar grupo_ids do usuário
-    const { data: memberships } = await supabaseAdmin
-      .from('grupo_membros')
-      .select('grupo_id')
-      .eq('user_id', userId);
-
-    const grupoIds = memberships?.map((m) => m.grupo_id) ?? [];
-
-    // Buscar obras próprias OU do grupo, com info do autor
-    let query = supabaseAdmin
+    // A conta individual não depende da estrutura opcional de grupos.
+    const { data, error } = await supabaseAdmin
       .from('projetos')
-      .select('id, nome, updated_at, created_at, user_id, grupo_id, dados')
+      .select('id, nome, updated_at, created_at, user_id, dados')
+      .eq('user_id', userId)
       .order('updated_at', { ascending: false });
-
-    if (grupoIds.length > 0) {
-      query = query.or(`user_id.eq.${userId},grupo_id.in.(${grupoIds.join(',')})`);
-    } else {
-      query = query.eq('user_id', userId);
-    }
-
-    const { data, error } = await query;
     if (error) throw error;
     return data ?? [];
   },

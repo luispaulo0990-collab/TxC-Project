@@ -64,8 +64,8 @@ export const obterUsuarioAtual = async () => {
 
 // Cliente administrativo para backend / scripts (opcional)
 const supabaseServiceRoleKey =
-  typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY
-    ? process.env.SUPABASE_SERVICE_ROLE_KEY
+  typeof process !== "undefined" && (process.env?.SUPABASE_SERVICE_ROLE_KEY || process.env?.SUPABASE_SECRET_KEY)
+    ? process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
     : "";
 
 export const supabaseAdmin = supabaseServiceRoleKey
