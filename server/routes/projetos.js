@@ -1,8 +1,10 @@
 // server/routes/projetos.js
 import { Router } from 'express';
 import { projetosRepository } from '../repositories/projetosRepository.js';
+import jwtMiddleware from '../middleware/jwtMiddleware.js';
 
 const router = Router();
+router.use(jwtMiddleware);
 
 // GET all projetos
 router.get('/', async (req, res) => {
@@ -19,7 +21,7 @@ router.get('/', async (req, res) => {
 // GET projeto by ID
 router.get('/:id', async (req, res) => {
   try {
-    const item = await projetosRepository.getById(req.params.id);
+    const item = await projetosRepository.getById(req.params.id, req.user.sub);
     if (!item) return res.status(404).json({ error: 'Projeto não encontrado' });
     res.json(item);
   } catch (err) {
@@ -59,7 +61,7 @@ router.post('/', async (req, res) => {
 // DELETE projeto
 router.delete('/:id', async (req, res) => {
   try {
-    const deleted = await projetosRepository.delete(req.params.id);
+    const deleted = await projetosRepository.delete(req.params.id, req.user.sub);
     res.json({ success: true, deleted });
   } catch (err) {
     console.error('Error deleting projeto:', err);

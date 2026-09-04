@@ -32,9 +32,9 @@ export function AuthScreen({ onLoginSuccess, tema = "escuro" }) {
       const data = await loginComEmail(email.trim(), password);
       if (data?.user) {
         if (typeof window !== "undefined") {
-          localStorage.setItem("lob:user", JSON.stringify(data.user));
+          sessionStorage.setItem("lob:user", JSON.stringify(data.user));
           if (data.session?.access_token) {
-            localStorage.setItem("lob:auth_token", data.session.access_token);
+            sessionStorage.setItem("lob:auth_token", data.session.access_token);
           }
         }
         if (onLoginSuccess) {

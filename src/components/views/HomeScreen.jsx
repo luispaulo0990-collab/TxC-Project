@@ -1,6 +1,32 @@
 import React, { useState } from "react";
-import { Plus, Building2, Trash2, Calendar, Layers, ChevronRight, FolderOpen, LogOut, User } from "lucide-react";
-import { ORANGE, BLACK, P447, COOL2, FONT } from "../../constants/theme";
+import {
+  Plus, Building2, Trash2, Calendar, Layers, ChevronRight,
+  FolderOpen, LogOut, User, Users, Crown, Code2, Eye, Settings
+} from "lucide-react";
+import { ORANGE, BLACK, FONT } from "../../constants/theme";
+
+const ROLE_CONFIG = {
+  admin:  { label: "Admin",  icon: Crown, color: "#FE5000", bg: "rgba(254,80,0,0.12)" },
+  dev:    { label: "Dev",    icon: Code2, color: "#3B82F6", bg: "rgba(59,130,246,0.12)" },
+  member: { label: "Membro", icon: Eye,   color: "#10B981", bg: "rgba(16,185,129,0.12)" },
+};
+
+function RoleBadge({ role }) {
+  const cfg = ROLE_CONFIG[role] ?? ROLE_CONFIG.member;
+  const Icon = cfg.icon;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      background: cfg.bg, color: cfg.color,
+      borderRadius: 99, padding: "2px 8px",
+      fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+      textTransform: "uppercase",
+    }}>
+      <Icon size={10} />
+      {cfg.label}
+    </span>
+  );
+}
 
 /* ─── Formatação de data relativa ───────────────────────────── */
 function dataRelativa(ts) {
@@ -18,7 +44,7 @@ function dataRelativa(ts) {
 }
 
 /* ─── Card de Obra ───────────────────────────────────────────── */
-function ObraCard({ obra, isAtiva, onClick, onExcluir, tema }) {
+function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir, grupoAtivo }) {
   const [hovered, setHovered] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -29,6 +55,9 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema }) {
   const border = isAtiva ? ORANGE : (isDark ? "#33352F" : "#E2E2DF");
   const textColor = isDark ? "#ECEDEB" : BLACK;
   const mutedColor = isDark ? "#9DA098" : "#6A6E69";
+
+  // Checar se a obra pertence ao grupo ativo (e não ao próprio usuário)
+  const eDoGrupo = obra.grupo_id && grupoAtivo && obra.grupo_id === grupoAtivo;
 
   const handleDelete = (e) => {
     e.stopPropagation();
@@ -77,6 +106,19 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema }) {
         </div>
       )}
 
+      {/* Badge "Grupo" */}
+      {eDoGrupo && !isAtiva && (
+        <div style={{
+          position: "absolute", top: 12, right: 12,
+          background: "rgba(59,130,246,0.12)", color: "#3B82F6",
+          fontSize: 10, fontWeight: 700,
+          padding: "2px 8px", borderRadius: 99,
+          display: "flex", alignItems: "center", gap: 4,
+        }}>
+          <Users size={10} /> Grupo
+        </div>
+      )}
+
       {/* Ícone + Nome */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
         <div style={{
@@ -120,25 +162,27 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema }) {
         )}
       </div>
 
-      {/* Botão excluir */}
-      <button
-        onClick={handleDelete}
-        title={confirmDelete ? "Clique novamente para confirmar" : "Excluir obra"}
-        style={{
-          position: "absolute", bottom: 14, right: 14,
-          background: confirmDelete ? "#D64545" : "transparent",
-          border: "none", cursor: "pointer",
-          padding: "4px 8px", borderRadius: 6,
-          display: "flex", alignItems: "center", gap: 5,
-          opacity: hovered ? 1 : 0,
-          transition: "opacity 0.15s, background 0.15s",
-          color: confirmDelete ? "#fff" : "#D64545",
-          fontSize: 11, fontWeight: 600,
-        }}
-      >
-        <Trash2 size={13} />
-        {confirmDelete ? "Confirmar?" : "Excluir"}
-      </button>
+      {/* Botão excluir — só para quem pode */}
+      {podeExcluir && (
+        <button
+          onClick={handleDelete}
+          title={confirmDelete ? "Clique novamente para confirmar" : "Excluir obra"}
+          style={{
+            position: "absolute", bottom: 14, right: 14,
+            background: confirmDelete ? "#D64545" : "transparent",
+            border: "none", cursor: "pointer",
+            padding: "4px 8px", borderRadius: 6,
+            display: "flex", alignItems: "center", gap: 5,
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 0.15s, background 0.15s",
+            color: confirmDelete ? "#fff" : "#D64545",
+            fontSize: 11, fontWeight: 600,
+          }}
+        >
+          <Trash2 size={13} />
+          {confirmDelete ? "Confirmar?" : "Excluir"}
+        </button>
+      )}
 
       {/* Seta hover */}
       <ChevronRight
@@ -201,14 +245,28 @@ function NovaObraCard({ onClick, tema }) {
 }
 
 /* ─── Tela Principal ─────────────────────────────────────────── */
-export function HomeScreen({ salvos, projAtualId, tema, user, onLogout, onSelecionarObra, onNovaObra, onExcluirObra }) {
+export function HomeScreen({
+  salvos, projAtualId, tema, user, userRole, grupos,
+  grupoAtivo, onGrupoChange,
+  onLogout, onSelecionarObra, onNovaObra, onExcluirObra,
+  onGerenciarGrupos,
+}) {
   const isDark = tema === "escuro";
   const bg = isDark ? "#111310" : "#ECEDEB";
   const textColor = isDark ? "#ECEDEB" : BLACK;
   const mutedColor = isDark ? "#9DA098" : "#6A6E69";
   const subtleColor = isDark ? "#1A1C19" : "#FFFFFF";
+  const border = isDark ? "#33352F" : "#E2E2DF";
 
-  const temObras = salvos.length > 0;
+  const podeExcluir = userRole === "admin";
+  const podeCriar   = userRole === "admin" || userRole === "dev";
+
+  // Filtrar obras pelo grupo ativo (se houver seleção de grupo)
+  const obrasFiltradas = grupoAtivo
+    ? salvos.filter((o) => o.grupo_id === grupoAtivo || !o.grupo_id)
+    : salvos;
+
+  const temObras = obrasFiltradas.length > 0;
 
   return (
     <div style={{
@@ -222,14 +280,12 @@ export function HomeScreen({ salvos, projAtualId, tema, user, onLogout, onSeleci
         display: "flex", alignItems: "center", gap: 12,
         flexShrink: 0,
       }}>
-        <div
-          style={{
-            width: 28, height: 28, borderRadius: 6,
-            background: ORANGE, display: "flex",
-            alignItems: "center", justifyContent: "center",
-            color: "#fff",
-          }}
-        >
+        <div style={{
+          width: 28, height: 28, borderRadius: 6,
+          background: ORANGE, display: "flex",
+          alignItems: "center", justifyContent: "center",
+          color: "#fff",
+        }}>
           <Layers size={16} />
         </div>
         <span style={{
@@ -240,26 +296,43 @@ export function HomeScreen({ salvos, projAtualId, tema, user, onLogout, onSeleci
         </span>
 
         {user && (
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+            {/* Badge de papel */}
+            {userRole && <RoleBadge role={userRole} />}
+
+            {/* Email */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
               <User size={14} color="rgba(255,255,255,0.5)" />
               <span>{user.email}</span>
             </div>
+
+            {/* Gerenciar grupos (admin) */}
+            {userRole === "admin" && onGerenciarGrupos && (
+              <button
+                onClick={onGerenciarGrupos}
+                title="Gerenciar grupos"
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "#fff", padding: "4px 10px", borderRadius: 6,
+                  fontSize: 11, display: "flex", alignItems: "center",
+                  gap: 6, cursor: "pointer", transition: "background 0.15s",
+                }}
+              >
+                <Settings size={13} />
+                <span>Grupos</span>
+              </button>
+            )}
+
             {onLogout && (
               <button
                 onClick={onLogout}
                 style={{
                   background: "rgba(255,255,255,0.08)",
                   border: "1px solid rgba(255,255,255,0.15)",
-                  color: "#fff",
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                  fontSize: 11,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  cursor: "pointer",
-                  transition: "background 0.15s ease",
+                  color: "#fff", padding: "4px 10px", borderRadius: 6,
+                  fontSize: 11, display: "flex", alignItems: "center",
+                  gap: 6, cursor: "pointer", transition: "background 0.15s ease",
                 }}
                 title="Desconectar do sistema"
               >
@@ -277,19 +350,42 @@ export function HomeScreen({ salvos, projAtualId, tema, user, onLogout, onSeleci
         margin: "0 auto", padding: "48px 32px",
       }}>
 
-        {/* Saudação */}
-        <div style={{ marginBottom: 40 }}>
-          <h1 style={{
-            fontSize: 28, fontWeight: 800, color: textColor,
-            margin: 0, letterSpacing: -0.5, lineHeight: 1.2,
-          }}>
-            Suas Obras
-          </h1>
-          <p style={{ fontSize: 14, color: mutedColor, marginTop: 6 }}>
-            {temObras
-              ? `${salvos.length} ${salvos.length === 1 ? "empreendimento salvo" : "empreendimentos salvos"} · selecione para abrir`
-              : "Nenhuma obra criada ainda · comece criando sua primeira obra"}
-          </p>
+        {/* Saudação + seletor de grupo */}
+        <div style={{ marginBottom: 40, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{
+              fontSize: 28, fontWeight: 800, color: textColor,
+              margin: 0, letterSpacing: -0.5, lineHeight: 1.2,
+            }}>
+              Suas Obras
+            </h1>
+            <p style={{ fontSize: 14, color: mutedColor, marginTop: 6 }}>
+              {temObras
+                ? `${obrasFiltradas.length} ${obrasFiltradas.length === 1 ? "empreendimento" : "empreendimentos"} · selecione para abrir`
+                : "Nenhuma obra criada ainda · comece criando sua primeira obra"}
+            </p>
+          </div>
+
+          {/* Seletor de grupo (se membro de mais de 1) */}
+          {grupos && grupos.length > 1 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Users size={14} color={mutedColor} />
+              <select
+                value={grupoAtivo ?? ""}
+                onChange={(e) => onGrupoChange?.(e.target.value || null)}
+                style={{
+                  padding: "6px 12px", borderRadius: 8,
+                  border: `1.5px solid ${border}`, background: subtleColor,
+                  color: textColor, fontSize: 12, fontFamily: FONT, cursor: "pointer",
+                }}
+              >
+                <option value="">Todos os grupos</option>
+                {grupos.map((g) => (
+                  <option key={g.id} value={g.id}>{g.nome}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Grid de obras */}
@@ -298,11 +394,11 @@ export function HomeScreen({ salvos, projAtualId, tema, user, onLogout, onSeleci
           gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
           gap: 16,
         }}>
-          {/* Card nova obra sempre primeiro */}
-          <NovaObraCard onClick={onNovaObra} tema={tema} />
+          {/* Card nova obra — só para quem pode criar */}
+          {podeCriar && <NovaObraCard onClick={onNovaObra} tema={tema} />}
 
           {/* Cards das obras existentes */}
-          {salvos.map((obra) => (
+          {obrasFiltradas.map((obra) => (
             <ObraCard
               key={obra.id}
               obra={obra}
@@ -310,6 +406,8 @@ export function HomeScreen({ salvos, projAtualId, tema, user, onLogout, onSeleci
               onClick={() => onSelecionarObra(obra.id)}
               onExcluir={() => onExcluirObra(obra.id)}
               tema={tema}
+              podeExcluir={podeExcluir}
+              grupoAtivo={grupoAtivo}
             />
           ))}
         </div>
@@ -330,12 +428,25 @@ export function HomeScreen({ salvos, projAtualId, tema, user, onLogout, onSeleci
               <FolderOpen size={22} color={ORANGE} />
             </div>
             <div>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: textColor }}>
-                Comece criando sua primeira obra
-              </p>
-              <p style={{ margin: "4px 0 0", fontSize: 13, color: mutedColor }}>
-                Clique em <strong style={{ color: ORANGE }}>+ Nova Obra</strong> para configurar um novo empreendimento com torres, pavimentos e atividades.
-              </p>
+              {podeCriar ? (
+                <>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: textColor }}>
+                    Comece criando sua primeira obra
+                  </p>
+                  <p style={{ margin: "4px 0 0", fontSize: 13, color: mutedColor }}>
+                    Clique em <strong style={{ color: ORANGE }}>+ Nova Obra</strong> para configurar um novo empreendimento com torres, pavimentos e atividades.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: textColor }}>
+                    Nenhuma obra disponível
+                  </p>
+                  <p style={{ margin: "4px 0 0", fontSize: 13, color: mutedColor }}>
+                    Aguarde um <strong>Admin</strong> ou <strong>Dev</strong> criar obras no seu grupo.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         )}

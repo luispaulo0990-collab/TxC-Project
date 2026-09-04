@@ -28,14 +28,18 @@ import { ModalNovaObra } from "./components/modals/ModalNovaObra";
 import { ModalAplicarMacrofluxo } from "./components/modals/ModalAplicarMacrofluxo";
 import { HomeScreen } from "./components/views/HomeScreen";
 import { AuthScreen } from "./components/views/AuthScreen";
+import { ModalGerenciarGrupo } from "./components/modals/ModalGerenciarGrupo";
 import { gerarAtividadesDoMacrofluxo } from "./utils/macrofluxoUtils";
 import { apiClient } from "./utils/apiClient";
 import { obterSessao, logout } from "./utils/supabaseClient";
+import { usePermissao } from "./hooks/usePermissao";
 import { Loader2 } from "lucide-react";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [gruposUsuario, setGruposUsuario] = useState([]);  // grupos do usuário
+  const [grupoAtivo, setGrupoAtivo] = useState(null); // id do grupo selecionado
   const [tela, setTela] = useState("home"); // "home" | "editor"
   const [proj, setProj] = useState(null);
   const [selId, setSelId] = useState(null);
@@ -120,33 +124,40 @@ export default function App() {
     }
   }, []);
 
-  // Verificar sessão ativa do Supabase na inicialização
+  // Na inicialização: sempre exigir autenticação ao abrir o link
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const session = await obterSessao();
-        if (session?.user) {
-          setUser(session.user);
-        } else {
-          const localUser = localStorage.getItem("lob:user");
-          if (localUser) {
-            try {
-              setUser(JSON.parse(localUser));
-            } catch {}
-          }
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("lob:auth_token");
+      localStorage.removeItem("lob:user");
+    }
+    setAuthLoading(false);
+  }, []);
+
+  /** Carrega os grupos do usuário logado e determina seu papel */
+  const carregarGrupos = useCallback(async () => {
+    try {
+      const token = sessionStorage.getItem("lob:auth_token") || localStorage.getItem("lob:auth_token");
+      if (!token) return;
+      const res = await fetch("/api/grupos", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGruposUsuario(Array.isArray(data) ? data : []);
+        // Selecionar automaticamente o primeiro grupo se houver apenas um
+        if (Array.isArray(data) && data.length === 1) {
+          setGrupoAtivo(data[0].id);
         }
-      } catch (err) {
-        console.warn("Auth check error:", err);
-      } finally {
-        setAuthLoading(false);
       }
-    };
-    checkAuth();
+    } catch (e) {
+      console.warn("Erro ao carregar grupos:", e);
+    }
   }, []);
 
   // Na inicialização: carregar lista e verificar se há parâmetro ?obra=ID ou ?p=ID na URL
   useEffect(() => {
     if (!user) return;
+    carregarGrupos();
     const params = new URLSearchParams(window.location.search);
     const obraId = params.get("obra") || params.get("p") || params.get("projeto");
     if (obraId) {
@@ -154,12 +165,14 @@ export default function App() {
     } else {
       listar();
     }
-  }, [user, listar]);
+  }, [user, listar, carregarGrupos]);
 
   const handleLogout = async () => {
     await logout();
     setUser(null);
     setProj(null);
+    setGruposUsuario([]);
+    setGrupoAtivo(null);
     setTela("home");
     flash("Sessão encerrada com sucesso");
   };
@@ -187,7 +200,10 @@ export default function App() {
         );
 
         // 2. Sincronizar em segundo plano com o Supabase via Backend Proxy
-        apiClient.salvarProjeto(p).catch((e) => console.warn("Sync Supabase error:", e));
+        const savedProject = await apiClient.salvarProjeto(p);
+        if (!savedProject) {
+          throw new Error("Não foi possível sincronizar a obra com o servidor");
+        }
 
         if (!silencioso) flash("Empreendimento salvo no Supabase");
       } catch {
@@ -1050,6 +1066,12 @@ export default function App() {
     );
   }
 
+  // Determinar papel do usuário no grupo ativo
+  const grupoAtivoObj = gruposUsuario.find((g) => g.id === grupoAtivo);
+  const userRoleNoGrupo = grupoAtivoObj?.meu_role ?? (gruposUsuario[0]?.meu_role ?? null);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const permissao = usePermissao(userRoleNoGrupo);
+
   if (tela === "home") {
     return (
       <>
@@ -1058,10 +1080,15 @@ export default function App() {
           projAtualId={proj?.id}
           tema={tema}
           user={user}
+          userRole={userRoleNoGrupo}
+          grupos={gruposUsuario}
+          grupoAtivo={grupoAtivo}
+          onGrupoChange={setGrupoAtivo}
           onLogout={handleLogout}
           onSelecionarObra={selecionarObra}
-          onNovaObra={() => setModal("novaObra")}
-          onExcluirObra={excluirObra}
+          onNovaObra={permissao.podeCriar ? () => setModal("novaObra") : undefined}
+          onExcluirObra={permissao.podeExcluir ? excluirObra : undefined}
+          onGerenciarGrupos={permissao.podeGerenciar ? () => setModal("gerenciarGrupo") : undefined}
         />
         {modal === "novaObra" && (
           <ModalNovaObra
@@ -1069,6 +1096,16 @@ export default function App() {
             tema={tema}
             onClose={() => setModal(null)}
             onCriar={criarNovaObra}
+          />
+        )}
+        {modal === "gerenciarGrupo" && (
+          <ModalGerenciarGrupo
+            tema={tema}
+            grupos={gruposUsuario}
+            userRole={userRoleNoGrupo}
+            userId={user?.id}
+            onClose={() => setModal(null)}
+            onRefresh={() => { carregarGrupos(); listar(); }}
           />
         )}
       </>

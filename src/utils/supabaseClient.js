@@ -20,15 +20,12 @@ const supabaseAnonKey =
   getEnv("SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_ANON_KEY") ||
   "sb_publishable_BfHPuR4pQCnoMuAFFe_53g_sUbDt-2P";
 
-const isBrowser = typeof window !== "undefined";
-
-// Cliente público para o frontend
+// Cliente público para o frontend - persistSession: false exige novo login a cada acesso/abertura de link
 export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: isBrowser,
-    autoRefreshToken: isBrowser,
-    detectSessionInUrl: isBrowser,
-    storageKey: "lob:auth_token",
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
   },
 });
 
@@ -49,6 +46,7 @@ export const logout = async () => {
   if (typeof window !== "undefined") {
     localStorage.removeItem("lob:auth_token");
     localStorage.removeItem("lob:user");
+    sessionStorage.clear();
   }
 };
 
