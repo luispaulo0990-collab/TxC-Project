@@ -83,6 +83,8 @@ export default function App() {
             em: item.updated_at ? new Date(item.updated_at).getTime() : Date.now(),
             nTorres: p.torres?.length ?? 0,
             nAtividades: p.atividades?.length ?? 0,
+            user_id: item.user_id ?? null,
+            grupo_id: item.grupo_id ?? null,
           };
         });
         setSalvos(listaFormatada);
@@ -1068,7 +1070,10 @@ export default function App() {
 
   // Determinar papel do usuário no grupo ativo
   const grupoAtivoObj = gruposUsuario.find((g) => g.id === grupoAtivo);
-  const userRoleNoGrupo = grupoAtivoObj?.meu_role ?? (gruposUsuario[0]?.meu_role ?? null);
+  // Sem grupo, a conta continua no modo individual com acesso completo às próprias obras.
+  const userRoleNoGrupo = grupoAtivoObj?.meu_role
+    ?? gruposUsuario[0]?.meu_role
+    ?? "admin";
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const permissao = usePermissao(userRoleNoGrupo);
 
