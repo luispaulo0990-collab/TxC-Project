@@ -10,6 +10,7 @@ import atividadesRouter from './routes/atividades.js';
 import authRouter from './routes/auth.js';
 import healthRouter from './routes/health.js';
 import projetosRouter from './routes/projetos.js';
+import gruposRouter from './routes/grupos.js';
 
 assertRequiredEnv();
 
@@ -62,6 +63,7 @@ app.use('/api/health', healthRouter);
 
 // Auth routes (public)
 app.use('/api/auth', authRouter);
+app.use('/api/grupos', jwtMiddleware, gruposRouter);
 
 // Projetos routes (with optional or verified JWT)
 app.use('/api/projetos', optionalJwtMiddleware, projetosRouter);

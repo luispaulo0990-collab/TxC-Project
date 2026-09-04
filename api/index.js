@@ -11,6 +11,7 @@ import atividadesRouter from '../server/routes/atividades.js';
 import authRouter from '../server/routes/auth.js';
 import healthRouter from '../server/routes/health.js';
 import projetosRouter from '../server/routes/projetos.js';
+import gruposRouter from '../server/routes/grupos.js';
 
 dotenv.config();
 assertRequiredEnv();
@@ -61,6 +62,7 @@ app.get('/', (_req, res) => {
 
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/grupos', jwtMiddleware, gruposRouter);
 app.use('/api/projetos', optionalJwtMiddleware, projetosRouter);
 app.use('/api/atividades', jwtMiddleware, atividadesRouter);
 
