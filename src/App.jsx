@@ -69,58 +69,78 @@ export default function App() {
     setTimeout(() => setStatus(""), 2800);
   }, []);
 
-  /* ─── Persistência (Supabase Backend + Local Fallback) ───────── */
+  /* ─── Persistência (Supabase Backend + Local Fallback + Auto Sync) ───────── */
   const listar = useCallback(async () => {
     try {
-      // 1. Tentar buscar do backend Supabase primeiro
-      const serverProjetos = await apiClient.getProjetos();
-      if (Array.isArray(serverProjetos)) {
-        const listaFormatada = serverProjetos.map((item) => {
-          const p = item.dados || item;
-          return {
-            id: item.id,
-            nome: item.nome || p.nome || "Sem nome",
-            em: item.updated_at ? new Date(item.updated_at).getTime() : Date.now(),
-            nTorres: p.torres?.length ?? 0,
-            nAtividades: p.atividades?.length ?? 0,
-            user_id: item.user_id ?? null,
-            grupo_id: item.grupo_id ?? null,
-          };
-        });
+      // 1. Obter projetos locais (cache do navegador)
+      let localIdx = [];
+      try {
+        const r = await storage.get("lob:index");
+        localIdx = r ? JSON.parse(r.value) : [];
+      } catch {}
 
-        // Se houver projetos no servidor, atualizar estado e cache local
-        if (listaFormatada.length > 0) {
-          setSalvos(listaFormatada);
-          await storage.set(
-            "lob:index",
-            JSON.stringify(listaFormatada.map((x) => ({ id: x.id, nome: x.nome, em: x.em })))
-          );
-          for (const item of serverProjetos) {
-            if (item.dados) {
-              await storage.set(`lob:proj:${item.id}`, JSON.stringify(item.dados));
+      // 2. Buscar projetos globais do backend / Supabase
+      const serverProjetos = await apiClient.getProjetos();
+      const serverLista = Array.isArray(serverProjetos)
+        ? serverProjetos.map((item) => {
+            const p = item.dados || item;
+            return {
+              id: item.id,
+              nome: item.nome || p.nome || "Sem nome",
+              em: item.updated_at ? new Date(item.updated_at).getTime() : Date.now(),
+              nTorres: p.torres?.length ?? 0,
+              nAtividades: p.atividades?.length ?? 0,
+              user_id: item.user_id ?? null,
+              grupo_id: item.grupo_id ?? null,
+            };
+          })
+        : [];
+
+      // 3. Sincronizar qualquer projeto local que ainda não esteja no Supabase
+      const serverIds = new Set(serverLista.map((x) => x.id));
+      for (const locItem of localIdx) {
+        if (!serverIds.has(locItem.id)) {
+          try {
+            const rp = await storage.get(`lob:proj:${locItem.id}`);
+            if (rp) {
+              const p = JSON.parse(rp.value);
+              const saved = await apiClient.salvarProjeto(p);
+              if (saved) {
+                serverLista.unshift({
+                  id: p.id,
+                  nome: p.nome || locItem.nome || "Sem nome",
+                  em: locItem.em || Date.now(),
+                  nTorres: p.torres?.length ?? 0,
+                  nAtividades: p.atividades?.length ?? 0,
+                  user_id: null,
+                  grupo_id: null,
+                });
+                serverIds.add(p.id);
+              }
             }
+          } catch (e) {
+            console.warn("Erro ao enviar obra local para o Supabase:", e);
           }
-          return listaFormatada;
         }
       }
 
-      // 2. Fallback para storage local caso o servidor ainda não tenha itens
-      const r = await storage.get("lob:index");
-      const lista = r ? JSON.parse(r.value) : [];
-      const listaEnriquecida = await Promise.all(
-        lista.map(async (item) => {
-          try {
-            const rp = await storage.get(`lob:proj:${item.id}`);
-            if (rp) {
-              const p = JSON.parse(rp.value);
-              return { ...item, nTorres: p.torres?.length ?? 0, nAtividades: p.atividades?.length ?? 0 };
-            }
-          } catch {}
-          return item;
-        })
-      );
-      setSalvos(listaEnriquecida);
-      return listaEnriquecida;
+      // 4. Se houver projetos no servidor ou unificados, atualizar estado e cache local
+      if (serverLista.length > 0) {
+        setSalvos(serverLista);
+        await storage.set(
+          "lob:index",
+          JSON.stringify(serverLista.map((x) => ({ id: x.id, nome: x.nome, em: x.em })))
+        );
+        for (const item of serverProjetos || []) {
+          if (item.dados) {
+            await storage.set(`lob:proj:${item.id}`, JSON.stringify(item.dados));
+          }
+        }
+        return serverLista;
+      }
+
+      setSalvos([]);
+      return [];
     } catch (err) {
       console.warn("Erro ao listar projetos:", err);
       setSalvos([]);
