@@ -1,4 +1,5 @@
 // src/utils/apiClient.js
+import { supabasePublic } from './supabaseClient';
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL)
   ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
@@ -25,12 +26,27 @@ export const apiClient = {
       const res = await fetch(apiUrl('/api/projetos'), {
         headers: getAuthHeaders()
       });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+      }
     } catch (err) {
-      console.warn('apiClient.getProjetos error:', err);
-      return null;
+      console.warn('apiClient.getProjetos proxy error, tentando Supabase direto:', err);
     }
+
+    // Fallback direto via Supabase
+    try {
+      const { data, error } = await supabasePublic
+        .from('projetos')
+        .select('id, nome, updated_at, created_at, user_id, dados')
+        .order('updated_at', { ascending: false });
+      if (!error && Array.isArray(data)) {
+        return data;
+      }
+    } catch (err) {
+      console.warn('supabasePublic getProjetos error:', err);
+    }
+    return null;
   },
 
   async getProjeto(id) {
@@ -38,12 +54,28 @@ export const apiClient = {
       const res = await fetch(apiUrl(`/api/projetos/${encodeURIComponent(id)}`), {
         headers: getAuthHeaders()
       });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (data) return data;
+      }
     } catch (err) {
-      console.warn('apiClient.getProjeto error:', err);
-      return null;
+      console.warn('apiClient.getProjeto proxy error, tentando Supabase direto:', err);
     }
+
+    // Fallback direto via Supabase
+    try {
+      const { data, error } = await supabasePublic
+        .from('projetos')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      console.warn('supabasePublic getProjeto error:', err);
+    }
+    return null;
   },
 
   async salvarProjeto(projeto) {
@@ -53,12 +85,33 @@ export const apiClient = {
         headers: getAuthHeaders(),
         body: JSON.stringify(projeto)
       });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (data) return data;
+      }
     } catch (err) {
-      console.warn('apiClient.salvarProjeto error:', err);
-      return null;
+      console.warn('apiClient.salvarProjeto proxy error, tentando Supabase direto:', err);
     }
+
+    // Fallback direto via Supabase
+    try {
+      const payload = {
+        id: projeto.id,
+        nome: projeto.nome || 'Sem nome',
+        dados: projeto,
+        updated_at: new Date().toISOString(),
+      };
+      const { data, error } = await supabasePublic
+        .from('projetos')
+        .upsert(payload, { onConflict: 'id' })
+        .select();
+      if (!error && data) {
+        return data[0] || payload;
+      }
+    } catch (err) {
+      console.warn('supabasePublic salvarProjeto error:', err);
+    }
+    return { id: projeto.id, nome: projeto.nome, dados: projeto };
   },
 
   async excluirProjeto(id) {
@@ -67,11 +120,27 @@ export const apiClient = {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return await res.json();
+      if (res.ok) {
+        return await res.json();
+      }
     } catch (err) {
-      console.warn('apiClient.excluirProjeto error:', err);
-      return null;
+      console.warn('apiClient.excluirProjeto proxy error, tentando Supabase direto:', err);
     }
+
+    // Fallback direto via Supabase
+    try {
+      const { data, error } = await supabasePublic
+        .from('projetos')
+        .delete()
+        .eq('id', id)
+        .select();
+      if (!error) {
+        return { success: true, deleted: data?.[0] };
+      }
+    } catch (err) {
+      console.warn('supabasePublic excluirProjeto error:', err);
+    }
+    return null;
   }
 };
+

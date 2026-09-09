@@ -74,7 +74,7 @@ export default function App() {
     try {
       // 1. Tentar buscar do backend Supabase primeiro
       const serverProjetos = await apiClient.getProjetos();
-      if (Array.isArray(serverProjetos) && serverProjetos.length > 0) {
+      if (Array.isArray(serverProjetos)) {
         const listaFormatada = serverProjetos.map((item) => {
           const p = item.dados || item;
           return {
@@ -87,22 +87,24 @@ export default function App() {
             grupo_id: item.grupo_id ?? null,
           };
         });
-        setSalvos(listaFormatada);
 
-        // Atualizar cache local
-        await storage.set(
-          "lob:index",
-          JSON.stringify(listaFormatada.map((x) => ({ id: x.id, nome: x.nome, em: x.em })))
-        );
-        for (const item of serverProjetos) {
-          if (item.dados) {
-            await storage.set(`lob:proj:${item.id}`, JSON.stringify(item.dados));
+        // Se houver projetos no servidor, atualizar estado e cache local
+        if (listaFormatada.length > 0) {
+          setSalvos(listaFormatada);
+          await storage.set(
+            "lob:index",
+            JSON.stringify(listaFormatada.map((x) => ({ id: x.id, nome: x.nome, em: x.em })))
+          );
+          for (const item of serverProjetos) {
+            if (item.dados) {
+              await storage.set(`lob:proj:${item.id}`, JSON.stringify(item.dados));
+            }
           }
+          return listaFormatada;
         }
-        return listaFormatada;
       }
 
-      // 2. Fallback para storage local
+      // 2. Fallback para storage local caso o servidor ainda não tenha itens
       const r = await storage.get("lob:index");
       const lista = r ? JSON.parse(r.value) : [];
       const listaEnriquecida = await Promise.all(
