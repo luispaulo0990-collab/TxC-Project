@@ -20,11 +20,12 @@ const supabaseAnonKey =
   getEnv("SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_ANON_KEY") ||
   "sb_publishable_BfHPuR4pQCnoMuAFFe_53g_sUbDt-2P";
 
-// Cliente público para o frontend - persistSession: false exige novo login a cada acesso/abertura de link
+// Cliente público para o frontend com sessionStorage (preserva token para queries do PostgREST e limpa ao fechar a aba)
 export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: false,
-    autoRefreshToken: false,
+    persistSession: typeof window !== "undefined",
+    storage: typeof window !== "undefined" ? window.sessionStorage : undefined,
+    autoRefreshToken: true,
     detectSessionInUrl: false,
   },
 });
@@ -62,10 +63,10 @@ export const obterUsuarioAtual = async () => {
   return data?.user || null;
 };
 
-// Cliente administrativo para backend / scripts (opcional)
+// Cliente administrativo para backend / serverless (se configurado no ambiente)
 const supabaseServiceRoleKey =
-  typeof process !== "undefined" && (process.env?.SUPABASE_SERVICE_ROLE_KEY || process.env?.SUPABASE_SECRET_KEY)
-    ? process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+  typeof process !== "undefined"
+    ? process.env?.SUPABASE_SERVICE_ROLE_KEY || process.env?.SUPABASE_SECRET_KEY || ""
     : "";
 
 export const supabaseAdmin = supabaseServiceRoleKey
@@ -76,3 +77,5 @@ export const supabaseAdmin = supabaseServiceRoleKey
       },
     })
   : supabasePublic;
+
+

@@ -1,10 +1,11 @@
 // server/routes/projetos.js
 import { Router } from 'express';
 import { projetosRepository } from '../repositories/projetosRepository.js';
-import jwtMiddleware from '../middleware/jwtMiddleware.js';
+import { optionalJwtMiddleware } from '../middleware/jwtMiddleware.js';
 
 const router = Router();
-router.use(jwtMiddleware);
+router.use(optionalJwtMiddleware);
+
 
 // GET all projetos
 router.get('/', async (req, res) => {
