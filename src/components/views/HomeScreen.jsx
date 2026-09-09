@@ -261,11 +261,8 @@ export function HomeScreen({
   const podeExcluir = true;
   const podeCriar   = true;
 
-  // Filtrar obras pelo grupo ativo (se houver seleção de grupo)
-  const obrasFiltradas = Array.isArray(salvos)
-    ? (grupoAtivo ? salvos.filter((o) => o.grupo_id === grupoAtivo || !o.grupo_id) : salvos)
-    : [];
-
+  // Exibir todas as obras cadastradas no sistema
+  const obrasFiltradas = Array.isArray(salvos) ? salvos : [];
   const temObras = obrasFiltradas.length > 0;
 
   return (

@@ -73,31 +73,32 @@ for update
 using (auth.uid() = id)
 with check (auth.uid() = id);
 
-create policy "projetos_select_own"
+create policy "projetos_select_all"
 on public.projetos
 for select
-using (auth.uid() = user_id);
+using (true);
 
-create policy "projetos_insert_own"
+create policy "projetos_insert_all"
 on public.projetos
 for insert
-with check (auth.uid() = user_id);
+with check (true);
 
-create policy "projetos_update_own"
+create policy "projetos_update_all"
 on public.projetos
 for update
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using (true)
+with check (true);
 
-create policy "projetos_delete_own"
+create policy "projetos_delete_all"
 on public.projetos
 for delete
-using (auth.uid() = user_id);
+using (true);
 
-create policy "atividades_select_own"
+create policy "atividades_all"
 on public.atividades
-for select
-using (auth.uid() = user_id);
+for all
+using (true)
+with check (true);
 
 create policy "atividades_insert_own"
 on public.atividades
