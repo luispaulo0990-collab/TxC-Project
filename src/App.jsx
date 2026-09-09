@@ -1068,16 +1068,14 @@ export default function App() {
     );
   }
 
-  // Determinar papel do usuário no grupo ativo
+  // Determinar papel do usuário no grupo ativo (permissões totais liberadas)
   const grupoAtivoObj = gruposUsuario.find((g) => g.id === grupoAtivo);
-  // Sem grupo, a conta continua no modo individual com acesso completo às próprias obras.
   const userRoleNoGrupo = grupoAtivoObj?.meu_role
     ?? gruposUsuario[0]?.meu_role
     ?? "admin";
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const permissao = usePermissao(userRoleNoGrupo);
 
-  if (tela === "home") {
+  if (tela === "home" || !proj) {
     return (
       <>
         <HomeScreen
@@ -1091,9 +1089,9 @@ export default function App() {
           onGrupoChange={setGrupoAtivo}
           onLogout={handleLogout}
           onSelecionarObra={selecionarObra}
-          onNovaObra={permissao.podeCriar ? () => setModal("novaObra") : undefined}
-          onExcluirObra={permissao.podeExcluir ? excluirObra : undefined}
-          onGerenciarGrupos={permissao.podeGerenciar ? () => setModal("gerenciarGrupo") : undefined}
+          onNovaObra={() => setModal("novaObra")}
+          onExcluirObra={excluirObra}
+          onGerenciarGrupos={() => setModal("gerenciarGrupo")}
         />
         {modal === "novaObra" && (
           <ModalNovaObra
@@ -1116,8 +1114,6 @@ export default function App() {
       </>
     );
   }
-
-  if (!proj) return null;
 
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden" style={{ background: T.bg, fontFamily: FONT, color: T.text }}>

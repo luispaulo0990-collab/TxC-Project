@@ -12,18 +12,18 @@ const ROLE_CONFIG = {
 };
 
 function RoleBadge({ role }) {
-  const cfg = ROLE_CONFIG[role] ?? ROLE_CONFIG.member;
-  const Icon = cfg.icon;
+  const cfg = (role && ROLE_CONFIG[role]) ? ROLE_CONFIG[role] : ROLE_CONFIG.admin;
+  const Icon = cfg.icon || Crown;
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 4,
-      background: cfg.bg, color: cfg.color,
+      background: cfg.bg || "rgba(254,80,0,0.12)", color: cfg.color || "#FE5000",
       borderRadius: 99, padding: "2px 8px",
       fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
       textTransform: "uppercase",
     }}>
       <Icon size={10} />
-      {cfg.label}
+      {cfg.label || "Admin"}
     </span>
   );
 }
@@ -258,13 +258,13 @@ export function HomeScreen({
   const subtleColor = isDark ? "#1A1C19" : "#FFFFFF";
   const border = isDark ? "#33352F" : "#E2E2DF";
 
-  const podeExcluir = userRole === "admin";
-  const podeCriar   = userRole === "admin" || userRole === "dev";
+  const podeExcluir = true;
+  const podeCriar   = true;
 
   // Filtrar obras pelo grupo ativo (se houver seleção de grupo)
-  const obrasFiltradas = grupoAtivo
-    ? salvos.filter((o) => o.grupo_id === grupoAtivo || !o.grupo_id)
-    : salvos;
+  const obrasFiltradas = Array.isArray(salvos)
+    ? (grupoAtivo ? salvos.filter((o) => o.grupo_id === grupoAtivo || !o.grupo_id) : salvos)
+    : [];
 
   const temObras = obrasFiltradas.length > 0;
 
@@ -303,7 +303,7 @@ export function HomeScreen({
             {/* Email */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
               <User size={14} color="rgba(255,255,255,0.5)" />
-              <span>{user.email}</span>
+              <span>{user.email || user.user_metadata?.email || "Usuário"}</span>
             </div>
 
             {/* Gerenciar grupos (admin) */}
