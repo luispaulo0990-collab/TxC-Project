@@ -79,8 +79,8 @@ export default function App() {
         localIdx = r ? JSON.parse(r.value) : [];
       } catch {}
 
-      // 2. Buscar projetos globais do backend / Supabase
-      const serverProjetos = await apiClient.getProjetos();
+      // 2. Buscar projetos globais do backend / Supabase filtrados pelo usuário
+      const serverProjetos = await apiClient.getProjetos(user?.id);
       const serverLista = Array.isArray(serverProjetos)
         ? serverProjetos.map((item) => {
             const p = item.dados || item;
@@ -97,14 +97,24 @@ export default function App() {
         : [];
 
       // 3. Sincronizar qualquer projeto local que ainda não esteja no Supabase
+      const isUUID = (val) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
       const serverIds = new Set(serverLista.map((x) => x.id));
       for (const locItem of localIdx) {
         if (!serverIds.has(locItem.id)) {
           try {
             const rp = await storage.get(`lob:proj:${locItem.id}`);
             if (rp) {
-              const p = JSON.parse(rp.value);
-              const saved = await apiClient.salvarProjeto(p);
+              let p = JSON.parse(rp.value);
+              // Migrar ID legado não-UUID se necessário
+              const oldId = p.id;
+              if (!isUUID(p.id)) {
+                const newId = uid();
+                p = { ...p, id: newId };
+                await storage.set(`lob:proj:${newId}`, JSON.stringify(p));
+                await storage.remove(`lob:proj:${oldId}`);
+              }
+              p.user_id = user?.id || p.user_id || null;
+              const saved = await apiClient.salvarProjeto(p, user?.id);
               if (saved) {
                 serverLista.unshift({
                   id: p.id,
@@ -112,8 +122,8 @@ export default function App() {
                   em: locItem.em || Date.now(),
                   nTorres: p.torres?.length ?? 0,
                   nAtividades: p.atividades?.length ?? 0,
-                  user_id: null,
-                  grupo_id: null,
+                  user_id: user?.id,
+                  grupo_id: p.grupo_id || null,
                 });
                 serverIds.add(p.id);
               }
@@ -146,15 +156,33 @@ export default function App() {
       setSalvos([]);
       return [];
     }
-  }, []);
+  }, [user]);
 
-  // Na inicialização: sempre exigir autenticação ao abrir o link
+  // Na inicialização: restaurar sessão ativa caso exista (mantém login no refresh)
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("lob:auth_token");
-      localStorage.removeItem("lob:user");
+    async function initAuth() {
+      try {
+        const sessao = await obterSessao();
+        if (sessao?.user) {
+          setUser(sessao.user);
+          if (sessao.access_token) {
+            sessionStorage.setItem("lob:auth_token", sessao.access_token);
+            sessionStorage.setItem("lob:user", JSON.stringify(sessao.user));
+          }
+        } else {
+          const storedUser = sessionStorage.getItem("lob:user");
+          const storedToken = sessionStorage.getItem("lob:auth_token");
+          if (storedUser && storedToken) {
+            setUser(JSON.parse(storedUser));
+          }
+        }
+      } catch (e) {
+        console.warn("Erro ao restaurar sessão:", e);
+      } finally {
+        setAuthLoading(false);
+      }
     }
-    setAuthLoading(false);
+    initAuth();
   }, []);
 
   /** Carrega os grupos do usuário logado e determina seu papel */
@@ -205,8 +233,19 @@ export default function App() {
     async (p, silencioso = false) => {
       if (!p) return;
       try {
-        // 1. Salvar no Storage local imediatamente
-        await storage.set(`lob:proj:${p.id}`, JSON.stringify(p));
+        const projetoComUser = {
+          ...p,
+          user_id: p.user_id || user?.id || null,
+        };
+
+        // 1. Sincronizar com o Supabase via Backend Proxy / Supabase
+        const savedProject = await apiClient.salvarProjeto(projetoComUser, user?.id);
+        if (!savedProject) {
+          throw new Error("Não foi possível sincronizar a obra com o servidor");
+        }
+
+        // 2. Salvar no Storage local
+        await storage.set(`lob:proj:${p.id}`, JSON.stringify(projetoComUser));
         let idx = [];
         try {
           const r = await storage.get("lob:index");
@@ -223,18 +262,13 @@ export default function App() {
           })
         );
 
-        // 2. Sincronizar em segundo plano com o Supabase via Backend Proxy
-        const savedProject = await apiClient.salvarProjeto(p);
-        if (!savedProject) {
-          throw new Error("Não foi possível sincronizar a obra com o servidor");
-        }
-
         if (!silencioso) flash("Empreendimento salvo no Supabase");
-      } catch {
-        if (!silencioso) flash("Não foi possível salvar");
+      } catch (err) {
+        console.error("Erro ao salvar obra:", err);
+        if (!silencioso) flash("Não foi possível salvar na nuvem");
       }
     },
-    [flash]
+    [flash, user]
   );
 
   useEffect(() => {
@@ -301,8 +335,12 @@ export default function App() {
 
   /* ─── Criar Nova Obra ────────────────────────────────────────── */
   const criarNovaObra = async (novoProjeto) => {
-    setProj(novoProjeto);
-    await salvar(novoProjeto, true);
+    const projetoComUser = {
+      ...novoProjeto,
+      user_id: user?.id || null,
+    };
+    setProj(projetoComUser);
+    await salvar(projetoComUser, true);
     await listar();
     setSelId(null);
     setFiltroTorre("TODAS");

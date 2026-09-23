@@ -10,7 +10,7 @@ router.use(optionalJwtMiddleware);
 // GET all projetos
 router.get('/', async (req, res) => {
   try {
-    const userId = req.user?.sub || null;
+    const userId = req.user?.sub || req.user?.id || null;
     const items = await projetosRepository.getAll(userId);
     res.json(items);
   } catch (err) {
@@ -22,7 +22,8 @@ router.get('/', async (req, res) => {
 // GET projeto by ID
 router.get('/:id', async (req, res) => {
   try {
-    const item = await projetosRepository.getById(req.params.id);
+    const userId = req.user?.sub || req.user?.id || null;
+    const item = await projetosRepository.getById(req.params.id, userId);
     if (!item) return res.status(404).json({ error: 'Projeto não encontrado' });
     res.json(item);
   } catch (err) {
@@ -34,7 +35,7 @@ router.get('/:id', async (req, res) => {
 // PUT / POST upsert projeto
 router.put('/:id', async (req, res) => {
   try {
-    const userId = req.user?.sub || null;
+    const userId = req.user?.sub || req.user?.id || req.body.user_id || null;
     const projetoData = { ...req.body, id: req.params.id };
     const saved = await projetosRepository.upsert(projetoData, userId);
     res.json(saved);
@@ -46,7 +47,7 @@ router.put('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const userId = req.user?.sub || null;
+    const userId = req.user?.sub || req.user?.id || req.body.user_id || null;
     const projetoData = req.body;
     if (!projetoData.id) {
       return res.status(400).json({ error: 'ID do projeto é obrigatório' });
@@ -62,7 +63,8 @@ router.post('/', async (req, res) => {
 // DELETE projeto
 router.delete('/:id', async (req, res) => {
   try {
-    const deleted = await projetosRepository.delete(req.params.id);
+    const userId = req.user?.sub || req.user?.id || null;
+    const deleted = await projetosRepository.delete(req.params.id, userId);
     res.json({ success: true, deleted });
   } catch (err) {
     console.error('Error deleting projeto:', err);
