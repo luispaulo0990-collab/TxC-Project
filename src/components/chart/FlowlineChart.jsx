@@ -11,7 +11,7 @@ import {
   BLACK,
   DIAS_MES,
 } from "../../constants/theme";
-import { D, fmtBR, diffDays } from "../../utils/dateUtils";
+import { D, fmtBR, diffDays, hoje } from "../../utils/dateUtils";
 import { contraste } from "../../utils/geometryUtils";
 
 export const FlowlineChart = ({
@@ -39,6 +39,9 @@ export const FlowlineChart = ({
   onUp,
   onDropActivity,
 }) => {
+  const dataHoje = hoje();
+  const xHoje = xOf(dataHoje);
+
   const handleDrop = (e) => {
     e.preventDefault();
     const actId = e.dataTransfer.getData("text/plain");
@@ -48,6 +51,7 @@ export const FlowlineChart = ({
     const offsetY = e.clientY - rect.top;
     onDropActivity(actId, offsetX, offsetY);
   };
+
   return (
     <main className="flex-1 min-w-0 flex flex-col overflow-hidden select-none" style={{ background: T.bg }}>
       <div className="flex-1 overflow-auto" onClick={() => setSelId(null)}>
@@ -119,6 +123,18 @@ export const FlowlineChart = ({
                 );
               })}
               <line x1={0} y1={24} x2={chartW} y2={24} stroke="rgba(255,255,255,0.22)" strokeWidth={0.6} />
+              
+              {/* Indicador de Data de Hoje no Eixo */}
+              {xHoje >= 0 && xHoje <= chartW && (
+                <g>
+                  <line x1={xHoje} y1={0} x2={xHoje} y2={HEADER_H} stroke={ORANGE} strokeWidth={1.5} />
+                  <rect x={xHoje - 18} y={32} width={36} height={14} rx={2} fill={ORANGE} />
+                  <text x={xHoje} y={42} fill="#fff" fontFamily={FONT} fontSize={8.5} fontWeight="700" textAnchor="middle">
+                    HOJE
+                  </text>
+                </g>
+              )}
+
               {proj.marcos.map((mk) => (
                 <rect key={mk.id} x={xOf(D(mk.data)) - 2} y={26} width={4} height={20} fill={mk.cor} />
               ))}
@@ -248,6 +264,21 @@ export const FlowlineChart = ({
                 />
               ))}
 
+              {/* Linha Vertical de Hoje no Gráfico */}
+              {xHoje >= 0 && xHoje <= chartW && (
+                <line
+                  x1={xHoje}
+                  y1={0}
+                  x2={xHoje}
+                  y2={chartH}
+                  stroke={ORANGE}
+                  strokeWidth={1.4}
+                  strokeDasharray="4 3"
+                  opacity={0.7}
+                  pointerEvents="none"
+                />
+              )}
+
               {proj.marcos.map((mk) => (
                 <line
                   key={mk.id}
@@ -275,6 +306,7 @@ export const FlowlineChart = ({
                   const on = selId === a.id;
                   const cabe = w > a.nome.length * 5.4;
                   const tc = contraste(a.cor);
+                  const avancoPct = Math.min(100, Math.max(0, a.avanco || 0));
 
                   return (
                     <g
@@ -305,10 +337,25 @@ export const FlowlineChart = ({
                         width={w}
                         height={h - 4}
                         fill={a.cor}
-                        fillOpacity={0.92}
+                        fillOpacity={0.85}
                         stroke={a.cor}
                         strokeWidth={0.5}
                       />
+
+                      {/* Preenchimento de Avanço no Bloco */}
+                      {avancoPct > 0 && (
+                        <rect
+                          x={x}
+                          y={y + 2}
+                          width={(w * avancoPct) / 100}
+                          height={h - 4}
+                          fill={OK}
+                          fillOpacity={0.4}
+                          stroke={OK}
+                          strokeWidth={1}
+                        />
+                      )}
+
                       {cabe ? (
                         <text
                           x={x + w / 2}
@@ -319,7 +366,7 @@ export const FlowlineChart = ({
                           fontWeight="700"
                           textAnchor="middle"
                         >
-                          {a.nome}
+                          {a.nome} {avancoPct > 0 ? `(${avancoPct}%)` : ""}
                         </text>
                       ) : (
                         <text
@@ -335,30 +382,11 @@ export const FlowlineChart = ({
                           {a.nome}
                         </text>
                       )}
-                      {on &&
-                        [
-                          ["ini", x],
-                          ["fim", x + w],
-                        ].map(([k, hx]) => (
-                          <rect
-                            key={k}
-                            x={hx - 3}
-                            y={y + h / 2 - 6}
-                            width={6}
-                            height={12}
-                            fill={ORANGE}
-                            style={{ cursor: "ew-resize" }}
-                            onPointerDown={(e) => onDown(e, a, k)}
-                            onPointerMove={onMove}
-                            onPointerUp={onUp}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ))}
                     </g>
                   );
                 })}
 
-              {/* Linhas Realizadas (tracejadas em vermelho) */}
+              {/* Linhas Realizadas (tracejadas em vermelho/laranja) */}
               {ativVisiveis
                 .filter((a) => a.modo === "LINHA" && a.realIni && a.realFim)
                 .map((a) => {
@@ -367,21 +395,23 @@ export const FlowlineChart = ({
                   const x2 = xOf(D(a.realFim));
                   const y2 = yMid(a.locFimId);
                   return (
-                    <line
-                      key={"r" + a.id}
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke={ERRO}
-                      strokeWidth={2}
-                      strokeDasharray="6 4"
-                      pointerEvents="none"
-                    />
+                    <g key={"r" + a.id} pointerEvents="none">
+                      <line
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke={ERRO}
+                        strokeWidth={2.5}
+                        strokeDasharray="6 4"
+                      />
+                      <circle cx={x1} cy={y1} r={3.5} fill={ERRO} />
+                      <circle cx={x2} cy={y2} r={3.5} fill={ERRO} />
+                    </g>
                   );
                 })}
 
-              {/* Atividades Modo LINHA (Planejadas) */}
+              {/* Atividades Modo LINHA (Planejadas e Avanço Físico) */}
               {ativVisiveis
                 .filter((a) => a.modo === "LINHA")
                 .map((a) => {
@@ -399,6 +429,21 @@ export const FlowlineChart = ({
                   const nLoc = Math.abs(fIdx - iIdx) + 1;
                   const durDias = Math.max(1, diffDays(D(a.dataIni), D(a.dataFim)));
                   const ritmoMes = (nLoc / durDias) * DIAS_MES;
+
+                  // Cálculo do Ponto de Avanço Físico
+                  let avancoRatio = 0;
+                  if (a.pavimentoAtualId && rowIdx[a.pavimentoAtualId] != null) {
+                    const pavIdx = rowIdx[a.pavimentoAtualId];
+                    avancoRatio = Math.abs(pavIdx - iIdx) / Math.max(1, Math.abs(fIdx - iIdx));
+                  } else if (a.avanco != null && a.avanco > 0) {
+                    avancoRatio = Math.min(1, Math.max(0, a.avanco / 100));
+                  } else if (a.realFim) {
+                    avancoRatio = 1;
+                  }
+
+                  const avancoX = x1 + avancoRatio * (x2 - x1);
+                  const avancoY = y1 + avancoRatio * (y2 - y1);
+                  const temAvanco = avancoRatio > 0;
 
                   return (
                     <g
@@ -442,7 +487,7 @@ export const FlowlineChart = ({
                         />
                       )}
 
-                      {/* Linha principal */}
+                      {/* Linha Planejada Base */}
                       <line
                         x1={x1}
                         y1={y1}
@@ -450,6 +495,7 @@ export const FlowlineChart = ({
                         y2={y2}
                         stroke={a.cor}
                         strokeWidth={on ? 3.5 : 2.5}
+                        strokeOpacity={temAvanco ? 0.45 : 1}
                         style={{ cursor: "pointer" }}
                         onPointerDown={(e) => onDown(e, a, "move")}
                         onPointerMove={onMove}
@@ -459,6 +505,36 @@ export const FlowlineChart = ({
                           setSelId(a.id);
                         }}
                       />
+
+                      {/* Segmento Executado / Realizado (Avanço Físico Destacado) */}
+                      {temAvanco && (
+                        <g pointerEvents="none">
+                          <line
+                            x1={x1}
+                            y1={y1}
+                            x2={avancoX}
+                            y2={avancoY}
+                            stroke={OK}
+                            strokeWidth={on ? 4.5 : 3.5}
+                            strokeLinecap="round"
+                          />
+                          {/* Jóia / Marcador de Ponto de Avanço Atual */}
+                          <circle cx={avancoX} cy={avancoY} r={5} fill={OK} stroke="#FFFFFF" strokeWidth={1.5} />
+                          {pxPerDay > 2 && (
+                            <text
+                              x={avancoX + 7}
+                              y={avancoY - 3}
+                              fill={OK}
+                              fontFamily={FONT}
+                              fontSize={8.5}
+                              fontWeight="700"
+                              style={{ ...NUM }}
+                            >
+                              {Math.round(avancoRatio * 100)}%
+                            </text>
+                          )}
+                        </g>
+                      )}
 
                       {/* Rótulo com o nome da atividade ao longo da linha */}
                       {pxPerDay > 2.2 && (
@@ -484,10 +560,10 @@ export const FlowlineChart = ({
                         </text>
                       )}
 
-                      {/* Controles e Pontas de Inclinação (quando a linha está selecionada) */}
+                      {/* Controles e Pontas de Inclinação (quando selecionada) */}
                       {on && (
                         <>
-                          {/* Pílula Central de Inclinação / Velocidade (Midpoint Tilt Knob) */}
+                          {/* Pílula Central de Inclinação / Velocidade */}
                           <g
                             transform={`translate(${mx}, ${my - 16})`}
                             style={{ cursor: "ew-resize" }}
@@ -518,10 +594,9 @@ export const FlowlineChart = ({
                             >
                               ⚡ {ritmoMes.toFixed(1)} pav/mês ↔
                             </text>
-                            <title>Arraste horizontalmente para inclinar a linha e alterar a velocidade</title>
                           </g>
 
-                          {/* Ponta Inicial (Âncora Inferior: altera Início e Pavimento Inicial) */}
+                          {/* Ponta Inicial */}
                           <g
                             style={{ cursor: "all-scroll" }}
                             onPointerDown={(e) => onDown(e, a, "ini")}
@@ -531,10 +606,9 @@ export const FlowlineChart = ({
                             <circle cx={x1} cy={y1} r={14} fill="transparent" />
                             <circle cx={x1} cy={y1} r={6} fill={T.surface} stroke={ORANGE} strokeWidth={2.5} />
                             <circle cx={x1} cy={y1} r={2} fill={ORANGE} />
-                            <title>Arraste para alterar o ponto de início (data e pavimento)</title>
                           </g>
 
-                          {/* Ponta Final / Topo (Âncora de Velocidade e Inclinação) */}
+                          {/* Ponta Final / Topo */}
                           <g
                             style={{ cursor: "ew-resize" }}
                             onPointerDown={(e) => onDown(e, a, "fim")}
@@ -557,7 +631,6 @@ export const FlowlineChart = ({
                               strokeWidth={1.5}
                               strokeLinecap="round"
                             />
-                            <title>Arraste horizontalmente para inclinar a linha: Esquerda = Acelera | Direita = Desacelera</title>
                           </g>
                         </>
                       )}
@@ -565,7 +638,7 @@ export const FlowlineChart = ({
                   );
                 })}
 
-              {/* Alertas de Cruzamento / Choque de ritmo */}
+              {/* Alertas de Cruzamento */}
               {alertas.map((al) => (
                 <g key={al.id} pointerEvents="none">
                   <circle cx={al.x} cy={al.y} r={7.5} fill={T.surface} stroke={ERRO} strokeWidth={1.8} />
@@ -581,7 +654,7 @@ export const FlowlineChart = ({
         </div>
       </div>
 
-      {/* HUD Flutuante com Feedback em Tempo Real durante o arraste/inclinação */}
+      {/* HUD Flutuante com Feedback em Tempo Real */}
       {dragInfo?.active && (
         <div
           className="fixed pointer-events-none z-50 px-3 py-2 rounded shadow-2xl border flex flex-col gap-1 transition-all"
@@ -601,7 +674,7 @@ export const FlowlineChart = ({
                 ? "↔️ Movendo no Tempo"
                 : dragInfo.modo === "ini"
                 ? "📍 Ajustando Ponto Inicial"
-                : "⚡ Inclinando Linha (Ajuste de Velocidade)"}
+                : "⚡ Inclinando Linha (Velocidade)"}
             </span>
             <span
               className="text-xs font-bold px-1.5 py-0.5 rounded bg-orange-600 text-white"
@@ -623,4 +696,3 @@ export const FlowlineChart = ({
     </main>
   );
 };
-

@@ -6,12 +6,13 @@ import {
   AlertTriangle,
   Copy,
   Trash2,
+  CheckCircle2,
 } from "lucide-react";
 import { Campo } from "../common/Campo";
 import { Sel } from "../common/Sel";
 import { Metr } from "../common/Metr";
-import { PALETTE, ORANGE, ERRO, NUM } from "../../constants/theme";
-import { D, fmtBR } from "../../utils/dateUtils";
+import { PALETTE, ORANGE, ERRO, OK, NUM } from "../../constants/theme";
+import { D, fmtBR, hoje, iso } from "../../utils/dateUtils";
 
 export const PropertiesPanel = ({
   T,
@@ -54,7 +55,7 @@ export const PropertiesPanel = ({
       {!sel ? (
         <div className="p-5 pt-12">
           <div className="text-xs leading-relaxed" style={{ color: T.muted }}>
-            Selecione uma atividade no gráfico ou na lista para editar suas propriedades.
+            Selecione uma atividade no gráfico ou na lista para editar suas propriedades e apontar avanços.
           </div>
           <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${T.line}` }}>
             <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: T.dim, fontWeight: 700, marginBottom: 10 }}>
@@ -78,6 +79,7 @@ export const PropertiesPanel = ({
           .filter((l) => l.torreId === sel.torreId)
           .sort((a, b) => a.ordem - b.ordem);
         const alertasSel = alertas.filter((x) => x.aId === sel.id || x.bId === sel.id);
+        const avancoAtual = sel.avanco != null ? Number(sel.avanco) : 0;
 
         return (
           <div className="p-4">
@@ -158,6 +160,99 @@ export const PropertiesPanel = ({
               </div>
             </Campo>
 
+            {/* ── Seção de Avanço Físico e Realizado ── */}
+            <div className="mt-3 p-3 rounded-sm border" style={{ background: T.raised, borderColor: T.line }}>
+              <div className="flex items-center justify-between mb-2">
+                <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: OK, fontWeight: 700 }} className="flex items-center gap-1">
+                  <TrendingUp size={12} /> AVANÇO FÍSICO (% REALIZADO)
+                </div>
+                <span className="text-xs font-bold" style={{ ...NUM, color: OK }}>
+                  {avancoAtual}%
+                </span>
+              </div>
+
+              {/* Botões rápidos */}
+              <div className="flex gap-1 mb-2">
+                {[0, 25, 50, 75, 100].map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => {
+                      const patch = { avanco: v };
+                      if (v === 100 && !sel.realFim) patch.realFim = iso(hoje());
+                      if (v > 0 && !sel.realIni) patch.realIni = iso(hoje());
+                      if (v === 0) { patch.realIni = null; patch.realFim = null; }
+                      upA(sel.id, patch);
+                    }}
+                    className="flex-1 py-1 text-xs font-bold rounded-xs transition-colors"
+                    style={{
+                      ...NUM,
+                      background: avancoAtual === v ? OK : T.panel,
+                      color: avancoAtual === v ? "#ffffff" : T.text,
+                      border: `1px solid ${avancoAtual === v ? OK : T.line}`,
+                    }}
+                  >
+                    {v}%
+                  </button>
+                ))}
+              </div>
+
+              {/* Slider de Avanço */}
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={avancoAtual}
+                onChange={(e) => upA(sel.id, { avanco: Number(e.target.value) })}
+                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-600 mb-2"
+              />
+
+              {/* Pavimento Atual da Frente */}
+              <div className="mt-1">
+                <label className="text-[10px] font-bold block mb-1" style={{ color: T.dim }}>
+                  Pavimento Atual / Executado:
+                </label>
+                <select
+                  value={sel.pavimentoAtualId || ""}
+                  onChange={(e) => upA(sel.id, { pavimentoAtualId: e.target.value || null })}
+                  className="w-full text-xs px-2 py-1 rounded outline-none border"
+                  style={{ background: T.input, borderColor: T.line, color: T.text }}
+                >
+                  <option value="">Automático pelo %</option>
+                  {locais.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Datas de Início e Fim Reais */}
+              <div className="grid grid-cols-2 gap-1.5 mt-2">
+                <div>
+                  <label className="text-[9.5px] block mb-0.5" style={{ color: T.dim }}>Início Real:</label>
+                  <input
+                    type="date"
+                    value={sel.realIni || ""}
+                    onChange={(e) => upA(sel.id, { realIni: e.target.value || null })}
+                    className="w-full text-xs px-1 py-1 rounded outline-none border"
+                    style={{ ...NUM, background: T.input, borderColor: T.line, color: T.text, colorScheme: T.scheme }}
+                  />
+                </div>
+                <div>
+                  <label className="text-[9.5px] block mb-0.5" style={{ color: T.dim }}>Fim Real:</label>
+                  <input
+                    type="date"
+                    value={sel.realFim || ""}
+                    onChange={(e) => upA(sel.id, { realFim: e.target.value || null })}
+                    className="w-full text-xs px-1 py-1 rounded outline-none border"
+                    style={{ ...NUM, background: T.input, borderColor: T.line, color: T.text, colorScheme: T.scheme }}
+                  />
+                </div>
+              </div>
+            </div>
+
             {sel.modo === "LINHA" && (
               <div className="mt-3 p-3 rounded-sm" style={{ background: T.raised, border: `1px solid ${T.line}` }}>
                 <div className="flex items-center justify-between mb-2">
@@ -169,7 +264,6 @@ export const PropertiesPanel = ({
                   </span>
                 </div>
 
-                {/* Steppers rápidos de velocidade */}
                 <div className="flex gap-1 mb-2">
                   {[
                     { label: "-0.5", val: -0.5 },
@@ -188,14 +282,12 @@ export const PropertiesPanel = ({
                         border: `1px solid ${T.line}`,
                         color: T.text,
                       }}
-                      title={`Ajustar velocidade em ${btn.label} pav/mês`}
                     >
                       {btn.label}
                     </button>
                   ))}
                 </div>
 
-                {/* Presets rápidos */}
                 <div className="grid grid-cols-4 gap-1 mb-2">
                   {[1.0, 2.0, 3.0, 4.0].map((v) => (
                     <button
@@ -214,10 +306,6 @@ export const PropertiesPanel = ({
                     </button>
                   ))}
                 </div>
-
-                <div className="text-xs" style={{ color: T.dim, fontSize: 10, lineHeight: 1.4 }}>
-                  💡 <strong>No gráfico:</strong> arraste a ponta do topo da linha para acelerar (esquerda) ou desacelerar (direita).
-                </div>
               </div>
             )}
 
@@ -230,24 +318,6 @@ export const PropertiesPanel = ({
               <Metr T={T} k="Pavimentos no escopo" v={m.nLoc} />
               <Metr T={T} k="Duração" v={`${m.meses.toFixed(1)} mês · ${m.dias} dias`} />
             </div>
-
-            {sel.realIni && (
-              <div className="mt-3 p-3 rounded-sm" style={{ background: "rgba(214,69,69,0.07)", border: `1px solid rgba(214,69,69,0.3)` }}>
-                <div className="text-xs flex items-center gap-1.5 mb-1 font-bold" style={{ color: ERRO }}>
-                  <TrendingUp size={12} /> Realizado
-                </div>
-                <div style={{ ...NUM, fontSize: 10.5, color: T.text }}>
-                  {fmtBR(D(sel.realIni))} → {fmtBR(D(sel.realFim))}
-                </div>
-                <button
-                  onClick={() => upA(sel.id, { realIni: null, realFim: null })}
-                  className="mt-1.5 text-xs hover:opacity-75"
-                  style={{ color: T.muted, textDecoration: "underline" }}
-                >
-                  remover realizado
-                </button>
-              </div>
-            )}
 
             {alertasSel.length > 0 && (
               <div className="mt-3 p-3 rounded-sm" style={{ background: "rgba(214,69,69,0.08)", border: `1px solid rgba(214,69,69,0.35)` }}>

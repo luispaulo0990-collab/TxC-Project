@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import * as XLSX from "xlsx";
 
 import { THEME, FONT, BLACK, DIAS_MES } from "./constants/theme";
-import { D, iso, addDays, diffDays, uid, hoje, parseData, fmtBR } from "./utils/dateUtils";
-import { segIntersect, normalizar } from "./utils/geometryUtils";
+import { D, iso, addDays, diffDays, uid, hoje, fmtBR } from "./utils/dateUtils";
+import { segIntersect } from "./utils/geometryUtils";
 import { storage } from "./utils/storageUtils";
-import { buildSVG, exportarPNG, baixar, exportarCSV, exportarJSON, exportarExcel, exportarXML, exportarModeloReplanejamento } from "./utils/exportUtils";
-import { seedProject } from "./data/seedProject";
+import { buildSVG, exportarPNG, exportarExcel, exportarModeloReplanejamento } from "./utils/exportUtils";
+import { processarArquivoImportacao, aplicarImportacaoAoProjeto, exportarModeloAtividades, exportarModeloAvanco } from "./utils/importUtils";
 
-import { Header } from "./components/layout/Header";
+import { SidebarNav } from "./components/layout/SidebarNav";
 import { Sidebar } from "./components/layout/Sidebar";
 import { PropertiesPanel } from "./components/layout/PropertiesPanel";
 import { StatusBar } from "./components/layout/StatusBar";
@@ -16,6 +15,7 @@ import { FlowlineChart } from "./components/chart/FlowlineChart";
 import { Resumo } from "./components/views/Resumo";
 import { MetasView } from "./components/views/MetasView";
 import { MacrofluxoView } from "./components/views/MacrofluxoView";
+import { AvancoView } from "./components/views/AvancoView";
 
 import { ModalImportMenu } from "./components/modals/ModalImportMenu";
 import { ModalImportar } from "./components/modals/ModalImportar";
@@ -38,8 +38,8 @@ import { Loader2 } from "lucide-react";
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [gruposUsuario, setGruposUsuario] = useState([]);  // grupos do usuário
-  const [grupoAtivo, setGrupoAtivo] = useState(null); // id do grupo selecionado
+  const [gruposUsuario, setGruposUsuario] = useState([]);
+  const [grupoAtivo, setGrupoAtivo] = useState(null);
   const [tela, setTela] = useState("home"); // "home" | "editor"
   const [proj, setProj] = useState(null);
   const [selId, setSelId] = useState(null);
@@ -54,32 +54,30 @@ export default function App() {
   const [collapsed, setCollapsed] = useState({});
   const [showProps, setShowProps] = useState(true);
   const [tema, setTema] = useState("claro");
-  const [vista, setVista] = useState("grafico"); // grafico | resumo
+  const [vista, setVista] = useState("grafico"); // grafico | avanco | resumo | metas | macrofluxo
 
   const T = THEME[tema];
   const chartRef = useRef(null);
   const axisRef = useRef(null);
   const fileRef = useRef(null);
-  const importTipo = useRef("plan"); // plan | real | falta
+  const importTipo = useRef("plan"); // plan | avanco | replanejamento
   const drag = useRef(null);
   const saveTimer = useRef(null);
 
   const flash = useCallback((m) => {
     setStatus(m);
-    setTimeout(() => setStatus(""), 2800);
+    setTimeout(() => setStatus(""), 3000);
   }, []);
 
   /* ─── Persistência (Supabase Backend + Local Fallback + Auto Sync) ───────── */
   const listar = useCallback(async () => {
     try {
-      // 1. Obter projetos locais (cache do navegador)
       let localIdx = [];
       try {
         const r = await storage.get("lob:index");
         localIdx = r ? JSON.parse(r.value) : [];
       } catch {}
 
-      // 2. Buscar projetos globais do backend / Supabase filtrados pelo usuário
       const serverProjetos = await apiClient.getProjetos(user?.id);
       const serverLista = Array.isArray(serverProjetos)
         ? serverProjetos.map((item) => {
@@ -96,7 +94,6 @@ export default function App() {
           })
         : [];
 
-      // 3. Sincronizar qualquer projeto local que ainda não esteja no Supabase
       const isUUID = (val) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
       const serverIds = new Set(serverLista.map((x) => x.id));
       for (const locItem of localIdx) {
@@ -105,7 +102,6 @@ export default function App() {
             const rp = await storage.get(`lob:proj:${locItem.id}`);
             if (rp) {
               let p = JSON.parse(rp.value);
-              // Migrar ID legado não-UUID se necessário
               const oldId = p.id;
               if (!isUUID(p.id)) {
                 const newId = uid();
@@ -134,7 +130,6 @@ export default function App() {
         }
       }
 
-      // 4. Se houver projetos no servidor ou unificados, atualizar estado e cache local
       if (serverLista.length > 0) {
         setSalvos(serverLista);
         await storage.set(
@@ -158,7 +153,6 @@ export default function App() {
     }
   }, [user]);
 
-  // Na inicialização: restaurar sessão ativa caso exista (mantém login no refresh)
   useEffect(() => {
     async function initAuth() {
       try {
@@ -185,7 +179,6 @@ export default function App() {
     initAuth();
   }, []);
 
-  /** Carrega os grupos do usuário logado e determina seu papel */
   const carregarGrupos = useCallback(async () => {
     try {
       const token = sessionStorage.getItem("lob:auth_token") || localStorage.getItem("lob:auth_token");
@@ -196,7 +189,6 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setGruposUsuario(Array.isArray(data) ? data : []);
-        // Selecionar automaticamente o primeiro grupo se houver apenas um
         if (Array.isArray(data) && data.length === 1) {
           setGrupoAtivo(data[0].id);
         }
@@ -206,7 +198,6 @@ export default function App() {
     }
   }, []);
 
-  // Na inicialização: carregar lista e verificar se há parâmetro ?obra=ID ou ?p=ID na URL
   useEffect(() => {
     if (!user) return;
     carregarGrupos();
@@ -238,13 +229,11 @@ export default function App() {
           user_id: p.user_id || user?.id || null,
         };
 
-        // 1. Sincronizar com o Supabase via Backend Proxy / Supabase
         const savedProject = await apiClient.salvarProjeto(projetoComUser, user?.id);
         if (!savedProject) {
           throw new Error("Não foi possível sincronizar a obra com o servidor");
         }
 
-        // 2. Salvar no Storage local
         await storage.set(`lob:proj:${p.id}`, JSON.stringify(projetoComUser));
         let idx = [];
         try {
@@ -280,7 +269,6 @@ export default function App() {
 
   const abrir = async (id) => {
     try {
-      // Tentar Supabase backend primeiro
       const serverProj = await apiClient.getProjeto(id);
       if (serverProj && serverProj.dados) {
         setProj(serverProj.dados);
@@ -292,7 +280,6 @@ export default function App() {
         return;
       }
 
-      // Fallback local
       const r = await storage.get(`lob:proj:${id}`);
       if (r) {
         setProj(JSON.parse(r.value));
@@ -306,7 +293,6 @@ export default function App() {
     }
   };
 
-  /* ─── Seleção de Obra na HomeScreen ──────────────────────────── */
   const selecionarObra = async (id) => {
     try {
       const serverProj = await apiClient.getProjeto(id);
@@ -333,7 +319,6 @@ export default function App() {
     }
   };
 
-  /* ─── Criar Nova Obra ────────────────────────────────────────── */
   const criarNovaObra = async (novoProjeto) => {
     const projetoComUser = {
       ...novoProjeto,
@@ -347,13 +332,11 @@ export default function App() {
     setVista("grafico");
     setModal(null);
     setTela("editor");
-    flash(`Obra "${novoProjeto.nome}" criada e salva no Supabase!`);
+    flash(`Obra "${novoProjeto.nome}" criada e salva!`);
   };
 
-  /* ─── Excluir Obra ───────────────────────────────────────────── */
   const excluirObra = async (id) => {
     try {
-      // 1. Remover local
       await storage.remove(`lob:proj:${id}`);
       const r = await storage.get("lob:index");
       const idx = r ? JSON.parse(r.value) : [];
@@ -361,7 +344,6 @@ export default function App() {
       await storage.set("lob:index", JSON.stringify(novoIdx));
       setSalvos((prev) => prev.filter((e) => e.id !== id));
 
-      // 2. Remover no Supabase
       await apiClient.excluirProjeto(id);
 
       if (proj?.id === id) {
@@ -374,7 +356,6 @@ export default function App() {
     }
   };
 
-  /* ─── Voltar para HomeScreen (salva automaticamente) ─────────── */
   const voltarParaHome = async () => {
     if (proj) await salvar(proj, true);
     await listar();
@@ -529,7 +510,7 @@ export default function App() {
     const t = torreAtiva();
     const ls = proj.locais.filter((l) => l.torreId === t.id).sort((a, b) => a.ordem - b.ordem);
     if (!ls.length) return flash("Crie pavimentos antes de criar atividades");
-    const base = D(proj.dataZero);
+    const base = D(proj.dataZero || new Date());
     const a = {
       id: uid(),
       torreId: t.id,
@@ -543,11 +524,14 @@ export default function App() {
       dataFim: iso(addDays(base, 90)),
       realIni: null,
       realFim: null,
+      avanco: 0,
+      pavimentoAtualId: null,
     };
     setProj((p) => ({ ...p, atividades: [...p.atividades, a] }));
     setSelId(a.id);
     setShowProps(true);
     setTab("atividades");
+    if (vista !== "grafico") setVista("grafico");
   };
 
   const duplicar = (a) => {
@@ -561,7 +545,7 @@ export default function App() {
     if (selId === id) setSelId(null);
   };
 
-  /* ─── Importação de Planilha Excel ──────────────────────────── */
+  /* ─── Importação de Planilha Excel / CSV ─────────────────────── */
   const abrirImport = (tipo) => {
     importTipo.current = tipo;
     if (tipo === "replanejamento") {
@@ -574,162 +558,38 @@ export default function App() {
   const importarArquivo = async (file) => {
     if (!file) return;
     const t = torreAtiva();
-    const ls = proj.locais.filter((l) => l.torreId === t.id).sort((a, b) => a.ordem - b.ordem);
-    if (!ls.length) {
-      setModal(null);
-      return flash("Crie pavimentos antes de importar");
-    }
     const tipo = importTipo.current;
     try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array", cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const linhas = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
-      let hi = -1,
-        cA = -1,
-        cI = -1,
-        cF = -1;
-      for (let i = 0; i < Math.min(linhas.length, 20); i++) {
-        const cols = (linhas[i] || []).map(normalizar);
-        const a = cols.findIndex((c) => c.startsWith("atividade") || c === "servico" || c === "serviço");
-        const b = cols.findIndex((c) => c.startsWith("inicio"));
-        const f = cols.findIndex((c) => c.startsWith("fim") || c.startsWith("termino"));
-        if (a >= 0 && b >= 0 && f >= 0) {
-          hi = i;
-          cA = a;
-          cI = b;
-          cF = f;
-          break;
-        }
-      }
-      if (hi < 0) {
-        setModal(null);
-        return flash("Cabeçalho não encontrado. Use Atividade, Inicio e Fim.");
-      }
+      const { registros } = await processarArquivoImportacao({
+        file,
+        tipo,
+        proj,
+        torreAtivaId: t?.id,
+      });
 
-      const registros = [];
-      for (let i = hi + 1; i < linhas.length; i++) {
-        const r = linhas[i] || [];
-        const nome = String(r[cA] ?? "").trim();
-        if (!nome) continue;
-        const di = parseData(r[cI]),
-          df = parseData(r[cF]);
-        if (!di || !df || df <= di) continue;
-        registros.push({ nome, di, df });
-      }
-      if (!registros.length) {
-        setModal(null);
-        return flash("Nenhuma linha válida na planilha");
-      }
+      const resultado = aplicarImportacaoAoProjeto({
+        proj,
+        registros,
+        tipo,
+        torreAtivaId: t?.id,
+      });
 
-      if (tipo === "plan" || tipo === "falta") {
-        const novas = registros.map((r) => ({
-          id: uid(),
-          torreId: t.id,
-          nome: r.nome,
-          cor: BLACK,
-          modo: "LINHA",
-          visivel: true,
-          locIniId: ls[0].id,
-          locFimId: ls[ls.length - 1].id,
-          dataIni: iso(r.di),
-          dataFim: iso(r.df),
-          realIni: null,
-          realFim: null,
-        }));
-        setProj((p) => ({ ...p, atividades: [...p.atividades, ...novas] }));
-        setModal(null);
-        setFiltroTorre(t.id);
-        flash(`${novas.length} atividades ${tipo === "falta" ? "a executar " : ""}importadas para ${t.nome}`);
-      } else {
-        const existentes = proj.atividades.filter((a) => a.torreId === t.id);
-        let casadas = 0;
-        const upd = {};
-        registros.forEach((r) => {
-          const alvo = existentes.find((a) => normalizar(a.nome) === normalizar(r.nome));
-          if (alvo) {
-            upd[alvo.id] = { realIni: iso(r.di), realFim: iso(r.df) };
-            casadas++;
-          }
-        });
-        setProj((p) => ({ ...p, atividades: p.atividades.map((a) => (upd[a.id] ? { ...a, ...upd[a.id] } : a)) }));
-        setModal(null);
-        flash(
-          casadas
-            ? `Realizado importado · ${casadas} atividades casadas por nome`
-            : "Nenhum nome coincidiu com as atividades da torre"
-        );
-      }
-    } catch {
+      setProj(resultado.novoProj);
       setModal(null);
-      flash("Não foi possível ler o arquivo");
+      flash(resultado.resumo);
+    } catch (err) {
+      setModal(null);
+      flash(err.message || "Não foi possível ler o arquivo");
     }
   };
 
-  /* ─── Importação de Replanejamento ─────────────────────────── */
-  const importarReplanejamento = async (file) => {
-    if (!file) return;
-    const t = torreAtiva();
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array", cellDates: true });
-      // Tenta ler aba "Replanejamento" primeiro, senão usa a primeira aba
-      const sheetName = wb.SheetNames.includes("Replanejamento")
-        ? "Replanejamento"
-        : wb.SheetNames[0];
-      const ws = wb.Sheets[sheetName];
-      const linhas = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
-
-      let hi = -1, cA = -1, cI = -1, cF = -1;
-      for (let i = 0; i < Math.min(linhas.length, 20); i++) {
-        const cols = (linhas[i] || []).map(normalizar);
-        const a = cols.findIndex((c) => c.startsWith("atividade") || c === "servico" || c === "serviço");
-        const b = cols.findIndex((c) => c.startsWith("inicio"));
-        const f = cols.findIndex((c) => c.startsWith("fim") || c.startsWith("termino"));
-        if (a >= 0 && b >= 0 && f >= 0) { hi = i; cA = a; cI = b; cF = f; break; }
-      }
-      if (hi < 0) {
-        setModal(null);
-        return flash("Cabeçalho não encontrado. Use Atividade, Inicio e Fim.");
-      }
-
-      const registros = [];
-      for (let i = hi + 1; i < linhas.length; i++) {
-        const r = linhas[i] || [];
-        const nome = String(r[cA] ?? "").trim();
-        if (!nome) continue;
-        const di = parseData(r[cI]), df = parseData(r[cF]);
-        if (!di || !df || df <= di) continue;
-        registros.push({ nome, di, df });
-      }
-      if (!registros.length) {
-        setModal(null);
-        return flash("Nenhuma linha válida na planilha");
-      }
-
-      const existentes = proj.atividades.filter((a) => a.torreId === t.id);
-      let atualizadas = 0;
-      const upd = {};
-      registros.forEach((r) => {
-        const alvo = existentes.find((a) => normalizar(a.nome) === normalizar(r.nome));
-        if (alvo) {
-          upd[alvo.id] = { dataIni: iso(r.di), dataFim: iso(r.df) };
-          atualizadas++;
-        }
-      });
-      setProj((p) => ({
-        ...p,
-        atividades: p.atividades.map((a) => (upd[a.id] ? { ...a, ...upd[a.id] } : a)),
-      }));
-      setModal(null);
-      flash(
-        atualizadas
-          ? `Replanejamento aplicado · ${atualizadas} atividade${atualizadas > 1 ? "s" : ""} atualizadas em ${t.nome}`
-          : "Nenhum nome coincidiu com as atividades da torre"
-      );
-    } catch {
-      setModal(null);
-      flash("Não foi possível ler o arquivo");
+  const baixarModeloExcel = (tipoModelo) => {
+    if (tipoModelo === "avanco") {
+      exportarModeloAvanco({ proj, torreId: filtroTorre, flash });
+    } else if (tipoModelo === "replanejamento") {
+      exportarModeloReplanejamento({ proj, torreId: filtroTorre, flash });
+    } else {
+      exportarModeloAtividades({ proj, torreId: filtroTorre, flash });
     }
   };
 
@@ -761,7 +621,7 @@ export default function App() {
     [proj?.atividades, upA]
   );
 
-  /* ─── Arraste Interativo no Gráfico (Translação, Inclinação e Escopo) ─── */
+  /* ─── Arraste Interativo no Gráfico ─────────────────────────── */
   const onDown = (e, a, modo) => {
     e.stopPropagation();
     try {
@@ -869,7 +729,7 @@ export default function App() {
     setDragInfo(null);
   };
 
-  /* ─── Arraste da Barra Lateral para o Gráfico (Drop no Cronograma) ─── */
+  /* ─── Arraste da Barra Lateral para o Gráfico ─────────────── */
   const handleDropActivityFromSidebar = (actId, offsetX, offsetY) => {
     if (!proj || !proj.atividades) return;
     const a = proj.atividades.find((x) => x.id === actId);
@@ -910,51 +770,18 @@ export default function App() {
     flash(`Atividade "${a.nome}" agendada para ${fmtBR(targetDate)}`);
   };
 
-  /* ─── Exportação ────────────────────────────────────────────── */
+  /* ─── Exportação (Exclusivamente Excel e PNG) ───────────────── */
   const doExport = (formato, nomeBase) => {
-    if ((formato === "svg" || formato === "png") && !chartRef.current) {
-      flash("Abra a aba Gráfico para exportar a imagem");
-      return;
-    }
-
-    if (formato === "svg") {
-      const svgString = buildSVG({
-        proj,
-        rows,
-        grupos,
-        chartW,
-        chartH,
-        axisSvgContent: axisRef.current?.innerHTML,
-        chartSvgContent: chartRef.current?.innerHTML,
-        T,
-      });
-      const nome = (nomeBase || proj.nome || "tempo-x-caminho").replace(/[\/\\:*?"<>|]/g, "-");
-      baixar(`${nome}.svg`, svgString, "image/svg+xml;charset=utf-8", flash);
-      if (flash) flash("SVG exportado");
-      return;
-    }
-
     if (formato === "xlsx") {
       exportarExcel({ proj, rows, rowIdx, metrica, pavimentoHoje, nomeBase, flash });
       return;
     }
 
-    if (formato === "xml") {
-      exportarXML({ proj, rows, rowIdx, metrica, pavimentoHoje, nomeBase, flash });
-      return;
-    }
-
-    if (formato === "csv") {
-      exportarCSV({ proj, rows, rowIdx, metrica, nomeBase, flash });
-      return;
-    }
-
-    if (formato === "json") {
-      exportarJSON({ proj, nomeBase, flash });
-      return;
-    }
-
     if (formato === "png") {
+      if (!chartRef.current) {
+        flash("Abra a aba Gráfico para gerar a imagem em PNG");
+        return;
+      }
       const svgString = buildSVG({
         proj,
         rows,
@@ -966,25 +793,6 @@ export default function App() {
         T,
       });
       exportarPNG({ svgString, surfaceColor: T.surface, nomeBase, flash });
-    }
-  };
-
-  const carregarProjetoJSON = async (file) => {
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      if (data && data.torres && data.locais && data.atividades) {
-        if (!data.id) data.id = uid();
-        setProj(data);
-        salvar(data, true);
-        setSelId(null);
-        setModal(null);
-        flash(`Empreendimento "${data.nome}" carregado com sucesso!`);
-      } else {
-        flash("Arquivo JSON inválido para projeto Tempo x Caminho");
-      }
-    } catch {
-      flash("Erro ao ler o arquivo JSON");
     }
   };
 
@@ -1030,6 +838,8 @@ export default function App() {
         dataFim: iso(addDays(D(a.dataFim), offset)),
         realIni: null,
         realFim: null,
+        avanco: 0,
+        pavimentoAtualId: null,
       }));
     const nome = `Torre ${proj.torres.length + 1}`;
     setProj((p) => ({
@@ -1084,7 +894,6 @@ export default function App() {
     (a) => a.visivel !== false && rowIdx[a.locIniId] != null && rowIdx[a.locFimId] != null
   ) : [];
 
-  /* Pavimento onde a atividade está hoje (interpolação sobre o planejado) */
   const pavimentoHoje = useCallback(
     (a) => {
       const i = rowIdx[a.locIniId],
@@ -1103,7 +912,7 @@ export default function App() {
     [rowIdx, rows]
   );
 
-  /* ─── Render: Autenticação, HomeScreen ou Editor ──────────── */
+  /* ─── Renderização ──────────────────────────────────────────── */
   if (authLoading) {
     return (
       <div
@@ -1128,12 +937,10 @@ export default function App() {
     );
   }
 
-  // Determinar papel do usuário no grupo ativo (permissões totais liberadas)
   const grupoAtivoObj = gruposUsuario.find((g) => g.id === grupoAtivo);
   const userRoleNoGrupo = grupoAtivoObj?.meu_role
     ?? gruposUsuario[0]?.meu_role
     ?? "admin";
-  const permissao = usePermissao(userRoleNoGrupo);
 
   if (tela === "home" || !proj) {
     return (
@@ -1176,7 +983,7 @@ export default function App() {
   }
 
   return (
-    <div className="w-full h-screen flex flex-col overflow-hidden" style={{ background: T.bg, fontFamily: FONT, color: T.text }}>
+    <div className="w-full h-screen flex flex-row overflow-hidden" style={{ background: T.bg, fontFamily: FONT, color: T.text }}>
       <input
         ref={fileRef}
         type="file"
@@ -1188,8 +995,8 @@ export default function App() {
         }}
       />
 
-      {/* ── Barra Superior (Header) ── */}
-      <Header
+      {/* ── Barra de Navegação Lateral (Sleek SidebarNav) ── */}
+      <SidebarNav
         proj={proj}
         setProj={setProj}
         vista={vista}
@@ -1201,136 +1008,157 @@ export default function App() {
         pxPerDay={pxPerDay}
         setPxPerDay={setPxPerDay}
         onAbrirModal={setModal}
+        onNovaAtividade={novaAtividade}
         onSalvar={salvar}
         onVoltarHome={voltarParaHome}
+        onLogout={handleLogout}
+        user={user}
       />
 
-      {/* ── Visualização Alternável (Resumo Executivo, Metas Lookahead, Macrofluxo ou Gráfico Interativo) ── */}
-      {vista === "resumo" ? (
-        <Resumo
-          T={T}
-          proj={proj}
-          metrica={metrica}
-          pavimentoHoje={pavimentoHoje}
-          rowIdx={rowIdx}
-          onVoltar={() => setVista("grafico")}
-          onSelect={(id) => {
-            setSelId(id);
-            setVista("grafico");
-            setShowProps(true);
-          }}
-        />
-      ) : vista === "metas" ? (
-        <MetasView
-          T={T}
-          proj={proj}
-          rows={rows}
-          rowIdx={rowIdx}
-          onVoltar={() => setVista("grafico")}
-          onSelectAtividade={(id) => {
-            setSelId(id);
-            setVista("grafico");
-            setShowProps(true);
-          }}
-        />
-      ) : vista === "macrofluxo" ? (
-        <MacrofluxoView
-          T={T}
-          proj={proj}
-          setProj={setProj}
-          onVoltar={() => setVista("grafico")}
-          onAplicarTorre={(macroId) =>
-            setModal({
-              tipo: "aplicarMacrofluxo",
-              macroId,
-              torreId: filtroTorre !== "TODAS" ? filtroTorre : proj.torres[0]?.id,
-            })
-          }
-        />
-      ) : (
-        <div className="flex-1 flex min-h-0 relative">
-          {/* Painel Esquerdo */}
-          <Sidebar
+      {/* ── Área de Conteúdo Central da Aplicação ── */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+        {vista === "avanco" ? (
+          <AvancoView
             T={T}
-            tab={tab}
-            setTab={setTab}
             proj={proj}
             setProj={setProj}
-            filtroTorre={filtroTorre}
-            selId={selId}
-            setSelId={setSelId}
-            setShowProps={setShowProps}
-            metrica={metrica}
-            alertas={alertas}
-            collapsed={collapsed}
-            setCollapsed={setCollapsed}
-            upA={upA}
-            onNovaAtividade={novaAtividade}
-            onAbrirModal={setModal}
-            onExcluirTorre={excluirTorre}
-            onAddTorreVazia={addTorreVazia}
+            rows={rows}
+            rowIdx={rowIdx}
+            onVoltarGrafico={() => setVista("grafico")}
+            onSelectAtividade={(id) => {
+              setSelId(id);
+              setVista("grafico");
+              setShowProps(true);
+            }}
+            onAbrirImport={abrirImport}
+            flash={flash}
           />
-
-          {/* Gráfico Central */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <FlowlineChart
+        ) : vista === "resumo" ? (
+          <Resumo
+            T={T}
+            proj={proj}
+            metrica={metrica}
+            pavimentoHoje={pavimentoHoje}
+            rowIdx={rowIdx}
+            onVoltar={() => setVista("grafico")}
+            onSelect={(id) => {
+              setSelId(id);
+              setVista("grafico");
+              setShowProps(true);
+            }}
+          />
+        ) : vista === "metas" ? (
+          <MetasView
+            T={T}
+            proj={proj}
+            rows={rows}
+            rowIdx={rowIdx}
+            onVoltar={() => setVista("grafico")}
+            onSelectAtividade={(id) => {
+              setSelId(id);
+              setVista("grafico");
+              setShowProps(true);
+            }}
+          />
+        ) : vista === "macrofluxo" ? (
+          <MacrofluxoView
+            T={T}
+            proj={proj}
+            setProj={setProj}
+            onVoltar={() => setVista("grafico")}
+            onAplicarTorre={(macroId) =>
+              setModal({
+                tipo: "aplicarMacrofluxo",
+                macroId,
+                torreId: filtroTorre !== "TODAS" ? filtroTorre : proj.torres[0]?.id,
+              })
+            }
+          />
+        ) : (
+          <div className="flex-1 flex min-h-0 relative">
+            {/* Painel Esquerdo de Atividades e Estrutura */}
+            <Sidebar
               T={T}
+              tab={tab}
+              setTab={setTab}
               proj={proj}
-              rows={rows}
-              rowIdx={rowIdx}
-              grupos={grupos}
-              meses={meses}
-              chartW={chartW}
-              chartH={chartH}
-              rowH={rowH}
-              pxPerDay={pxPerDay}
-              xOf={xOf}
-              yMid={yMid}
-              ativVisiveis={ativVisiveis}
-              alertas={alertas}
+              setProj={setProj}
+              filtroTorre={filtroTorre}
               selId={selId}
-              setSelId={(id) => {
-                setSelId(id);
-                if (id) setShowProps(true);
-              }}
-              dragInfo={dragInfo}
-              axisRef={axisRef}
-              chartRef={chartRef}
-              onDown={onDown}
-              onMove={onMove}
-              onUp={onUp}
-              onDropActivity={handleDropActivityFromSidebar}
+              setSelId={setSelId}
+              setShowProps={setShowProps}
+              metrica={metrica}
+              alertas={alertas}
+              collapsed={collapsed}
+              setCollapsed={setCollapsed}
+              upA={upA}
+              onNovaAtividade={novaAtividade}
+              onAbrirModal={setModal}
+              onExcluirTorre={excluirTorre}
+              onAddTorreVazia={addTorreVazia}
             />
 
-            {/* Barra Inferior com Alertas */}
-            <StatusBar
+            {/* Gráfico Central de Linha de Balanço */}
+            <div className="flex-1 flex flex-col min-w-0">
+              <FlowlineChart
+                T={T}
+                proj={proj}
+                rows={rows}
+                rowIdx={rowIdx}
+                grupos={grupos}
+                meses={meses}
+                chartW={chartW}
+                chartH={chartH}
+                rowH={rowH}
+                pxPerDay={pxPerDay}
+                xOf={xOf}
+                yMid={yMid}
+                ativVisiveis={ativVisiveis}
+                alertas={alertas}
+                selId={selId}
+                setSelId={(id) => {
+                  setSelId(id);
+                  if (id) setShowProps(true);
+                }}
+                dragInfo={dragInfo}
+                axisRef={axisRef}
+                chartRef={chartRef}
+                onDown={onDown}
+                onMove={onMove}
+                onUp={onUp}
+                onDropActivity={handleDropActivityFromSidebar}
+              />
+
+              {/* Barra de Status e Alertas */}
+              <StatusBar
+                T={T}
+                alertas={alertas}
+                status={status}
+                onSelectConflito={(aId) => {
+                  setSelId(aId);
+                  setShowProps(true);
+                }}
+              />
+            </div>
+
+            {/* Painel Direito de Propriedades e Avanço da Atividade */}
+            <PropertiesPanel
               T={T}
+              showProps={showProps}
+              setShowProps={setShowProps}
+              sel={sel}
+              proj={proj}
+              upA={upA}
+              metrica={metrica}
               alertas={alertas}
-              status={status}
-              onSelectConflito={(aId) => {
-                setSelId(aId);
-                setShowProps(true);
-              }}
+              ajustarVelocidade={ajustarVelocidade}
+              ajustarDias={ajustarDias}
+              onDuplicar={duplicar}
+              onExcluir={excluir}
             />
           </div>
-
-          {/* Painel Direito de Propriedades */}
-          <PropertiesPanel
-            T={T}
-            showProps={showProps}
-            setShowProps={setShowProps}
-            sel={sel}
-            proj={proj}
-            upA={upA}
-            metrica={metrica}
-            alertas={alertas}
-            ajustarVelocidade={ajustarVelocidade}
-            ajustarDias={ajustarDias}
-            onDuplicar={duplicar}
-            onExcluir={excluir}
-          />
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── Modais ── */}
       {modal === "importmenu" && (
@@ -1339,6 +1167,7 @@ export default function App() {
           torreNome={torreAtiva()?.nome}
           onClose={() => setModal(null)}
           onSelectTipo={abrirImport}
+          onBaixarModelo={baixarModeloExcel}
         />
       )}
 
@@ -1348,6 +1177,7 @@ export default function App() {
           tipo={importTipo.current}
           onClose={() => setModal(null)}
           onPickFile={() => fileRef.current?.click()}
+          onBaixarModelo={baixarModeloExcel}
         />
       )}
 
@@ -1367,7 +1197,6 @@ export default function App() {
           salvos={salvos}
           onClose={() => setModal(null)}
           onAbrir={abrir}
-          onCarregarJSON={carregarProjetoJSON}
         />
       )}
 
@@ -1392,7 +1221,7 @@ export default function App() {
               flash,
             })
           }
-          onImportarArquivo={importarReplanejamento}
+          onImportarArquivo={importarArquivo}
         />
       )}
 
