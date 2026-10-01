@@ -136,6 +136,11 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir, grupoA
           }}>
             {obra.nome || "Obra sem nome"}
           </div>
+          {obra.incorporador && (
+            <div style={{ fontSize: 11, fontWeight: 600, color: ORANGE, marginTop: 2 }}>
+              {obra.incorporador}
+            </div>
+          )}
           <div style={{ fontSize: 11, color: mutedColor, marginTop: 3 }}>
             {dataRelativa(obra.em)}
           </div>

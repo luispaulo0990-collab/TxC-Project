@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   LogOut,
   FolderOpen,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { BLACK, ORANGE, OK, NUM } from "../../constants/theme";
 
@@ -32,6 +34,8 @@ export const SidebarNav = ({
   setTema,
   pxPerDay,
   setPxPerDay,
+  exibirRealizado = true,
+  setExibirRealizado,
   onAbrirModal,
   onNovaAtividade,
   onSalvar,
@@ -196,6 +200,34 @@ export const SidebarNav = ({
             title="Sincronizar e salvar no Supabase"
           >
             <Save size={13} /> Salvar Obra
+          </button>
+        </div>
+
+        {/* Alternância da Visão do Realizado */}
+        <div className="pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+          <button
+            onClick={() => setExibirRealizado && setExibirRealizado(!exibirRealizado)}
+            className="w-full py-1.5 px-2 text-xs flex items-center justify-between rounded transition-all cursor-pointer"
+            style={{
+              background: exibirRealizado ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.06)",
+              border: `1px solid ${exibirRealizado ? "rgba(16, 185, 129, 0.45)" : "rgba(255, 255, 255, 0.15)"}`,
+              color: exibirRealizado ? "#34D399" : "rgba(255, 255, 255, 0.65)",
+            }}
+            title={exibirRealizado ? "Clique para ocultar os avanços realizados" : "Clique para exibir os avanços realizados"}
+          >
+            <div className="flex items-center gap-2 font-bold">
+              {exibirRealizado ? <Eye size={13} /> : <EyeOff size={13} />}
+              <span>Visão do Realizado</span>
+            </div>
+            <span
+              className="text-[9.5px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider"
+              style={{
+                background: exibirRealizado ? "rgba(16, 185, 129, 0.3)" : "rgba(255, 255, 255, 0.1)",
+                color: exibirRealizado ? "#ffffff" : "rgba(255, 255, 255, 0.5)",
+              }}
+            >
+              {exibirRealizado ? "ON" : "OFF"}
+            </span>
           </button>
         </div>
 

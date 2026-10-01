@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
 import { THEME, FONT, BLACK, DIAS_MES } from "./constants/theme";
-import { D, iso, addDays, diffDays, uid, hoje, fmtBR } from "./utils/dateUtils";
+import { D, iso, addDays, diffDays, uid, hoje, fmtBR, calcularDiasProdutivos } from "./utils/dateUtils";
 import { segIntersect } from "./utils/geometryUtils";
 import { storage } from "./utils/storageUtils";
 import { buildSVG, exportarPNG, exportarExcel, exportarModeloReplanejamento } from "./utils/exportUtils";
@@ -29,7 +29,7 @@ import { ModalAplicarMacrofluxo } from "./components/modals/ModalAplicarMacroflu
 import { HomeScreen } from "./components/views/HomeScreen";
 import { AuthScreen } from "./components/views/AuthScreen";
 import { ModalGerenciarGrupo } from "./components/modals/ModalGerenciarGrupo";
-import { gerarAtividadesDoMacrofluxo } from "./utils/macrofluxoUtils";
+import { gerarAtividadesDoMacrofluxo, auditarIncoerenciasPredecessoras } from "./utils/macrofluxoUtils";
 import { apiClient } from "./utils/apiClient";
 import { obterSessao, logout } from "./utils/supabaseClient";
 import { usePermissao } from "./hooks/usePermissao";
@@ -55,6 +55,7 @@ export default function App() {
   const [showProps, setShowProps] = useState(true);
   const [tema, setTema] = useState("claro");
   const [vista, setVista] = useState("grafico"); // grafico | avanco | resumo | metas | macrofluxo
+  const [exibirRealizado, setExibirRealizado] = useState(true);
 
   const T = THEME[tema];
   const chartRef = useRef(null);
@@ -85,6 +86,7 @@ export default function App() {
             return {
               id: item.id,
               nome: item.nome || p.nome || "Sem nome",
+              incorporador: item.dados?.incorporador || p.incorporador || "",
               em: item.updated_at ? new Date(item.updated_at).getTime() : Date.now(),
               nTorres: p.torres?.length ?? 0,
               nAtividades: p.atividades?.length ?? 0,
@@ -440,19 +442,23 @@ export default function App() {
     return out;
   }, [t0, t1]);
 
-  /* ─── Métricas de Produção ──────────────────────────────────── */
+  /* ─── Métricas de Produção (Considerando Calendário Nacional e Produtividade) ─── */
   const metrica = useCallback(
     (a) => {
       const i = rowIdx[a.locIniId],
         f = rowIdx[a.locFimId];
       const nLoc = i == null || f == null ? 0 : Math.abs(f - i) + 1;
-      const dias = Math.max(1, diffDays(D(a.dataIni), D(a.dataFim)));
+      const diasTotais = Math.max(1, diffDays(D(a.dataIni), D(a.dataFim)));
+      const diasProdutivos = calcularDiasProdutivos(D(a.dataIni), D(a.dataFim));
+      // Ritmo considerando 22 dias úteis de trabalho por mês
+      const ritmoMes = (nLoc / Math.max(1, diasProdutivos)) * 22;
       return {
         nLoc,
-        dias,
-        ritmoMes: (nLoc / dias) * DIAS_MES,
-        diasPorPav: dias / Math.max(1, nLoc),
-        meses: dias / DIAS_MES,
+        dias: diasTotais,
+        diasProdutivos,
+        ritmoMes,
+        diasPorPav: diasProdutivos / Math.max(1, nLoc),
+        meses: diasTotais / DIAS_MES,
       };
     },
     [rowIdx]
@@ -495,6 +501,11 @@ export default function App() {
     }
     return out;
   }, [proj?.atividades, rowIdx, rows, t0, pxPerDay, rowH]);
+
+  /* ─── Auditoria de Incoerências de Predecessoras (Macrofluxo) ─── */
+  const incoerenciasPredecessoras = useMemo(() => {
+    return auditarIncoerenciasPredecessoras(proj);
+  }, [proj]);
 
   /* ─── Ações de Atividades ───────────────────────────────────── */
   const upA = (id, patch) =>
@@ -797,9 +808,10 @@ export default function App() {
   };
 
   /* ─── Estrutura e Pavimentos ────────────────────────────────── */
-  const gerarPavimentos = (torreId, { subsolos, tipo, cobertura, tampa }) => {
+  const gerarPavimentos = (torreId, { fundacao = true, subsolos = 0, tipo = 25, cobertura = true, tampa = true }) => {
     const ls = [];
     let o = 0;
+    if (fundacao) ls.push({ id: uid(), torreId, nome: "Fundação", tipo: "FUNDACAO", ordem: o++ });
     for (let i = subsolos; i >= 1; i--) ls.push({ id: uid(), torreId, nome: `${i}º Subsolo`, tipo: "SUBSOLO", ordem: o++ });
     ls.push({ id: uid(), torreId, nome: "Térreo", tipo: "TERREO", ordem: o++ });
     for (let i = 1; i <= tipo; i++) ls.push({ id: uid(), torreId, nome: `${i}º Pavimento`, tipo: "TIPO", ordem: o++ });
@@ -1007,6 +1019,8 @@ export default function App() {
         setTema={setTema}
         pxPerDay={pxPerDay}
         setPxPerDay={setPxPerDay}
+        exibirRealizado={exibirRealizado}
+        setExibirRealizado={setExibirRealizado}
         onAbrirModal={setModal}
         onNovaAtividade={novaAtividade}
         onSalvar={salvar}
@@ -1115,6 +1129,9 @@ export default function App() {
                 yMid={yMid}
                 ativVisiveis={ativVisiveis}
                 alertas={alertas}
+                incoerencias={incoerenciasPredecessoras}
+                exibirRealizado={exibirRealizado}
+                setExibirRealizado={setExibirRealizado}
                 selId={selId}
                 setSelId={(id) => {
                   setSelId(id);
@@ -1155,6 +1172,7 @@ export default function App() {
               ajustarDias={ajustarDias}
               onDuplicar={duplicar}
               onExcluir={excluir}
+              user={user}
             />
           </div>
         )}

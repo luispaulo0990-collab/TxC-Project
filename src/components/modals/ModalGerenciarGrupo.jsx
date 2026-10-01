@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from "react";
 import {
   X, Plus, Trash2, Users, Crown, Code2, Eye,
-  ChevronDown, UserPlus, Loader2, Building2
+  ChevronDown, UserPlus, Loader2, Building2, ShieldAlert
 } from "lucide-react";
 import { ORANGE, BLACK, FONT } from "../../constants/theme";
+import { apiClient } from "../../utils/apiClient";
 
 const ROLE_CONFIG = {
   admin: { label: "Admin", icon: Crown, color: "#FE5000", bg: "rgba(254,80,0,0.12)" },
@@ -67,9 +68,19 @@ export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClo
   const [novoMembroRole, setNovoMembroRole] = useState("member");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ text: "", tipo: "" });
+  const [perfis, setPerfis] = useState([]);
+
+  // Administrador tem permissão para criar grupos (ou primeiro usuário da base)
+  const isGlobalAdmin = userRole === "admin" || grupos.length === 0;
+
+  useEffect(() => {
+    apiClient.getPerfisDisponiveis().then((dados) => {
+      if (Array.isArray(dados)) setPerfis(dados);
+    });
+  }, []);
 
   const grupoAtivo = grupos.find((g) => g.id === abaAtiva);
-  const isAdminDoGrupo = grupoAtivo?.meu_role === "admin";
+  const isAdminDoGrupo = grupoAtivo?.meu_role === "admin" || isGlobalAdmin;
 
   function flash(text, tipo = "ok") {
     setMsg({ text, tipo });
@@ -77,6 +88,10 @@ export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClo
   }
 
   async function criarGrupo() {
+    if (!isGlobalAdmin) {
+      flash("Apenas administradores podem criar novos grupos.", "erro");
+      return;
+    }
     if (!novoGrupoNome.trim()) return;
     setLoading(true);
     try {
@@ -273,37 +288,54 @@ export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClo
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
                 Criar novo grupo
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  placeholder="Nome do grupo (ex: Equipe Obra A)"
-                  value={novoGrupoNome}
-                  onChange={(e) => setNovoGrupoNome(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && criarGrupo()}
-                  style={{
-                    flex: 1, padding: "10px 14px", borderRadius: 10,
-                    border: `1.5px solid ${border}`, background: surfaceBg,
-                    color: textColor, fontSize: 13, fontFamily: FONT,
-                    outline: "none",
-                  }}
-                />
-                <button
-                  onClick={criarGrupo}
-                  disabled={!novoGrupoNome.trim() || loading}
-                  style={{
-                    background: ORANGE, color: "#fff", border: "none",
-                    borderRadius: 10, padding: "10px 18px", fontWeight: 700,
-                    fontSize: 13, cursor: "pointer", display: "flex",
-                    alignItems: "center", gap: 6, fontFamily: FONT,
-                    opacity: !novoGrupoNome.trim() || loading ? 0.5 : 1,
-                  }}
-                >
-                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                  Criar
-                </button>
-              </div>
-              <p style={{ marginTop: 10, fontSize: 12, color: mutedColor }}>
-                Você se tornará automaticamente <strong>Admin</strong> do grupo criado.
-              </p>
+              {!isGlobalAdmin ? (
+                <div style={{
+                  padding: "16px 20px", borderRadius: 12,
+                  background: "rgba(239, 68, 68, 0.08)",
+                  border: "1.5px solid rgba(239, 68, 68, 0.25)",
+                  color: "#EF4444", fontSize: 13, display: "flex", alignItems: "flex-start", gap: 10,
+                }}>
+                  <ShieldAlert size={20} className="shrink-0 mt-0.5" />
+                  <div>
+                    <strong>Acesso Restrito:</strong> Novos grupos podem ser criados somente pelo <strong>Administrador</strong>.
+                    Entre em contato com um administrador do sistema para criar grupos e conceder permissões.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      placeholder="Nome do grupo (ex: Equipe Obra A)"
+                      value={novoGrupoNome}
+                      onChange={(e) => setNovoGrupoNome(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && criarGrupo()}
+                      style={{
+                        flex: 1, padding: "10px 14px", borderRadius: 10,
+                        border: `1.5px solid ${border}`, background: surfaceBg,
+                        color: textColor, fontSize: 13, fontFamily: FONT,
+                        outline: "none",
+                      }}
+                    />
+                    <button
+                      onClick={criarGrupo}
+                      disabled={!novoGrupoNome.trim() || loading}
+                      style={{
+                        background: ORANGE, color: "#fff", border: "none",
+                        borderRadius: 10, padding: "10px 18px", fontWeight: 700,
+                        fontSize: 13, cursor: "pointer", display: "flex",
+                        alignItems: "center", gap: 6, fontFamily: FONT,
+                        opacity: !novoGrupoNome.trim() || loading ? 0.5 : 1,
+                      }}
+                    >
+                      {loading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                      Criar
+                    </button>
+                  </div>
+                  <p style={{ marginTop: 10, fontSize: 12, color: mutedColor }}>
+                    Como <strong>Admin</strong>, você poderá gerenciar membros e vincular os perfis dentro deste grupo.
+                  </p>
+                </>
+              )}
             </div>
           )}
 
@@ -391,11 +423,40 @@ export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClo
               {isAdminDoGrupo && (
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                    <UserPlus size={14} color={ORANGE} /> Adicionar membro
+                    <UserPlus size={14} color={ORANGE} /> Vincular Perfil ao Grupo
                   </div>
+
+                  {/* Seletor rápido de perfis do banco */}
+                  {perfis.length > 0 && (
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ fontSize: 11, color: mutedColor, display: "block", marginBottom: 4 }}>
+                        Selecionar perfil cadastrado no banco:
+                      </label>
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) setNovoMembroEmail(e.target.value);
+                        }}
+                        defaultValue=""
+                        style={{
+                          width: "100%", padding: "8px 12px", borderRadius: 8,
+                          border: `1.5px solid ${border}`, background: surfaceBg,
+                          color: textColor, fontSize: 12, fontFamily: FONT,
+                          outline: "none",
+                        }}
+                      >
+                        <option value="">Selecione um perfil ou digite o email abaixo...</option>
+                        {perfis.map((p) => (
+                          <option key={p.id} value={p.email}>
+                            {p.nome ? `${p.nome} — ${p.email}` : p.email}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <input
-                      placeholder="Email do usuário"
+                      placeholder="Email do usuário ou selecione acima"
                       value={novoMembroEmail}
                       onChange={(e) => setNovoMembroEmail(e.target.value)}
                       type="email"

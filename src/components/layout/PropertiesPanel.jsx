@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   X,
   PanelRightOpen,
@@ -7,10 +7,12 @@ import {
   Copy,
   Trash2,
   CheckCircle2,
+  GitBranch,
 } from "lucide-react";
 import { Campo } from "../common/Campo";
 import { Sel } from "../common/Sel";
 import { Metr } from "../common/Metr";
+import { ComentariosAtividade } from "../common/ComentariosAtividade";
 import { PALETTE, ORANGE, ERRO, OK, NUM } from "../../constants/theme";
 import { D, fmtBR, hoje, iso } from "../../utils/dateUtils";
 
@@ -27,6 +29,7 @@ export const PropertiesPanel = ({
   ajustarDias,
   onDuplicar,
   onExcluir,
+  user,
 }) => {
   if (!showProps) {
     return (
@@ -132,10 +135,64 @@ export const PropertiesPanel = ({
               </div>
             </Campo>
 
-            <Campo T={T} label="Escopo de pavimentos">
-              <div className="grid grid-cols-2 gap-1.5">
-                <Sel T={T} value={sel.locIniId} onChange={(v) => upA(sel.id, { locIniId: v })} opts={locais} />
-                <Sel T={T} value={sel.locFimId} onChange={(v) => upA(sel.id, { locFimId: v })} opts={locais} />
+            {sel.modo === "BLOCO" ? (
+              <Campo T={T} label="Pavimento onde aparecerá o Bloco">
+                <Sel
+                  T={T}
+                  value={sel.locIniId || locais[0]?.id}
+                  onChange={(v) => upA(sel.id, { locIniId: v, locFimId: v })}
+                  opts={locais}
+                />
+              </Campo>
+            ) : (
+              <Campo T={T} label="Escopo de pavimentos">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Sel T={T} value={sel.locIniId} onChange={(v) => upA(sel.id, { locIniId: v })} opts={locais} />
+                  <Sel T={T} value={sel.locFimId} onChange={(v) => upA(sel.id, { locFimId: v })} opts={locais} />
+                </div>
+              </Campo>
+            )}
+
+            {/* Predecessora & Defasagem */}
+            <Campo T={T} label="Atividade Predecessora (Dependência)">
+              <div className="flex flex-col gap-1.5">
+                <select
+                  value={sel.predecessoraId || ""}
+                  onChange={(e) => upA(sel.id, { predecessoraId: e.target.value || null })}
+                  className="text-xs px-2 py-1.5 outline-none rounded-xs w-full truncate cursor-pointer"
+                  style={{
+                    border: `1px solid ${T.line}`,
+                    background: T.input,
+                    color: T.text,
+                  }}
+                >
+                  <option value="">Sem predecessora (Independente)</option>
+                  {proj.atividades
+                    .filter((a) => a.id !== sel.id && a.torreId === sel.torreId)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.nome}
+                      </option>
+                    ))}
+                </select>
+                {sel.predecessoraId && (
+                  <div className="flex items-center justify-between text-xs pt-0.5">
+                    <span className="text-[11px]" style={{ color: T.dim }}>Defasagem (dias):</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={sel.defasagemDias || 0}
+                      onChange={(e) => upA(sel.id, { defasagemDias: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                      className="w-16 text-xs px-1.5 py-1 outline-none rounded-xs"
+                      style={{
+                        border: `1px solid ${T.line}`,
+                        background: T.input,
+                        color: T.text,
+                        ...NUM,
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </Campo>
 
@@ -335,6 +392,14 @@ export const PropertiesPanel = ({
                 ))}
               </div>
             )}
+
+            {/* ── Comentários da Atividade (Supabase) ── */}
+            <ComentariosAtividade
+              T={T}
+              projetoId={proj?.id}
+              atividadeId={sel.id}
+              user={user}
+            />
 
             <div className="flex gap-1.5 mt-4">
               <button

@@ -198,10 +198,11 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
           novasTorres.push(targetTorre);
           // Criar pavimentos padrão para essa nova torre
           const padraoloc = [
-            { id: uid(), torreId: novaTorreId, nome: "Térreo", tipo: "TERREO", ordem: 0 },
-            { id: uid(), torreId: novaTorreId, nome: "1º Pavimento", tipo: "TIPO", ordem: 1 },
-            { id: uid(), torreId: novaTorreId, nome: "2º Pavimento", tipo: "TIPO", ordem: 2 },
-            { id: uid(), torreId: novaTorreId, nome: "Cobertura", tipo: "COBERTURA", ordem: 3 },
+            { id: uid(), torreId: novaTorreId, nome: "Fundação", tipo: "FUNDACAO", ordem: 0 },
+            { id: uid(), torreId: novaTorreId, nome: "Térreo", tipo: "TERREO", ordem: 1 },
+            { id: uid(), torreId: novaTorreId, nome: "1º Pavimento", tipo: "TIPO", ordem: 2 },
+            { id: uid(), torreId: novaTorreId, nome: "2º Pavimento", tipo: "TIPO", ordem: 3 },
+            { id: uid(), torreId: novaTorreId, nome: "Cobertura", tipo: "COBERTURA", ordem: 4 },
           ];
           novosLocais.push(...padraoloc);
         }

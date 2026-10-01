@@ -186,6 +186,90 @@ export const apiClient = {
       console.warn('supabasePublic excluirProjeto error:', err);
     }
     return null;
+  },
+
+  /* ─── Comentários por Atividade (Persistidos no Supabase) ──── */
+  async getComentariosAtividade(projetoId, atividadeId) {
+    if (!projetoId || !atividadeId) return [];
+    try {
+      const { data, error } = await supabasePublic
+        .from('atividade_comentarios')
+        .select('*')
+        .eq('projeto_id', String(projetoId))
+        .eq('atividade_id', String(atividadeId))
+        .order('created_at', { ascending: true });
+      if (!error && Array.isArray(data)) {
+        return data;
+      }
+      if (error) {
+        console.warn('getComentariosAtividade error:', error);
+      }
+    } catch (err) {
+      console.warn('Erro ao buscar comentários da atividade:', err);
+    }
+    return [];
+  },
+
+  async adicionarComentarioAtividade(projetoId, atividadeId, texto, user = null) {
+    if (!projetoId || !atividadeId || !texto?.trim()) return null;
+    const u = user || getCurrentUser();
+    const payload = {
+      projeto_id: String(projetoId),
+      atividade_id: String(atividadeId),
+      user_id: u?.id || null,
+      user_nome: u?.user_metadata?.nome || u?.nome || u?.email?.split('@')[0] || 'Usuário',
+      user_email: u?.email || null,
+      texto: texto.trim(),
+    };
+    try {
+      const { data, error } = await supabasePublic
+        .from('atividade_comentarios')
+        .insert(payload)
+        .select()
+        .single();
+      if (!error && data) {
+        return data;
+      }
+      if (error) {
+        console.warn('Erro ao inserir comentário no Supabase:', error);
+      }
+    } catch (err) {
+      console.warn('Exceção ao inserir comentário no Supabase:', err);
+    }
+    // Fallback para exibir na interface mesmo se a tabela estiver sendo criada
+    return {
+      id: 'temp_' + Date.now(),
+      ...payload,
+      created_at: new Date().toISOString(),
+    };
+  },
+
+  async excluirComentarioAtividade(comentarioId) {
+    try {
+      const { error } = await supabasePublic
+        .from('atividade_comentarios')
+        .delete()
+        .eq('id', comentarioId);
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
+  /* ─── Perfis de Usuários (para vinculação em grupos) ────────── */
+  async getPerfisDisponiveis() {
+    try {
+      const { data, error } = await supabasePublic
+        .from('profiles')
+        .select('id, email, nome, role')
+        .order('email', { ascending: true });
+      if (!error && Array.isArray(data)) {
+        return data;
+      }
+    } catch (err) {
+      console.warn('Erro ao buscar perfis:', err);
+    }
+    return [];
   }
 };
 

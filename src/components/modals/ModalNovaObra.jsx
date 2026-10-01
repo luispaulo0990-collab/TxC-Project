@@ -1,15 +1,7 @@
 import React, { useState } from "react";
-import { X, Building2, MapPin, Tag, Calendar, AlertCircle } from "lucide-react";
+import { X, Building2, MapPin, Calendar, AlertCircle, Briefcase } from "lucide-react";
 import { ORANGE, BLACK, FONT } from "../../constants/theme";
 import { uid } from "../../utils/dateUtils";
-
-const TIPOS = [
-  { valor: "Residencial", label: "Residencial", emoji: "🏢" },
-  { valor: "Comercial",   label: "Comercial",   emoji: "🏬" },
-  { valor: "Industrial",  label: "Industrial",  emoji: "🏭" },
-  { valor: "Infraestrutura", label: "Infraestrutura", emoji: "🌉" },
-  { valor: "Outro",       label: "Outro",       emoji: "📋" },
-];
 
 /* ─── Campo de formulário ────────────────────────────────────── */
 function Campo({ label, icon: Icon, erro, children }) {
@@ -31,10 +23,10 @@ function Campo({ label, icon: Icon, erro, children }) {
 
 /* ─── Modal ──────────────────────────────────────────────────── */
 export function ModalNovaObra({ T, tema, onClose, onCriar }) {
-  const [nome, setNome]         = useState("");
-  const [endereco, setEndereco] = useState("");
-  const [tipo, setTipo]         = useState("Residencial");
-  const [dataZero, setDataZero] = useState(() => {
+  const [nome, setNome]                 = useState("");
+  const [incorporador, setIncorporador] = useState("");
+  const [endereco, setEndereco]         = useState("");
+  const [dataZero, setDataZero]         = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
   });
@@ -60,8 +52,9 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
     const novoProjeto = {
       id: uid(),
       nome: nome.trim(),
+      incorporador: incorporador.trim(),
       endereco: endereco.trim(),
-      tipo,
+      tipo: "Predial Vertical",
       dataZero: dataZero || new Date().toISOString().slice(0, 10),
       torres: [],
       locais: [],
@@ -148,6 +141,18 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
             )}
           </Campo>
 
+          {/* Incorporador */}
+          <Campo label="Incorporador(a)" icon={Briefcase}>
+            <input
+              value={incorporador}
+              onChange={(e) => setIncorporador(e.target.value)}
+              placeholder="Ex: Cyrela, Trisul, MRV, Mitre..."
+              style={inputStyle}
+              onFocus={(e) => e.currentTarget.style.borderColor = ORANGE}
+              onBlur={(e) => e.currentTarget.style.borderColor = isDark ? "#33352F" : "#DEDEDB"}
+            />
+          </Campo>
+
           {/* Endereço */}
           <Campo label="Endereço / Localização" icon={MapPin}>
             <input
@@ -158,33 +163,6 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
               onFocus={(e) => e.currentTarget.style.borderColor = ORANGE}
               onBlur={(e) => e.currentTarget.style.borderColor = isDark ? "#33352F" : "#DEDEDB"}
             />
-          </Campo>
-
-          {/* Tipo */}
-          <Campo label="Tipo de Obra" icon={Tag}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {TIPOS.map((t) => (
-                <button
-                  key={t.valor}
-                  onClick={() => setTipo(t.valor)}
-                  style={{
-                    background: tipo === t.valor
-                      ? (isDark ? "rgba(254,80,0,0.15)" : "rgba(254,80,0,0.08)")
-                      : (isDark ? "#22241F" : "#F5F5F3"),
-                    border: `1.5px solid ${tipo === t.valor ? ORANGE : (isDark ? "#33352F" : "#DEDEDB")}`,
-                    borderRadius: 8, padding: "10px 14px",
-                    cursor: "pointer", fontFamily: FONT,
-                    fontSize: 13, fontWeight: tipo === t.valor ? 700 : 400,
-                    color: tipo === t.valor ? ORANGE : (isDark ? "#9DA098" : "#6A6E69"),
-                    transition: "all 0.15s",
-                    display: "flex", alignItems: "center", gap: 8,
-                    textAlign: "left",
-                  }}
-                >
-                  <span style={{ fontSize: 16 }}>{t.emoji}</span> {t.label}
-                </button>
-              ))}
-            </div>
           </Campo>
 
           {/* Data de início */}

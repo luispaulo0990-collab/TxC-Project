@@ -63,3 +63,5 @@ export function parseData(v) {
   const d = new Date(s);
   return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
+
+export * from "./calendarUtils";

@@ -8,12 +8,13 @@ export function seedProject() {
   const locais = [];
   const push = (nome, tipo, ordem) => locais.push({ id: uid(), torreId, nome, tipo, ordem });
 
-  push("Térreo", "TERREO", 0);
+  push("Fundação", "FUNDACAO", 0);
+  push("Térreo", "TERREO", 1);
   for (let i = 1; i <= 25; i++) {
-    push(`${i}º Pavimento${i === 25 ? "/Duplex" : ""}`, "TIPO", i);
+    push(`${i}º Pavimento${i === 25 ? "/Duplex" : ""}`, "TIPO", i + 1);
   }
-  push("Cobertura/Casa de máquina", "COBERTURA", 26);
-  push("Tampa cobertura", "TECNICO", 27);
+  push("Cobertura/Casa de máquina", "COBERTURA", 27);
+  push("Tampa cobertura", "TECNICO", 28);
 
   const byOrd = (o) => locais.find((l) => l.ordem === o)?.id;
   const A = (nome, cor, modo, oi, of_, di, df) => ({
@@ -32,11 +33,11 @@ export function seedProject() {
   });
 
   const atividades = [
-    A("Impermeabilização + Proteção e CP", "#2E86AB", "BLOCO", 26, 27, "2026-07-01", "2026-08-14"),
-    A("Telhado / Rufo", "#C9A227", "BLOCO", 26, 26, "2026-06-01", "2026-07-03"),
-    A("Alvenaria + Acabamentos elevador", ORANGE, "BLOCO", 26, 27, "2026-08-17", "2026-10-02"),
-    A("Skim Coat + Forro e Sanca", "#7D5BA6", "LINHA", 1, 25, "2026-04-06", "2026-07-24"),
-    A("Piso Cerâmico + Azulejo", "#2E86AB", "LINHA", 1, 25, "2026-04-20", "2026-08-07"),
+    A("Impermeabilização + Proteção e CP", "#2E86AB", "BLOCO", 27, 28, "2026-07-01", "2026-08-14"),
+    A("Telhado / Rufo", "#C9A227", "BLOCO", 27, 27, "2026-06-01", "2026-07-03"),
+    A("Alvenaria + Acabamentos elevador", ORANGE, "BLOCO", 27, 28, "2026-08-17", "2026-10-02"),
+    A("Skim Coat + Forro e Sanca", "#7D5BA6", "LINHA", 2, 26, "2026-04-06", "2026-07-24"),
+    A("Piso Cerâmico + Azulejo", "#2E86AB", "LINHA", 2, 26, "2026-04-20", "2026-08-07"),
     A("Textura sacada", "#5C6F82", "LINHA", 1, 25, "2026-05-04", "2026-08-21"),
     A("Louças + Emassamento e 1ª Demão", "#1F4E79", "LINHA", 1, 25, "2026-05-18", "2026-09-04"),
     A("Bancadas + Ventokit", "#7FB069", "LINHA", 1, 25, "2026-06-01", "2026-09-18"),

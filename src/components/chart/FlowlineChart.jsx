@@ -13,6 +13,7 @@ import {
 } from "../../constants/theme";
 import { D, fmtBR, diffDays, hoje } from "../../utils/dateUtils";
 import { contraste } from "../../utils/geometryUtils";
+import { Eye, EyeOff, AlertTriangle } from "lucide-react";
 
 export const FlowlineChart = ({
   T,
@@ -29,6 +30,9 @@ export const FlowlineChart = ({
   yMid,
   ativVisiveis,
   alertas = [],
+  incoerencias = [],
+  exibirRealizado = true,
+  setExibirRealizado,
   selId,
   setSelId,
   dragInfo,
@@ -59,15 +63,37 @@ export const FlowlineChart = ({
           {/* Cabeçalho do Eixo X fixo no topo */}
           <div className="flex sticky top-0" style={{ zIndex: 20 }}>
             <div
-              className="sticky left-0 flex items-center justify-between px-3.5 shadow-sm"
+              className="sticky left-0 flex items-center justify-between px-3 shadow-sm gap-2"
               style={{ width: LABEL_W, height: HEADER_H, background: BLACK, zIndex: 30 }}
             >
-              <span style={{ fontSize: 10, letterSpacing: 2, color: "#fff", fontWeight: 700 }}>
-                CAMINHO
-              </span>
-              <span style={{ ...NUM, fontSize: 9.5, color: "rgba(255,255,255,0.5)" }}>
-                {rows.length} locais
-              </span>
+              <div className="flex flex-col min-w-0">
+                <span style={{ fontSize: 9.5, letterSpacing: 1.5, color: "#fff", fontWeight: 800 }}>
+                  CAMINHO
+                </span>
+                <span style={{ ...NUM, fontSize: 8.5, color: "rgba(255,255,255,0.45)" }}>
+                  {rows.length} locais
+                </span>
+              </div>
+
+              {setExibirRealizado && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExibirRealizado(!exibirRealizado);
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold transition-all shadow-xs shrink-0 select-none cursor-pointer"
+                  style={{
+                    background: exibirRealizado ? "rgba(16, 185, 129, 0.22)" : "rgba(255, 255, 255, 0.12)",
+                    color: exibirRealizado ? "#34D399" : "rgba(255, 255, 255, 0.65)",
+                    border: `1px solid ${exibirRealizado ? "rgba(16, 185, 129, 0.45)" : "rgba(255, 255, 255, 0.2)"}`,
+                  }}
+                  title={exibirRealizado ? "Clique para desabilitar a visão do realizado" : "Clique para habilitar a visão do realizado"}
+                >
+                  {exibirRealizado ? <Eye size={12} /> : <EyeOff size={12} />}
+                  <span>{exibirRealizado ? "Realizado ON" : "Realizado OFF"}</span>
+                </button>
+              )}
             </div>
 
             <svg ref={axisRef} width={chartW} height={HEADER_H} style={{ display: "block" }}>
@@ -343,7 +369,7 @@ export const FlowlineChart = ({
                       />
 
                       {/* Preenchimento de Avanço no Bloco */}
-                      {avancoPct > 0 && (
+                      {avancoPct > 0 && exibirRealizado && (
                         <rect
                           x={x}
                           y={y + 2}
@@ -366,7 +392,7 @@ export const FlowlineChart = ({
                           fontWeight="700"
                           textAnchor="middle"
                         >
-                          {a.nome} {avancoPct > 0 ? `(${avancoPct}%)` : ""}
+                          {a.nome} {avancoPct > 0 && exibirRealizado ? `(${avancoPct}%)` : ""}
                         </text>
                       ) : (
                         <text
@@ -495,7 +521,7 @@ export const FlowlineChart = ({
                         y2={y2}
                         stroke={a.cor}
                         strokeWidth={on ? 3.5 : 2.5}
-                        strokeOpacity={temAvanco ? 0.45 : 1}
+                        strokeOpacity={temAvanco && exibirRealizado ? 0.45 : 1}
                         style={{ cursor: "pointer" }}
                         onPointerDown={(e) => onDown(e, a, "move")}
                         onPointerMove={onMove}
@@ -507,7 +533,7 @@ export const FlowlineChart = ({
                       />
 
                       {/* Segmento Executado / Realizado (Avanço Físico Destacado) */}
-                      {temAvanco && (
+                      {temAvanco && exibirRealizado && (
                         <g pointerEvents="none">
                           <line
                             x1={x1}
@@ -535,6 +561,20 @@ export const FlowlineChart = ({
                           )}
                         </g>
                       )}
+
+                      {/* Alerta de Incoerência de Predecessora nesta Atividade */}
+                      {(() => {
+                        const inc = incoerencias.find((x) => x.atividadeId === a.id);
+                        if (!inc) return null;
+                        return (
+                          <g transform={`translate(${x1 - 18}, ${y1 - 18})`} pointerEvents="none">
+                            <rect x={0} y={0} width={16} height={16} rx={4} fill="#EF4444" stroke="#FFFFFF" strokeWidth={1.5} />
+                            <text x={8} y={12} fill="#FFFFFF" fontFamily={FONT} fontSize={10} fontWeight="900" textAnchor="middle">
+                              !
+                            </text>
+                          </g>
+                        );
+                      })()}
 
                       {/* Rótulo com o nome da atividade ao longo da linha */}
                       {pxPerDay > 2.2 && (

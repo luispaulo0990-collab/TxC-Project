@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   ArrowLeft,
   Plus,
@@ -12,16 +12,33 @@ import {
   Layers,
   Clock,
   Gauge,
+  AlertTriangle,
+  CheckCircle2,
+  ShieldAlert,
+  ArrowRight,
+  RefreshCw,
 } from "lucide-react";
-import { uid } from "../../utils/dateUtils";
+import { uid, fmtBR } from "../../utils/dateUtils";
 import { BLACK, ORANGE, NUM } from "../../constants/theme";
-import { getModelosPadraoMacrofluxo } from "../../utils/macrofluxoUtils";
+import {
+  getModelosPadraoMacrofluxo,
+  auditarIncoerenciasPredecessoras,
+  corrigirIncoerenciaPredecessora,
+} from "../../utils/macrofluxoUtils";
 
 export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) => {
-  const macrofluxos = proj.macrofluxos || [];
+  const macrofluxos = proj?.macrofluxos || [];
   const [selMacroId, setSelMacroId] = useState(macrofluxos[0]?.id || null);
 
   const selMacro = macrofluxos.find((m) => m.id === selMacroId) || null;
+
+  // Auditoria de Incoerências de Predecessoras no Cronograma Atual
+  const incoerencias = useMemo(() => auditarIncoerenciasPredecessoras(proj), [proj]);
+
+  const handleCorrigirIncoerencia = (ativId) => {
+    const novo = corrigirIncoerenciaPredecessora(proj, ativId);
+    setProj(novo);
+  };
 
   const novoMacrofluxo = () => {
     const novo = {
@@ -256,6 +273,71 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
                 </button>
               </div>
             </div>
+
+            {/* Auditoria de Incoerências de Predecessoras */}
+            {incoerencias.length > 0 ? (
+              <div
+                className="p-4 rounded-lg border flex flex-col gap-3 shadow-sm transition-all"
+                style={{
+                  background: "rgba(239, 68, 68, 0.08)",
+                  borderColor: "rgba(239, 68, 68, 0.35)",
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert size={18} className="text-red-500 animate-pulse" />
+                    <span className="text-xs font-bold text-red-600 uppercase tracking-wide">
+                      Incoerência no Cronograma da Obra ({incoerencias.length} {incoerencias.length === 1 ? "apontamento" : "apontamentos"})
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-red-500 font-medium">
+                    Atividades planejadas antes de suas predecessoras
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {incoerencias.map((inc) => (
+                    <div
+                      key={inc.id}
+                      className="p-3 rounded bg-white/70 dark:bg-black/30 border border-red-200 dark:border-red-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1.5 font-bold" style={{ color: T.text }}>
+                          <span className="text-red-600 font-black">⚠️ {inc.atividadeNome}</span>
+                          <span className="text-gray-400">depende de</span>
+                          <span className="text-blue-600 font-semibold">{inc.predecessoraNome}</span>
+                        </div>
+                        <p className="text-[11px] text-red-600 mt-1">
+                          {inc.mensagem} (Início planejado: <strong>{fmtBR(inc.dataIni)}</strong> | Predecessora inicia: <strong>{fmtBR(inc.predecessoraDataIni)}</strong>)
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleCorrigirIncoerencia(inc.atividadeId)}
+                        className="px-2.5 py-1.5 rounded text-[11px] font-bold text-white flex items-center gap-1.5 transition-all hover:brightness-110 active:scale-95 shadow-xs shrink-0"
+                        style={{ background: "#EF4444" }}
+                        title="Ajustar automaticamente a data de início para respeitar a predecessora"
+                      >
+                        <RefreshCw size={12} />
+                        Corrigir no Gráfico
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div
+                className="p-3 rounded-lg border flex items-center gap-2.5 text-xs font-medium"
+                style={{
+                  background: "rgba(16, 185, 129, 0.08)",
+                  borderColor: "rgba(16, 185, 129, 0.25)",
+                  color: "#10B981",
+                }}
+              >
+                <CheckCircle2 size={16} />
+                <span>Nenhuma incoerência de predecessoras detectada no cronograma da obra. Todas as dependências estão respeitadas.</span>
+              </div>
+            )}
 
             {/* Lista de Atividades Padrão */}
             <div className="space-y-3">

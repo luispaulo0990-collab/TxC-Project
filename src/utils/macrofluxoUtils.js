@@ -154,6 +154,7 @@ export function gerarAtividadesDoMacrofluxo({
 
     // Mapa para acompanhar a data de início calculada de cada atividade padrão
     const mapaDatasIni = {};
+    const mapaIdGeradoPorPadrao = {};
     const novasDestaTorre = [];
 
     // Gerar atividades respeitando a ordem e predecessoras
@@ -177,9 +178,15 @@ export function gerarAtividadesDoMacrofluxo({
       }
 
       const dataFimAtiv = addDays(dataIniAtiv, duracaoDias);
+      const novaId = uid();
+      mapaIdGeradoPorPadrao[aPadrao.id] = novaId;
+
+      const predAtivId = aPadrao.predecessoraId
+        ? mapaIdGeradoPorPadrao[aPadrao.predecessoraId] || null
+        : null;
 
       const novaAtividade = {
-        id: uid(),
+        id: novaId,
         torreId: targetTorre.id,
         nome: aPadrao.nome,
         cor: aPadrao.cor || BLACK,
@@ -189,8 +196,14 @@ export function gerarAtividadesDoMacrofluxo({
         locFimId,
         dataIni: iso(dataIniAtiv),
         dataFim: iso(dataFimAtiv),
+        predecessoraId: predAtivId,
+        defasagemDias: Number(aPadrao.defasagemDias) || 0,
+        macroPadraoId: aPadrao.id,
+        macrofluxoId: macro.id,
         realIni: null,
         realFim: null,
+        avanco: 0,
+        pavimentoAtualId: null,
       };
 
       novasDestaTorre.push(novaAtividade);
@@ -209,3 +222,111 @@ export function gerarAtividadesDoMacrofluxo({
     nomeMacro: macro.nome,
   };
 }
+
+/* ─── Auditoria de Incoerências de Predecessoras ─────────────── */
+export function auditarIncoerenciasPredecessoras(proj) {
+  if (!proj || !Array.isArray(proj.atividades)) return [];
+
+  const out = [];
+  const ativs = proj.atividades;
+
+  ativs.forEach((a) => {
+    if (!a.predecessoraId && !a.macroPadraoId) return;
+
+    let pred = null;
+    if (a.predecessoraId) {
+      pred = ativs.find((x) => x.id === a.predecessoraId);
+    }
+    if (!pred && a.macrofluxoId && a.macroPadraoId && Array.isArray(proj.macrofluxos)) {
+      const macro = proj.macrofluxos.find((m) => m.id === a.macrofluxoId);
+      const aPadrao = macro?.atividadesPadrao?.find((ap) => ap.id === a.macroPadraoId);
+      if (aPadrao?.predecessoraId) {
+        pred = ativs.find((x) => x.torreId === a.torreId && x.macroPadraoId === aPadrao.predecessoraId);
+      }
+    }
+
+    if (!pred) return;
+
+    const dataIniA = D(a.dataIni);
+    const dataIniPred = D(pred.dataIni);
+    const defasagemConfigurada = Number(a.defasagemDias) || 0;
+
+    // Incoerência 1: A atividade está planejada para iniciar antes de sua predecessora
+    const inicioAntes = dataIniA < dataIniPred;
+    
+    // Incoerência 2: Defasagem inferior ao configurado no macrofluxo
+    const defasagemReal = diffDays(dataIniPred, dataIniA);
+    const defasagemViolada = defasagemConfigurada > 0 && defasagemReal < defasagemConfigurada;
+
+    if (inicioAntes || defasagemViolada) {
+      const diasAntecipados = inicioAntes ? diffDays(dataIniA, dataIniPred) : 0;
+      const diasFaltantesDefasagem = defasagemViolada ? defasagemConfigurada - defasagemReal : 0;
+
+      out.push({
+        id: `${a.id}_vs_${pred.id}`,
+        atividadeId: a.id,
+        atividadeNome: a.nome,
+        torreId: a.torreId,
+        dataIni: a.dataIni,
+        dataFim: a.dataFim,
+        predecessoraId: pred.id,
+        predecessoraNome: pred.nome,
+        predecessoraDataIni: pred.dataIni,
+        predecessoraDataFim: pred.dataFim,
+        defasagemConfigurada,
+        defasagemReal,
+        inicioAntes,
+        defasagemViolada,
+        gravidade: inicioAntes ? "alta" : "media",
+        diasAntecipados,
+        diasFaltantesDefasagem,
+        mensagem: inicioAntes
+          ? `Iniciada ${diasAntecipados} ${diasAntecipados === 1 ? "dia" : "dias"} antes da sua predecessora "${pred.nome}".`
+          : `Defasagem real (${defasagemReal}d) é inferior à mínima de ${defasagemConfigurada}d em relação a "${pred.nome}".`,
+      });
+    }
+  });
+
+  return out;
+}
+
+/* ─── Correção Automática de Incoerência no Cronograma ────────── */
+export function corrigirIncoerenciaPredecessora(proj, atividadeId) {
+  if (!proj || !Array.isArray(proj.atividades)) return proj;
+  const a = proj.atividades.find((x) => x.id === atividadeId);
+  if (!a) return proj;
+
+  let pred = null;
+  if (a.predecessoraId) {
+    pred = proj.atividades.find((x) => x.id === a.predecessoraId);
+  }
+  if (!pred && a.macrofluxoId && a.macroPadraoId && Array.isArray(proj.macrofluxos)) {
+    const macro = proj.macrofluxos.find((m) => m.id === a.macrofluxoId);
+    const aPadrao = macro?.atividadesPadrao?.find((ap) => ap.id === a.macroPadraoId);
+    if (aPadrao?.predecessoraId) {
+      pred = proj.atividades.find((x) => x.torreId === a.torreId && x.macroPadraoId === aPadrao.predecessoraId);
+    }
+  }
+
+  if (!pred) return proj;
+
+  const duracao = Math.max(1, diffDays(D(a.dataIni), D(a.dataFim)));
+  const lag = Number(a.defasagemDias) || 0;
+  const novaDataIni = addDays(D(pred.dataIni), lag);
+  const novaDataFim = addDays(novaDataIni, duracao);
+
+  return {
+    ...proj,
+    atividades: proj.atividades.map((item) =>
+      item.id === atividadeId
+        ? {
+            ...item,
+            predecessoraId: pred.id,
+            dataIni: iso(novaDataIni),
+            dataFim: iso(novaDataFim),
+          }
+        : item
+    ),
+  };
+}
+

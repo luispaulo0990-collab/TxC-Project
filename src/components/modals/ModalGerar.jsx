@@ -4,14 +4,32 @@ import { Campo } from "../common/Campo";
 import { NUM, ORANGE } from "../../constants/theme";
 
 export const ModalGerar = ({ T, onClose, onOk }) => {
-  const [f, setF] = useState({ subsolos: 0, tipo: 25, cobertura: true, tampa: true });
-  const n = f.subsolos + 1 + f.tipo + (f.cobertura ? 1 : 0) + (f.tampa ? 1 : 0);
+  const [f, setF] = useState({ fundacao: true, subsolos: 0, tipo: 25, cobertura: true, tampa: true });
+  const n = (f.fundacao ? 1 : 0) + f.subsolos + 1 + f.tipo + (f.cobertura ? 1 : 0) + (f.tampa ? 1 : 0);
 
   return (
     <Modal T={T} titulo="Gerar pavimentos" onClose={onClose}>
       <p className="text-xs mb-4" style={{ color: T.muted }}>
         Isto substitui os pavimentos e as atividades existentes desta torre.
       </p>
+
+      {/* Pavimentos Base Padrão */}
+      <div className="mb-3 p-2 rounded text-xs flex flex-col gap-1.5" style={{ background: T.raised, border: `1px solid ${T.line}` }}>
+        <span className="font-bold text-[11px]" style={{ color: ORANGE }}>Pavimentos Padrão:</span>
+        <label className="flex items-center gap-2 cursor-pointer select-none" style={{ color: T.text }}>
+          <input
+            type="checkbox"
+            checked={f.fundacao}
+            onChange={(e) => setF({ ...f, fundacao: e.target.checked })}
+            className="cursor-pointer"
+          />
+          <span><strong>Fundação</strong> (Linha padrão no nível base)</span>
+        </label>
+        <div className="flex items-center gap-2 pl-5 text-gray-500 text-[11px]">
+          <span>✓ <strong>Térreo</strong> (Padrão obrigatório incluído)</span>
+        </div>
+      </div>
+
       {[
         ["subsolos", "Subsolos"],
         ["tipo", "Pavimentos tipo"],
