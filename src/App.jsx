@@ -33,6 +33,7 @@ import { gerarAtividadesDoMacrofluxo, auditarIncoerenciasPredecessoras } from ".
 import { apiClient } from "./utils/apiClient";
 import { obterSessao, logout } from "./utils/supabaseClient";
 import { usePermissao } from "./hooks/usePermissao";
+import { ModalConfirmarExclusao } from "./components/modals/ModalConfirmarExclusao";
 import { Loader2 } from "lucide-react";
 
 export default function App() {
@@ -43,6 +44,7 @@ export default function App() {
   const [tela, setTela] = useState("home"); // "home" | "editor"
   const [proj, setProj] = useState(null);
   const [selId, setSelId] = useState(null);
+  const [modalConfirmacao, setModalConfirmacao] = useState(null);
   const [pxPerDay, setPxPerDay] = useState(3.4);
   const [rowH] = useState(23);
   const [snapWeek] = useState(false);
@@ -358,6 +360,20 @@ export default function App() {
     }
   };
 
+  const pedirExcluirObra = (id) => {
+    const obra = salvos.find((s) => s.id === id) || (proj?.id === id ? proj : null);
+    setModalConfirmacao({
+      titulo: "Excluir Obra",
+      mensagem: "ATENÇÃO: Você está prestes a excluir permanentemente esta obra e todos os seus dados de linha de balanço, avanços e configurações no banco de dados. Esta ação não pode ser desfeita.",
+      itemNome: obra?.nome || "Esta Obra",
+      textoBotao: "Sim, Excluir Obra",
+      onConfirmar: async () => {
+        setModalConfirmacao(null);
+        await excluirObra(id);
+      },
+    });
+  };
+
   const voltarParaHome = async () => {
     if (proj) await salvar(proj, true);
     await listar();
@@ -554,6 +570,23 @@ export default function App() {
   const excluir = (id) => {
     setProj((p) => ({ ...p, atividades: p.atividades.filter((a) => a.id !== id) }));
     if (selId === id) setSelId(null);
+  };
+
+  const pedirExcluirAtividade = (id) => {
+    const ativ = proj?.atividades?.find((a) => a.id === id);
+    if (!ativ) return;
+    setModalConfirmacao({
+      titulo: "Excluir Atividade",
+      mensagem: "Tem certeza que deseja excluir esta atividade da linha de balanço? Essa ação removerá seu planejamento e histórico de avanço associado.",
+      itemNome: ativ.nome,
+      textoBotao: "Excluir Atividade",
+      onConfirmar: () => {
+        setProj((p) => ({ ...p, atividades: p.atividades.filter((a) => a.id !== id) }));
+        if (selId === id) setSelId(null);
+        setModalConfirmacao(null);
+        flash(`Atividade "${ativ.nome}" excluída.`);
+      },
+    });
   };
 
   /* ─── Importação de Planilha Excel / CSV ─────────────────────── */
@@ -895,6 +928,28 @@ export default function App() {
     if (filtroTorre === id) setFiltroTorre("TODAS");
   };
 
+  const pedirExcluirTorre = (id) => {
+    if (proj.torres.length <= 1) return flash("O empreendimento precisa de ao menos uma torre");
+    const t = proj.torres.find((x) => x.id === id);
+    setModalConfirmacao({
+      titulo: "Excluir Torre",
+      mensagem: "Tem certeza que deseja excluir esta torre? Todas as atividades e pavimentos associados a ela também serão removidos.",
+      itemNome: t?.nome || "Torre",
+      textoBotao: "Excluir Torre",
+      onConfirmar: () => {
+        setProj((p) => ({
+          ...p,
+          torres: p.torres.filter((x) => x.id !== id),
+          locais: p.locais.filter((l) => l.torreId !== id),
+          atividades: p.atividades.filter((a) => a.torreId !== id),
+        }));
+        if (filtroTorre === id) setFiltroTorre("TODAS");
+        setModalConfirmacao(null);
+        flash(`Torre "${t?.nome || ""}" excluída.`);
+      },
+    });
+  };
+
   const addTorreVazia = () => {
     setProj((p) => ({
       ...p,
@@ -969,7 +1024,7 @@ export default function App() {
           onLogout={handleLogout}
           onSelecionarObra={selecionarObra}
           onNovaObra={() => setModal("novaObra")}
-          onExcluirObra={excluirObra}
+          onExcluirObra={pedirExcluirObra}
           onGerenciarGrupos={() => setModal("gerenciarGrupo")}
         />
         {modal === "novaObra" && (
@@ -1108,7 +1163,7 @@ export default function App() {
               upA={upA}
               onNovaAtividade={novaAtividade}
               onAbrirModal={setModal}
-              onExcluirTorre={excluirTorre}
+              onExcluirTorre={pedirExcluirTorre}
               onAddTorreVazia={addTorreVazia}
             />
 
@@ -1171,7 +1226,7 @@ export default function App() {
               ajustarVelocidade={ajustarVelocidade}
               ajustarDias={ajustarDias}
               onDuplicar={duplicar}
-              onExcluir={excluir}
+              onExcluir={pedirExcluirAtividade}
               user={user}
             />
           </div>
@@ -1263,6 +1318,18 @@ export default function App() {
             aplicarMacrofluxo(cfg);
             setModal(null);
           }}
+        />
+      )}
+
+      {modalConfirmacao && (
+        <ModalConfirmarExclusao
+          T={T}
+          titulo={modalConfirmacao.titulo}
+          mensagem={modalConfirmacao.mensagem}
+          itemNome={modalConfirmacao.itemNome}
+          textoBotao={modalConfirmacao.textoBotao}
+          onConfirmar={modalConfirmacao.onConfirmar}
+          onCancelar={() => setModalConfirmacao(null)}
         />
       )}
     </div>

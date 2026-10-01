@@ -46,7 +46,6 @@ function dataRelativa(ts) {
 /* ─── Card de Obra ───────────────────────────────────────────── */
 function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir, grupoAtivo }) {
   const [hovered, setHovered] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isDark = tema === "escuro";
   const bg = isDark
@@ -61,20 +60,14 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir, grupoA
 
   const handleDelete = (e) => {
     e.stopPropagation();
-    if (confirmDelete) {
-      onExcluir();
-      setConfirmDelete(false);
-    } else {
-      setConfirmDelete(true);
-      setTimeout(() => setConfirmDelete(false), 3000);
-    }
+    onExcluir();
   };
 
   return (
     <div
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
+      onMouseLeave={() => setHovered(false)}
       style={{
         background: bg,
         border: `1.5px solid ${border}`,
@@ -171,21 +164,21 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir, grupoA
       {podeExcluir && (
         <button
           onClick={handleDelete}
-          title={confirmDelete ? "Clique novamente para confirmar" : "Excluir obra"}
+          title="Excluir obra"
           style={{
             position: "absolute", bottom: 14, right: 14,
-            background: confirmDelete ? "#D64545" : "transparent",
-            border: "none", cursor: "pointer",
-            padding: "4px 8px", borderRadius: 6,
+            background: "rgba(214, 69, 69, 0.1)",
+            border: "1px solid rgba(214, 69, 69, 0.3)", cursor: "pointer",
+            padding: "5px 10px", borderRadius: 6,
             display: "flex", alignItems: "center", gap: 5,
             opacity: hovered ? 1 : 0,
             transition: "opacity 0.15s, background 0.15s",
-            color: confirmDelete ? "#fff" : "#D64545",
-            fontSize: 11, fontWeight: 600,
+            color: "#D64545",
+            fontSize: 11, fontWeight: 700,
           }}
         >
           <Trash2 size={13} />
-          {confirmDelete ? "Confirmar?" : "Excluir"}
+          Excluir
         </button>
       )}
 

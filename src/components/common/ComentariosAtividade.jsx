@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { MessageSquare, Send, Trash2, User, Loader2 } from "lucide-react";
 import { ORANGE, BLACK, FONT, NUM } from "../../constants/theme";
 import { apiClient } from "../../utils/apiClient";
+import { ModalConfirmarExclusao } from "../modals/ModalConfirmarExclusao";
 
 export function ComentariosAtividade({ T, projetoId, atividadeId, user }) {
   const [comentarios, setComentarios] = useState([]);
   const [novoTexto, setNovoTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [comentarioParaExcluir, setComentarioParaExcluir] = useState(null);
 
   const carregar = useCallback(async () => {
     if (!projetoId || !atividadeId) return;
@@ -43,6 +45,7 @@ export function ComentariosAtividade({ T, projetoId, atividadeId, user }) {
   const handleExcluir = async (id) => {
     await apiClient.excluirComentarioAtividade(id);
     setComentarios((prev) => prev.filter((c) => c.id !== id));
+    setComentarioParaExcluir(null);
   };
 
   const formatarHora = (isoDate) => {
@@ -114,8 +117,8 @@ export function ComentariosAtividade({ T, projetoId, atividadeId, user }) {
                     </span>
                     {(eMeu || user?.role === "admin") && (
                       <button
-                        onClick={() => handleExcluir(c.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-0.5"
+                        onClick={() => setComentarioParaExcluir(c)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-0.5 cursor-pointer"
                         title="Excluir comentário"
                       >
                         <Trash2 size={10} />
@@ -150,13 +153,25 @@ export function ComentariosAtividade({ T, projetoId, atividadeId, user }) {
         <button
           type="submit"
           disabled={enviando || !novoTexto.trim()}
-          className="px-2.5 py-1.5 rounded font-bold text-white text-xs flex items-center justify-center transition-all hover:brightness-110 disabled:opacity-40"
+          className="px-2.5 py-1.5 rounded font-bold text-white text-xs flex items-center justify-center transition-all hover:brightness-110 disabled:opacity-40 cursor-pointer"
           style={{ background: ORANGE }}
           title="Enviar comentário"
         >
           {enviando ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
         </button>
       </form>
+
+      {comentarioParaExcluir && (
+        <ModalConfirmarExclusao
+          T={T}
+          titulo="Excluir Comentário"
+          mensagem="Tem certeza que deseja excluir esta anotação da atividade?"
+          itemNome={comentarioParaExcluir.texto?.length > 60 ? comentarioParaExcluir.texto.substring(0, 60) + "..." : comentarioParaExcluir.texto}
+          textoBotao="Excluir"
+          onConfirmar={() => handleExcluir(comentarioParaExcluir.id)}
+          onCancelar={() => setComentarioParaExcluir(null)}
+        />
+      )}
     </div>
   );
 }

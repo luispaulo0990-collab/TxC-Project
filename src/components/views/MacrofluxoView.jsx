@@ -25,10 +25,12 @@ import {
   auditarIncoerenciasPredecessoras,
   corrigirIncoerenciaPredecessora,
 } from "../../utils/macrofluxoUtils";
+import { ModalConfirmarExclusao } from "../modals/ModalConfirmarExclusao";
 
 export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) => {
   const macrofluxos = proj?.macrofluxos || [];
   const [selMacroId, setSelMacroId] = useState(macrofluxos[0]?.id || null);
+  const [modalConfirmacao, setModalConfirmacao] = useState(null);
 
   const selMacro = macrofluxos.find((m) => m.id === selMacroId) || null;
 
@@ -66,6 +68,19 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
       const restantes = macrofluxos.filter((m) => m.id !== id);
       setSelMacroId(restantes[0]?.id || null);
     }
+  };
+
+  const pedirExcluirMacrofluxo = (m) => {
+    setModalConfirmacao({
+      titulo: "Excluir Macrofluxo",
+      mensagem: "Tem certeza que deseja excluir este modelo de macrofluxo?",
+      itemNome: m.nome,
+      textoBotao: "Excluir Macrofluxo",
+      onConfirmar: () => {
+        excluirMacrofluxo(m.id);
+        setModalConfirmacao(null);
+      },
+    });
   };
 
   const atualizarMacrofluxo = (id, obj) => {
@@ -111,6 +126,19 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
           : a
       );
     atualizarMacrofluxo(selMacro.id, { atividadesPadrao: atualizadas });
+  };
+
+  const pedirExcluirAtiv = (a) => {
+    setModalConfirmacao({
+      titulo: "Excluir Atividade Padrão",
+      mensagem: "Deseja remover esta atividade da sequência padrão do macrofluxo?",
+      itemNome: a.nome,
+      textoBotao: "Excluir Atividade",
+      onConfirmar: () => {
+        excluirAtiv(a.id);
+        setModalConfirmacao(null);
+      },
+    });
   };
 
   const moverAtiv = (index, direcao) => {
@@ -199,7 +227,7 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    excluirMacrofluxo(m.id);
+                    pedirExcluirMacrofluxo(m);
                   }}
                   className="p-1 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity"
                   style={{ color: T.dim }}
@@ -421,7 +449,7 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
                         </div>
 
                         <button
-                          onClick={() => excluirAtiv(a.id)}
+                          onClick={() => pedirExcluirAtiv(a)}
                           className="p-1.5 hover:bg-red-500/10 rounded text-red-500 transition-colors"
                           title="Excluir atividade padrão"
                         >
@@ -608,6 +636,18 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
           </div>
         )}
       </div>
+
+      {modalConfirmacao && (
+        <ModalConfirmarExclusao
+          T={T}
+          titulo={modalConfirmacao.titulo}
+          mensagem={modalConfirmacao.mensagem}
+          itemNome={modalConfirmacao.itemNome}
+          textoBotao={modalConfirmacao.textoBotao}
+          onConfirmar={modalConfirmacao.onConfirmar}
+          onCancelar={() => setModalConfirmacao(null)}
+        />
+      )}
     </div>
   );
 };
