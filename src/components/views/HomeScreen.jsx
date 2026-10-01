@@ -301,8 +301,8 @@ export function HomeScreen({
               <span>{user.email || user.user_metadata?.email || "Usuário"}</span>
             </div>
 
-            {/* Gerenciar grupos (admin) */}
-            {userRole === "admin" && onGerenciarGrupos && (
+            {/* Gerenciar/criar grupos (temporariamente desativado conforme solicitado) */}
+            {false && userRole === "admin" && onGerenciarGrupos && (
               <button
                 onClick={onGerenciarGrupos}
                 title="Gerenciar grupos"
