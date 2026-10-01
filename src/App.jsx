@@ -55,6 +55,7 @@ export default function App() {
   const [modal, setModal] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [showProps, setShowProps] = useState(true);
+  const [showActivities, setShowActivities] = useState(true);
   const [tema, setTema] = useState("claro");
   const [vista, setVista] = useState("grafico"); // grafico | avanco | resumo | metas | macrofluxo
   const [exibirRealizado, setExibirRealizado] = useState(true);
@@ -1076,6 +1077,8 @@ export default function App() {
         setPxPerDay={setPxPerDay}
         exibirRealizado={exibirRealizado}
         setExibirRealizado={setExibirRealizado}
+        showActivities={showActivities}
+        setShowActivities={setShowActivities}
         onAbrirModal={setModal}
         onNovaAtividade={novaAtividade}
         onSalvar={salvar}
@@ -1160,6 +1163,8 @@ export default function App() {
               alertas={alertas}
               collapsed={collapsed}
               setCollapsed={setCollapsed}
+              showActivities={showActivities}
+              setShowActivities={setShowActivities}
               upA={upA}
               onNovaAtividade={novaAtividade}
               onAbrirModal={setModal}
