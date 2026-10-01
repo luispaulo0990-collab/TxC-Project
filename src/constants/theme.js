@@ -77,4 +77,4 @@ export const LABEL_W = 210;
 export const TOWER_STRIP = 26;
 export const HEADER_H = 46;
 export const MESES_ABR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-export const DIAS_MES = 30;
+export const DIAS_MES = 20; // Padrão: 4 semanas de 5 dias úteis = 20 dias úteis/mês

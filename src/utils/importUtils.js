@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { D, iso, addDays, uid, parseData, fmtBR, hoje } from "./dateUtils";
+import { D, iso, addDays, uid, parseData, fmtBR, hoje, ajustarFimDeSemanaParaSegunda } from "./dateUtils";
 import { normalizar } from "./geometryUtils";
 import { BLACK } from "../constants/theme";
 import { baixar } from "./exportUtils";
@@ -116,10 +116,19 @@ export async function processarArquivoImportacao({ file, tipo, proj, torreAtivaI
     if (!nome) continue;
 
     const torreNome = mapa.idxTorre >= 0 ? String(r[mapa.idxTorre] ?? "").trim() : "";
-    const di = mapa.idxIni >= 0 ? parseData(r[mapa.idxIni]) : null;
-    const df = mapa.idxFim >= 0 ? parseData(r[mapa.idxFim]) : null;
-    const rIni = mapa.idxRealIni >= 0 ? parseData(r[mapa.idxRealIni]) : null;
-    const rFim = mapa.idxRealFim >= 0 ? parseData(r[mapa.idxRealFim]) : null;
+    const diRaw = mapa.idxIni >= 0 ? parseData(r[mapa.idxIni]) : null;
+    const dfRaw = mapa.idxFim >= 0 ? parseData(r[mapa.idxFim]) : null;
+    const rIniRaw = mapa.idxRealIni >= 0 ? parseData(r[mapa.idxRealIni]) : null;
+    const rFimRaw = mapa.idxRealFim >= 0 ? parseData(r[mapa.idxRealFim]) : null;
+
+    // Se qualquer data cair em final de semana (sábado/domingo), joga para a próxima segunda-feira pós o fim de semana
+    const di = diRaw ? ajustarFimDeSemanaParaSegunda(diRaw) : null;
+    let df = dfRaw ? ajustarFimDeSemanaParaSegunda(dfRaw) : null;
+    if (di && df && df <= di) {
+      df = ajustarFimDeSemanaParaSegunda(addDays(di, 7));
+    }
+    const rIni = rIniRaw ? ajustarFimDeSemanaParaSegunda(rIniRaw) : null;
+    const rFim = rFimRaw ? ajustarFimDeSemanaParaSegunda(rFimRaw) : null;
     
     // Processamento de % de Avanço
     let avancoVal = null;
@@ -228,8 +237,11 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
         if (lMatch) locFim = lMatch;
       }
 
-      const di = r.di || D(proj.dataZero || new Date());
-      const df = r.df && r.df > di ? r.df : addDays(di, 60);
+      const di = ajustarFimDeSemanaParaSegunda(r.di || D(proj.dataZero || new Date()));
+      let df = r.df && r.df > di ? ajustarFimDeSemanaParaSegunda(r.df) : ajustarFimDeSemanaParaSegunda(addDays(di, 60));
+      if (df <= di) {
+        df = ajustarFimDeSemanaParaSegunda(addDays(di, 7));
+      }
 
       const nova = {
         id: uid(),
@@ -242,8 +254,8 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
         locFimId: locFim.id,
         dataIni: iso(di),
         dataFim: iso(df),
-        realIni: r.rIni ? iso(r.rIni) : null,
-        realFim: r.rFim ? iso(r.rFim) : null,
+        realIni: r.rIni ? iso(ajustarFimDeSemanaParaSegunda(r.rIni)) : null,
+        realFim: r.rFim ? iso(ajustarFimDeSemanaParaSegunda(r.rFim)) : null,
         avanco: r.avanco != null ? r.avanco : 0,
         pavimentoAtualId: null,
       };
@@ -341,10 +353,15 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
         return torreAtivaId === "TODAS" || a.torreId === torreAtivaId;
       });
 
-      if (match && r.di && r.df && r.df > r.di) {
+      if (match && r.di && r.df) {
+        const novaDi = ajustarFimDeSemanaParaSegunda(r.di);
+        let novaDf = ajustarFimDeSemanaParaSegunda(r.df);
+        if (novaDf <= novaDi) {
+          novaDf = ajustarFimDeSemanaParaSegunda(addDays(novaDi, 7));
+        }
         mapaReplan[match.id] = {
-          dataIni: iso(r.di),
-          dataFim: iso(r.df),
+          dataIni: iso(novaDi),
+          dataFim: iso(novaDf),
         };
         atualizadas++;
       }
@@ -384,14 +401,15 @@ export function exportarModeloAtividades({ proj, torreId, flash }) {
     const pavIniNome = locais.find((l) => l.tipo === "FUNDACAO" || l.tipo === "TERREO")?.nome || "Fundação";
     const pavFimNome = locais.length > 0 ? locais[locais.length - 1]?.nome || "Cobertura" : "Cobertura";
 
+    const base = ajustarFimDeSemanaParaSegunda(hoje());
     const linhas = [
       ["Atividade", "Inicio", "Fim", "Torre", "Pavimento Inicial", "Pavimento Final", "Modo"],
-      ["Estrutura de Concreto", fmtBR(hoje()), fmtBR(addDays(hoje(), 90)), torreNome, pavIniNome, pavFimNome, "LINHA"],
-      ["Alvenaria de Vedação", fmtBR(addDays(hoje(), 30)), fmtBR(addDays(hoje(), 120)), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
-      ["Instalações Elétricas / Hidráulicas", fmtBR(addDays(hoje(), 45)), fmtBR(addDays(hoje(), 135)), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
-      ["Revestimento Interno", fmtBR(addDays(hoje(), 60)), fmtBR(addDays(hoje(), 150)), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
-      ["Instalação de Esquadrias", fmtBR(addDays(hoje(), 90)), fmtBR(addDays(hoje(), 180)), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
-      ["Instalação de Elevadores", fmtBR(addDays(hoje(), 100)), fmtBR(addDays(hoje(), 160)), torreNome, pavIniNome, pavIniNome, "BLOCO"],
+      ["Estrutura de Concreto", fmtBR(base), fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 80))), torreNome, pavIniNome, pavFimNome, "LINHA"],
+      ["Alvenaria de Vedação", fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 20))), fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 100))), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
+      ["Instalações Elétricas / Hidráulicas", fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 35))), fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 115))), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
+      ["Revestimento Interno", fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 50))), fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 130))), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
+      ["Instalação de Esquadrias", fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 70))), fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 150))), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
+      ["Instalação de Elevadores", fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 80))), fmtBR(ajustarFimDeSemanaParaSegunda(addDays(base, 140))), torreNome, pavIniNome, pavIniNome, "BLOCO"],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(linhas);

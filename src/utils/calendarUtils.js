@@ -1,10 +1,13 @@
 /**
  * Utilitários de Calendário da Construção Civil Brasileira
  * 
- * Regras de Produtividade:
- * - Domingos são dias improdutivos (folga semanal).
- * - Feriados nacionais oficiais (fixos e móveis) são desconsiderados.
- * - Recesso padrão: Última semana do ano (24 a 31 de dezembro) e Primeira semana (01 a 07 de janeiro) são improdutivos.
+ * Regras de Produtividade e Calendário TxC:
+ * - Finais de semana (Sábados e Domingos) são impossibilitados de planejamento e dias improdutivos.
+ * - Meses por padrão possuem somente 4 semanas de 5 dias úteis de trabalho (20 dias úteis/mês).
+ * - Feriados nacionais oficiais (fixos e móveis) são desconsiderados na contagem produtiva.
+ * - Janeiro e Dezembro: ambos possuem somente 2 semanas úteis em cada mês (10 dias úteis):
+ *   - Dezembro: Primeiras 2 semanas úteis (dias 01 a 14); a partir do dia 15 é recesso.
+ *   - Janeiro: Primeiras 2 semanas de recesso (dias 01 a 14); a partir do dia 15 são as 2 semanas úteis.
  */
 
 // Algoritmo de Butcher / Gauss para cálculo da Páscoa (Gregoriano)
@@ -62,20 +65,71 @@ export function getFeriadosNacionais(ano) {
 
 /**
  * Verifica se a data cai no recesso de fim de ano ou início de ano:
- * - Última semana do ano: 24/12 a 31/12
- * - Primeira semana do ano: 01/01 a 07/01
+ * - Dezembro: somente 2 semanas úteis (a partir do dia 15 até 31 é recesso)
+ * - Janeiro: somente 2 semanas úteis (dias 01 a 14 são recesso)
  */
 export function isRecessoFimAno(data) {
-  const d = data instanceof Date ? data : new Date(data);
+  const d = data instanceof Date ? data : new Date(typeof data === "string" && !data.includes("T") ? data + "T00:00:00" : data);
+  if (isNaN(d.getTime())) return false;
   const mes = d.getMonth() + 1; // 1..12
   const dia = d.getDate();
 
-  // 24 a 31 de Dezembro
-  if (mes === 12 && dia >= 24) return true;
-  // 01 a 07 de Janeiro
-  if (mes === 1 && dia <= 7) return true;
+  // Dezembro: a partir do dia 15 é recesso (deixando apenas 2 semanas de trabalho)
+  if (mes === 12 && dia >= 15) return true;
+  // Janeiro: dias 01 a 14 são recesso (deixando apenas 2 semanas de trabalho)
+  if (mes === 1 && dia <= 14) return true;
 
   return false;
+}
+
+/**
+ * Verifica se a data é fim de semana (Sábado ou Domingo)
+ */
+export function isFimDeSemana(data) {
+  if (!data) return false;
+  const d = data instanceof Date ? data : new Date(typeof data === "string" && !data.includes("T") ? data + "T00:00:00" : data);
+  if (isNaN(d.getTime())) return false;
+  const diaSemana = d.getDay();
+  return diaSemana === 0 || diaSemana === 6;
+}
+
+/**
+ * Se a data cair em um final de semana (sábado ou domingo),
+ * joga automaticamente para a próxima segunda-feira pós esse final de semana:
+ * - Sábado (+2 dias) -> Segunda-feira
+ * - Domingo (+1 dia) -> Segunda-feira
+ */
+export function ajustarFimDeSemanaParaSegunda(data) {
+  if (!data) return data;
+  let d;
+  const isString = typeof data === "string";
+  if (data instanceof Date) {
+    d = new Date(data.getTime());
+  } else if (isString) {
+    d = new Date(data.includes("T") ? data : data + "T00:00:00");
+  } else {
+    d = new Date(data);
+  }
+
+  if (isNaN(d.getTime())) return data;
+
+  const diaSemana = d.getDay();
+  if (diaSemana === 6) {
+    // Sábado -> joga para próxima Segunda (+2 dias)
+    d.setDate(d.getDate() + 2);
+  } else if (diaSemana === 0) {
+    // Domingo -> joga para próxima Segunda (+1 dia)
+    d.setDate(d.getDate() + 1);
+  }
+
+  if (isString && !data.includes("T")) {
+    const ano = d.getFullYear();
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const dia = String(d.getDate()).padStart(2, "0");
+    return `${ano}-${mes}-${dia}`;
+  }
+
+  return d;
 }
 
 // Cache de feriados por ano
@@ -93,18 +147,23 @@ export function getFeriadoMap(ano) {
 
 /**
  * Retorna o motivo se o dia for improdutivo, ou null se for produtivo.
+ * Finais de semana (Sábado e Domingo), recessos e feriados são improdutivos.
  */
 export function getMotivoImprodutivo(data) {
-  const d = data instanceof Date ? data : new Date(data + "T00:00:00");
-  const diaSemana = d.getDay(); // 0 = Domingo
+  const d = data instanceof Date ? data : new Date(typeof data === "string" && !data.includes("T") ? data + "T00:00:00" : data);
+  if (isNaN(d.getTime())) return null;
+  const diaSemana = d.getDay(); // 0 = Domingo, 6 = Sábado
 
   if (diaSemana === 0) {
-    return "Domingo (Improdutivo)";
+    return "Domingo (Fim de Semana)";
+  }
+  if (diaSemana === 6) {
+    return "Sábado (Fim de Semana)";
   }
 
   if (isRecessoFimAno(d)) {
     const mes = d.getMonth() + 1;
-    return mes === 12 ? "Recesso de Fim de Ano" : "Recesso de Início de Ano";
+    return mes === 12 ? "Recesso de Fim de Ano (Dezembro)" : "Recesso de Início de Ano (Janeiro)";
   }
 
   const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

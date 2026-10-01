@@ -215,6 +215,9 @@ export const PropertiesPanel = ({
                   />
                 ))}
               </div>
+              <div className="text-[9.5px] mt-1" style={{ color: T.dim }}>
+                Seg a Sex (finais de semana ajustam p/ próxima segunda)
+              </div>
             </Campo>
 
             {/* ── Seção de Avanço Físico e Realizado ── */}

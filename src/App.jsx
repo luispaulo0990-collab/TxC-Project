@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
 import { THEME, FONT, BLACK, DIAS_MES } from "./constants/theme";
-import { D, iso, addDays, diffDays, uid, hoje, fmtBR, calcularDiasProdutivos } from "./utils/dateUtils";
+import { D, iso, addDays, diffDays, uid, hoje, fmtBR, calcularDiasProdutivos, ajustarFimDeSemanaParaSegunda } from "./utils/dateUtils";
 import { segIntersect } from "./utils/geometryUtils";
 import { storage } from "./utils/storageUtils";
 import { buildSVG, exportarPNG, exportarExcel, exportarModeloReplanejamento } from "./utils/exportUtils";
@@ -443,11 +443,28 @@ export default function App() {
     let cur = new Date(t0.getFullYear(), t0.getMonth(), 1);
     while (cur <= t1) {
       const prox = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+      const mesIdx = cur.getMonth(); // 0 = jan, 11 = dez
       const semanas = [];
-      [1, 8, 15, 22, 29].forEach((dia, i) => {
+
+      // Regra TxC:
+      // - Dezembro e Janeiro têm SOMENTE 2 semanas úteis cada:
+      //   - Dezembro: Semanas 1 e 2 (dias 1 e 8)
+      //   - Janeiro: Semanas 1 e 2 (dias 15 e 22, pós-recesso)
+      // - Demais meses: SOMENTE 4 semanas de 5 dias úteis (dias 1, 8, 15 e 22)
+      let diasSemana = [1, 8, 15, 22];
+      if (mesIdx === 11) {
+        diasSemana = [1, 8];
+      } else if (mesIdx === 0) {
+        diasSemana = [15, 22];
+      }
+
+      diasSemana.forEach((dia, i) => {
         const d = new Date(cur.getFullYear(), cur.getMonth(), dia);
-        if (d < prox && d >= t0 && d <= t1) semanas.push({ d, n: i + 1 });
+        if (d < prox && d >= t0 && d <= t1) {
+          semanas.push({ d, n: i + 1 });
+        }
       });
+
       out.push({
         ini: cur,
         fim: prox,
@@ -467,8 +484,8 @@ export default function App() {
       const nLoc = i == null || f == null ? 0 : Math.abs(f - i) + 1;
       const diasTotais = Math.max(1, diffDays(D(a.dataIni), D(a.dataFim)));
       const diasProdutivos = calcularDiasProdutivos(D(a.dataIni), D(a.dataFim));
-      // Ritmo considerando 22 dias úteis de trabalho por mês
-      const ritmoMes = (nLoc / Math.max(1, diasProdutivos)) * 22;
+      // Ritmo considerando DIAS_MES (20 dias úteis de trabalho por mês: 4 semanas de 5 dias)
+      const ritmoMes = (nLoc / Math.max(1, diasProdutivos)) * DIAS_MES;
       return {
         nLoc,
         dias: diasTotais,
@@ -528,7 +545,15 @@ export default function App() {
   const upA = (id, patch) =>
     setProj((p) => ({
       ...p,
-      atividades: p.atividades.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+      atividades: p.atividades.map((a) => {
+        if (a.id !== id) return a;
+        const updated = { ...a, ...patch };
+        if (patch.dataIni) updated.dataIni = iso(ajustarFimDeSemanaParaSegunda(patch.dataIni));
+        if (patch.dataFim) updated.dataFim = iso(ajustarFimDeSemanaParaSegunda(patch.dataFim));
+        if (patch.realIni) updated.realIni = iso(ajustarFimDeSemanaParaSegunda(patch.realIni));
+        if (patch.realFim) updated.realFim = iso(ajustarFimDeSemanaParaSegunda(patch.realFim));
+        return updated;
+      }),
     }));
 
   const sel = proj ? (proj.atividades.find((a) => a.id === selId) || null) : null;
@@ -538,7 +563,8 @@ export default function App() {
     const t = torreAtiva();
     const ls = proj.locais.filter((l) => l.torreId === t.id).sort((a, b) => a.ordem - b.ordem);
     if (!ls.length) return flash("Crie pavimentos antes de criar atividades");
-    const base = D(proj.dataZero || new Date());
+    const base = ajustarFimDeSemanaParaSegunda(D(proj.dataZero || new Date()));
+    const fim = ajustarFimDeSemanaParaSegunda(addDays(base, 80));
     const a = {
       id: uid(),
       torreId: t.id,
@@ -549,7 +575,7 @@ export default function App() {
       locIniId: ls[0].id,
       locFimId: ls[ls.length - 1].id,
       dataIni: iso(base),
-      dataFim: iso(addDays(base, 90)),
+      dataFim: iso(fim),
       realIni: null,
       realFim: null,
       avanco: 0,
@@ -649,7 +675,7 @@ export default function App() {
       const nLoc = Math.max(1, m.nLoc);
       const vel = Math.max(0.05, Number(novaVelocidade) || 1);
       const dias = Math.max(1, Math.round((nLoc * DIAS_MES) / vel));
-      const novaDataFim = iso(addDays(D(a.dataIni), dias));
+      const novaDataFim = iso(ajustarFimDeSemanaParaSegunda(addDays(D(a.dataIni), dias)));
       upA(id, { dataFim: novaDataFim });
     },
     [proj?.atividades, metrica, upA]
@@ -660,7 +686,7 @@ export default function App() {
       const a = proj ? proj.atividades.find((x) => x.id === id) : null;
       if (!a) return;
       const d = Math.max(1, Number(novosDias) || 1);
-      const novaDataFim = iso(addDays(D(a.dataIni), d));
+      const novaDataFim = iso(ajustarFimDeSemanaParaSegunda(addDays(D(a.dataIni), d)));
       upA(id, { dataFim: novaDataFim });
     },
     [proj?.atividades, upA]
@@ -721,21 +747,21 @@ export default function App() {
     };
 
     if (g.modo === "move") {
-      nextDi = iso(addDays(D(g.di), dd));
-      nextDf = iso(addDays(D(g.df), dd));
+      nextDi = iso(ajustarFimDeSemanaParaSegunda(addDays(D(g.di), dd)));
+      nextDf = iso(ajustarFimDeSemanaParaSegunda(addDays(D(g.df), dd)));
       upA(g.id, {
         dataIni: nextDi,
         dataFim: nextDf,
       });
     } else if (g.modo === "ini") {
-      const nd = addDays(D(g.di), dd);
+      const nd = ajustarFimDeSemanaParaSegunda(addDays(D(g.di), dd));
       if (diffDays(nd, D(g.df)) >= 1) {
         nextDi = iso(nd);
         nextLi = alvo(g.li);
         upA(g.id, { dataIni: nextDi, locIniId: nextLi });
       }
     } else if (g.modo === "fim" || g.modo === "tilt" || g.modo === "speed") {
-      const nd = addDays(D(g.df), dd);
+      const nd = ajustarFimDeSemanaParaSegunda(addDays(D(g.df), dd));
       if (diffDays(D(g.di), nd) >= 1) {
         nextDf = iso(nd);
         if (g.modo === "fim") nextLf = alvo(g.lf);
@@ -783,8 +809,8 @@ export default function App() {
     const dFim = a.dataFim ? D(a.dataFim) : addDays(dIni, 30);
     const duracaoDias = Math.max(1, diffDays(dIni, dFim));
     const diffDaysDropped = Math.round(offsetX / Math.max(0.1, pxPerDay));
-    const targetDate = addDays(t0, diffDaysDropped);
-    const targetDataFim = addDays(targetDate, duracaoDias);
+    const targetDate = ajustarFimDeSemanaParaSegunda(addDays(t0, diffDaysDropped));
+    const targetDataFim = ajustarFimDeSemanaParaSegunda(addDays(targetDate, duracaoDias));
 
     const floorIdx = Math.max(0, Math.min(rows.length - 1, Math.floor(offsetY / rowH)));
     const droppedRow = rows[floorIdx];

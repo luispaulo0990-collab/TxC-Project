@@ -1,4 +1,4 @@
-import { uid, iso, addDays, diffDays, D, parseData } from "./dateUtils";
+import { uid, iso, addDays, diffDays, D, parseData, ajustarFimDeSemanaParaSegunda } from "./dateUtils";
 import { BLACK, ORANGE, DIAS_MES } from "../constants/theme";
 
 /* ─── Modelos Padrão de Macrofluxo ──────────────────────────── */
@@ -167,17 +167,18 @@ export function gerarAtividadesDoMacrofluxo({
         dataIniAtiv = addDays(predIni, lag);
       }
 
+      dataIniAtiv = ajustarFimDeSemanaParaSegunda(dataIniAtiv);
       mapaDatasIni[aPadrao.id] = dataIniAtiv;
 
-      let duracaoDias = 30;
+      let duracaoDias = 20;
       if (aPadrao.modo === "LINHA") {
         const ritmo = Math.max(0.1, Number(aPadrao.ritmoMesPadrao) || 4);
         duracaoDias = Math.max(1, Math.round((nLoc * DIAS_MES) / ritmo));
       } else {
-        duracaoDias = Math.max(1, Number(aPadrao.duracaoBloco) || 30);
+        duracaoDias = Math.max(1, Number(aPadrao.duracaoBloco) || 20);
       }
 
-      const dataFimAtiv = addDays(dataIniAtiv, duracaoDias);
+      const dataFimAtiv = ajustarFimDeSemanaParaSegunda(addDays(dataIniAtiv, duracaoDias));
       const novaId = uid();
       mapaIdGeradoPorPadrao[aPadrao.id] = novaId;
 
@@ -312,8 +313,8 @@ export function corrigirIncoerenciaPredecessora(proj, atividadeId) {
 
   const duracao = Math.max(1, diffDays(D(a.dataIni), D(a.dataFim)));
   const lag = Number(a.defasagemDias) || 0;
-  const novaDataIni = addDays(D(pred.dataIni), lag);
-  const novaDataFim = addDays(novaDataIni, duracao);
+  const novaDataIni = ajustarFimDeSemanaParaSegunda(addDays(D(pred.dataIni), lag));
+  const novaDataFim = ajustarFimDeSemanaParaSegunda(addDays(novaDataIni, duracao));
 
   return {
     ...proj,
