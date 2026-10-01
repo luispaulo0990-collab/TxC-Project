@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { D, iso, addDays, uid, parseData, fmtBR } from "./dateUtils";
+import { D, iso, addDays, uid, parseData, fmtBR, hoje } from "./dateUtils";
 import { normalizar } from "./geometryUtils";
 import { BLACK } from "../constants/theme";
 import { baixar } from "./exportUtils";
