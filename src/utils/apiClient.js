@@ -261,7 +261,7 @@ export const apiClient = {
     try {
       const { data, error } = await supabasePublic
         .from('profiles')
-        .select('id, email, nome, role')
+        .select('id, email, nome')
         .order('email', { ascending: true });
       if (!error && Array.isArray(data)) {
         return data;
