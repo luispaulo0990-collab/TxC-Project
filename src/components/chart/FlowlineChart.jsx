@@ -99,8 +99,8 @@ export const FlowlineChart = ({
             <svg ref={axisRef} width={chartW} height={HEADER_H} style={{ display: "block" }}>
               <rect x={0} y={0} width={chartW} height={HEADER_H} fill={BLACK} />
               {meses.map((m, i) => {
-                const x0 = Math.max(0, xOf(m.ini));
-                const x1 = Math.min(chartW, xOf(m.fim));
+                const x0 = m.x0 != null ? m.x0 : Math.max(0, xOf(m.ini));
+                const x1 = m.x1 != null ? m.x1 : Math.min(chartW, xOf(m.fim));
                 return (
                   <g key={i}>
                     <rect
@@ -126,13 +126,14 @@ export const FlowlineChart = ({
                     )}
                     <line x1={x0} y1={0} x2={x0} y2={HEADER_H} stroke="rgba(255,255,255,0.28)" strokeWidth={1} />
                     {m.semanas.map((s, j) => {
-                      const sx = xOf(s.d);
+                      const sx = s.xDia != null ? s.xDia * pxPerDay : xOf(s.d);
+                      const wSemana = (s.dias || 5) * pxPerDay;
                       return (
                         <g key={j}>
                           <line x1={sx} y1={24} x2={sx} y2={HEADER_H} stroke="rgba(255,255,255,0.1)" strokeWidth={0.6} />
                           {pxPerDay > 2 && (
                             <text
-                              x={sx + 3.5 * pxPerDay}
+                              x={sx + wSemana / 2}
                               y={39}
                               fill="rgba(255,255,255,0.45)"
                               fontFamily={FONT}
@@ -242,29 +243,35 @@ export const FlowlineChart = ({
                 />
               ))}
 
-              {meses.map((m, i) => (
-                <g key={i}>
-                  {m.semanas.map((s, j) => (
+              {meses.map((m, i) => {
+                const x0 = m.x0 != null ? m.x0 : xOf(m.ini);
+                return (
+                  <g key={i}>
+                    {m.semanas.map((s, j) => {
+                      const sx = s.xDia != null ? s.xDia * pxPerDay : xOf(s.d);
+                      return (
+                        <line
+                          key={j}
+                          x1={sx}
+                          y1={0}
+                          x2={sx}
+                          y2={chartH}
+                          stroke={T.grid}
+                          strokeWidth={0.5}
+                        />
+                      );
+                    })}
                     <line
-                      key={j}
-                      x1={xOf(s.d)}
+                      x1={x0}
                       y1={0}
-                      x2={xOf(s.d)}
+                      x2={x0}
                       y2={chartH}
-                      stroke={T.grid}
-                      strokeWidth={0.5}
+                      stroke={T.gridMes}
+                      strokeWidth={0.8}
                     />
-                  ))}
-                  <line
-                    x1={xOf(m.ini)}
-                    y1={0}
-                    x2={xOf(m.ini)}
-                    y2={chartH}
-                    stroke={T.gridMes}
-                    strokeWidth={0.8}
-                  />
-                </g>
-              ))}
+                  </g>
+                );
+              })}
 
               {rows.map((r, i) => (
                 <line

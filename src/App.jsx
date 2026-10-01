@@ -432,49 +432,106 @@ export default function App() {
     ];
   }, [proj]);
 
-  const chartW = Math.round(Math.max(1, diffDays(t0, t1)) * pxPerDay);
-  const chartH = rows.length * rowH;
-  const xOf = useCallback((d) => diffDays(t0, d) * pxPerDay, [t0, pxPerDay]);
-  const yMid = useCallback((id) => (rowIdx[id] ?? 0) * rowH + rowH / 2, [rowIdx, rowH]);
-
   const meses = useMemo(() => {
     const MESES_ABR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
     const out = [];
     let cur = new Date(t0.getFullYear(), t0.getMonth(), 1);
-    while (cur <= t1) {
-      const prox = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
-      const mesIdx = cur.getMonth(); // 0 = jan, 11 = dez
-      const semanas = [];
+    let acumuladoDias = 0;
 
-      // Regra TxC:
-      // - Dezembro e Janeiro têm SOMENTE 2 semanas úteis cada:
-      //   - Dezembro: Semanas 1 e 2 (dias 1 e 8)
-      //   - Janeiro: Semanas 1 e 2 (dias 15 e 22, pós-recesso)
-      // - Demais meses: SOMENTE 4 semanas de 5 dias úteis (dias 1, 8, 15 e 22)
-      let diasSemana = [1, 8, 15, 22];
-      if (mesIdx === 11) {
-        diasSemana = [1, 8];
-      } else if (mesIdx === 0) {
-        diasSemana = [15, 22];
+    while (cur <= t1) {
+      const ano = cur.getFullYear();
+      const mesIdx = cur.getMonth(); // 0 = jan, 11 = dez
+      const isDezOuJan = mesIdx === 11 || mesIdx === 0;
+      const numSemanas = isDezOuJan ? 2 : 4;
+      const diasMes = numSemanas * 5; // Dezembro e Janeiro: exatamente 10 dias (2 semanas de 5 dias). Demais: 20 dias (4 semanas de 5 dias).
+
+      const semanas = [];
+      for (let s = 0; s < numSemanas; s++) {
+        semanas.push({
+          n: s + 1,
+          diaOffset: s * 5,
+          xDia: acumuladoDias + s * 5,
+          dias: 5,
+          d: new Date(ano, mesIdx, s * 5 + 1),
+        });
       }
 
-      diasSemana.forEach((dia, i) => {
-        const d = new Date(cur.getFullYear(), cur.getMonth(), dia);
-        if (d < prox && d >= t0 && d <= t1) {
-          semanas.push({ d, n: i + 1 });
-        }
-      });
+      const x0 = acumuladoDias * pxPerDay;
+      const x1 = (acumuladoDias + diasMes) * pxPerDay;
 
       out.push({
-        ini: cur,
-        fim: prox,
-        label: `${MESES_ABR[cur.getMonth()]}/${String(cur.getFullYear()).slice(2)}`,
+        ano,
+        mes: mesIdx,
+        label: `${MESES_ABR[mesIdx]}/${String(ano).slice(2)}`,
+        dias: diasMes,
+        xDia: acumuladoDias,
+        x0,
+        x1,
+        ini: new Date(ano, mesIdx, 1),
+        fim: new Date(ano, mesIdx, diasMes),
         semanas,
       });
-      cur = prox;
+
+      acumuladoDias += diasMes;
+      cur = new Date(ano, mesIdx + 1, 1);
     }
     return out;
-  }, [t0, t1]);
+  }, [t0, t1, pxPerDay]);
+
+  const chartW = useMemo(() => {
+    if (!meses.length) return 800;
+    const ult = meses[meses.length - 1];
+    return Math.max(800, Math.round(ult.x1));
+  }, [meses]);
+
+  const chartH = rows.length * rowH;
+
+  const xOf = useCallback(
+    (d) => {
+      if (!d || !meses.length) return 0;
+      const dateObj = typeof d === "string" ? D(d) : d;
+      if (isNaN(dateObj.getTime())) return 0;
+      const ano = dateObj.getFullYear();
+      const mes = dateObj.getMonth();
+      const dia = dateObj.getDate();
+
+      const m = meses.find((item) => item.ano === ano && item.mes === mes);
+      if (!m) {
+        if (ano < meses[0].ano || (ano === meses[0].ano && mes < meses[0].mes)) {
+          return 0;
+        }
+        return meses[meses.length - 1].x1;
+      }
+
+      const diaNoMes = Math.min(m.dias, Math.max(1, dia));
+      const offsetDia = diaNoMes - 1;
+      return Math.round((m.xDia + offsetDia) * pxPerDay);
+    },
+    [meses, pxPerDay]
+  );
+
+  const dateOfX = useCallback(
+    (xPixels) => {
+      if (!meses.length) return hoje();
+      const diaTotal = Math.max(0, xPixels / Math.max(0.1, pxPerDay));
+      const m = meses.find((item) => diaTotal >= item.xDia && diaTotal < item.xDia + item.dias) || meses[meses.length - 1];
+      const offsetDia = Math.max(0, Math.min(m.dias - 1, Math.floor(diaTotal - m.xDia)));
+      const targetDate = new Date(m.ano, m.mes, offsetDia + 1);
+      return ajustarFimDeSemanaParaSegunda(targetDate);
+    },
+    [meses, pxPerDay]
+  );
+
+  const diffDaysPlanning = useCallback(
+    (dataIni, dataFim) => {
+      const x1 = xOf(dataIni);
+      const x2 = xOf(dataFim);
+      return Math.max(1, Math.round(Math.abs(x2 - x1) / Math.max(0.1, pxPerDay)));
+    },
+    [xOf, pxPerDay]
+  );
+
+  const yMid = useCallback((id) => (rowIdx[id] ?? 0) * rowH + rowH / 2, [rowIdx, rowH]);
 
   /* ─── Métricas de Produção (Considerando Calendário Nacional e Produtividade) ─── */
   const metrica = useCallback(
@@ -482,7 +539,7 @@ export default function App() {
       const i = rowIdx[a.locIniId],
         f = rowIdx[a.locFimId];
       const nLoc = i == null || f == null ? 0 : Math.abs(f - i) + 1;
-      const diasTotais = Math.max(1, diffDays(D(a.dataIni), D(a.dataFim)));
+      const diasTotais = diffDaysPlanning(D(a.dataIni), D(a.dataFim));
       const diasProdutivos = calcularDiasProdutivos(D(a.dataIni), D(a.dataFim));
       // Ritmo considerando DIAS_MES (20 dias úteis de trabalho por mês: 4 semanas de 5 dias)
       const ritmoMes = (nLoc / Math.max(1, diasProdutivos)) * DIAS_MES;
@@ -495,7 +552,7 @@ export default function App() {
         meses: diasTotais / DIAS_MES,
       };
     },
-    [rowIdx]
+    [rowIdx, diffDaysPlanning]
   );
 
   /* ─── Detecção de Cruzamentos / Conflitos ───────────────────── */
@@ -513,10 +570,10 @@ export default function App() {
           b = linhas[j];
         if (a.torreId !== b.torreId) continue;
         const p = segIntersect(
-          { x: diffDays(t0, D(a.dataIni)), y: rowIdx[a.locIniId] },
-          { x: diffDays(t0, D(a.dataFim)), y: rowIdx[a.locFimId] },
-          { x: diffDays(t0, D(b.dataIni)), y: rowIdx[b.locIniId] },
-          { x: diffDays(t0, D(b.dataFim)), y: rowIdx[b.locFimId] }
+          { x: xOf(D(a.dataIni)), y: rowIdx[a.locIniId] },
+          { x: xOf(D(a.dataFim)), y: rowIdx[a.locFimId] },
+          { x: xOf(D(b.dataIni)), y: rowIdx[b.locIniId] },
+          { x: xOf(D(b.dataFim)), y: rowIdx[b.locFimId] }
         );
         if (p) {
           const r = rows[Math.round(p.y)];
@@ -526,15 +583,15 @@ export default function App() {
             bId: b.id,
             texto: `${a.nome} cruza ${b.nome}`,
             onde: r ? r.nome : "—",
-            quando: FMT_BR(addDays(t0, Math.round(p.x))),
-            x: p.x * pxPerDay,
+            quando: FMT_BR(dateOfX(p.x)),
+            x: p.x,
             y: p.y * rowH + rowH / 2,
           });
         }
       }
     }
     return out;
-  }, [proj?.atividades, rowIdx, rows, t0, pxPerDay, rowH]);
+  }, [proj?.atividades, rowIdx, rows, xOf, dateOfX, rowH]);
 
   /* ─── Auditoria de Incoerências de Predecessoras (Macrofluxo) ─── */
   const incoerenciasPredecessoras = useMemo(() => {
@@ -747,29 +804,33 @@ export default function App() {
     };
 
     if (g.modo === "move") {
-      nextDi = iso(ajustarFimDeSemanaParaSegunda(addDays(D(g.di), dd)));
-      nextDf = iso(ajustarFimDeSemanaParaSegunda(addDays(D(g.df), dd)));
+      const curX0 = xOf(D(g.di));
+      const curX1 = xOf(D(g.df));
+      nextDi = iso(dateOfX(curX0 + dd * pxPerDay));
+      nextDf = iso(dateOfX(curX1 + dd * pxPerDay));
       upA(g.id, {
         dataIni: nextDi,
         dataFim: nextDf,
       });
     } else if (g.modo === "ini") {
-      const nd = ajustarFimDeSemanaParaSegunda(addDays(D(g.di), dd));
-      if (diffDays(nd, D(g.df)) >= 1) {
+      const curX0 = xOf(D(g.di));
+      const nd = dateOfX(curX0 + dd * pxPerDay);
+      if (diffDaysPlanning(nd, D(g.df)) >= 1) {
         nextDi = iso(nd);
         nextLi = alvo(g.li);
         upA(g.id, { dataIni: nextDi, locIniId: nextLi });
       }
     } else if (g.modo === "fim" || g.modo === "tilt" || g.modo === "speed") {
-      const nd = ajustarFimDeSemanaParaSegunda(addDays(D(g.df), dd));
-      if (diffDays(D(g.di), nd) >= 1) {
+      const curX1 = xOf(D(g.df));
+      const nd = dateOfX(curX1 + dd * pxPerDay);
+      if (diffDaysPlanning(D(g.di), nd) >= 1) {
         nextDf = iso(nd);
         if (g.modo === "fim") nextLf = alvo(g.lf);
         upA(g.id, { dataFim: nextDf, ...(g.modo === "fim" ? { locFimId: nextLf } : {}) });
       }
     }
 
-    const dur = Math.max(1, diffDays(D(nextDi), D(nextDf)));
+    const dur = Math.max(1, diffDaysPlanning(D(nextDi), D(nextDf)));
     const iIdx = rowIdx[nextLi] ?? 0;
     const fIdx = rowIdx[nextLf] ?? 0;
     const nLoc = Math.abs(fIdx - iIdx) + 1;
@@ -807,10 +868,9 @@ export default function App() {
     if (!a) return;
     const dIni = a.dataIni ? D(a.dataIni) : new Date();
     const dFim = a.dataFim ? D(a.dataFim) : addDays(dIni, 30);
-    const duracaoDias = Math.max(1, diffDays(dIni, dFim));
-    const diffDaysDropped = Math.round(offsetX / Math.max(0.1, pxPerDay));
-    const targetDate = ajustarFimDeSemanaParaSegunda(addDays(t0, diffDaysDropped));
-    const targetDataFim = ajustarFimDeSemanaParaSegunda(addDays(targetDate, duracaoDias));
+    const duracaoDias = Math.max(1, diffDaysPlanning(dIni, dFim));
+    const targetDate = dateOfX(offsetX);
+    const targetDataFim = dateOfX(offsetX + duracaoDias * pxPerDay);
 
     const floorIdx = Math.max(0, Math.min(rows.length - 1, Math.floor(offsetY / rowH)));
     const droppedRow = rows[floorIdx];

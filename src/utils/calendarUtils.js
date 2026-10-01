@@ -65,8 +65,8 @@ export function getFeriadosNacionais(ano) {
 
 /**
  * Verifica se a data cai no recesso de fim de ano ou início de ano:
- * - Dezembro: somente 2 semanas úteis (a partir do dia 15 até 31 é recesso)
- * - Janeiro: somente 2 semanas úteis (dias 01 a 14 são recesso)
+ * - Dezembro: somente 2 semanas de 5 dias úteis (dias 1 a 10). A partir do dia 11 é recesso.
+ * - Janeiro: somente 2 semanas de 5 dias úteis (dias 1 a 10). A partir do dia 11 é recesso.
  */
 export function isRecessoFimAno(data) {
   const d = data instanceof Date ? data : new Date(typeof data === "string" && !data.includes("T") ? data + "T00:00:00" : data);
@@ -74,10 +74,10 @@ export function isRecessoFimAno(data) {
   const mes = d.getMonth() + 1; // 1..12
   const dia = d.getDate();
 
-  // Dezembro: a partir do dia 15 é recesso (deixando apenas 2 semanas de trabalho)
-  if (mes === 12 && dia >= 15) return true;
-  // Janeiro: dias 01 a 14 são recesso (deixando apenas 2 semanas de trabalho)
-  if (mes === 1 && dia <= 14) return true;
+  // Dezembro: Somente 2 semanas de 5 dias cada (10 dias úteis no total)
+  if (mes === 12 && dia > 10) return true;
+  // Janeiro: Somente 2 semanas de 5 dias cada (10 dias úteis no total)
+  if (mes === 1 && dia > 10) return true;
 
   return false;
 }
