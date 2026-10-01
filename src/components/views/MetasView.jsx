@@ -675,47 +675,7 @@ export const MetasView = ({
               </div>
             </button>
 
-            <button
-              onClick={() => exportarMetas("xml")}
-              className="w-full p-3.5 rounded-sm flex items-center gap-3 transition-colors hover:brightness-95 text-left border"
-              style={{ background: T.raised, borderColor: T.line }}
-            >
-              <div
-                className="w-10 h-10 rounded flex items-center justify-center font-bold text-white shrink-0"
-                style={{ background: "#D97706" }}
-              >
-                <FileCode size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold" style={{ color: T.text }}>
-                  Planilha XML (.xml / .xlm)
-                </div>
-                <div style={{ fontSize: 10.5, color: T.muted }}>
-                  Formato XML padrão de planilha para integração de dados
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => exportarMetas("csv")}
-              className="w-full p-3.5 rounded-sm flex items-center gap-3 transition-colors hover:brightness-95 text-left border"
-              style={{ background: T.raised, borderColor: T.line }}
-            >
-              <div
-                className="w-10 h-10 rounded flex items-center justify-center font-bold text-white shrink-0"
-                style={{ background: "#2563EB" }}
-              >
-                <FileText size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold" style={{ color: T.text }}>
-                  Arquivo CSV (.csv)
-                </div>
-                <div style={{ fontSize: 10.5, color: T.muted }}>
-                  Formato separado por ponto-e-vírgula com UTF-8 para Power BI / Python
-                </div>
-              </div>
-            </button>
+            {/* Exportações em XML e CSV ocultadas a pedido (apenas Excel e PNG no sistema) */}
           </div>
         </Modal>
       )}

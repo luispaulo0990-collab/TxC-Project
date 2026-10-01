@@ -49,15 +49,7 @@ export const ModalAbrir = ({ T, projId, salvos = [], onClose, onAbrir, onCarrega
         </div>
       )}
 
-      <div className="mt-3">
-        <button
-          onClick={() => jsonInputRef.current?.click()}
-          className="w-full py-2.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors hover:brightness-95 rounded"
-          style={{ border: `1px solid ${T.line}`, background: T.raised, color: T.text }}
-        >
-          <Upload size={13} /> Carregar arquivo .json
-        </button>
-      </div>
+      {/* Botão de importação .json ocultado a pedido (apenas Excel e PNG no sistema) */}
     </Modal>
   );
 };

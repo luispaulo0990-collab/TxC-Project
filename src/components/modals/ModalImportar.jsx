@@ -73,7 +73,7 @@ export const ModalImportar = ({ T, tipo, onClose, onPickFile, onBaixarModelo }) 
           className="flex-1 py-2.5 text-xs flex items-center justify-center gap-2 font-bold rounded cursor-pointer hover:brightness-110 transition-all text-white shadow-sm"
           style={{ background: isAvanco ? OK : ORANGE }}
         >
-          <Upload size={14} /> Selecionar Arquivo (.xlsx / .csv)
+          <Upload size={14} /> Selecionar Planilha Excel (.xlsx)
         </button>
       </div>
     </Modal>

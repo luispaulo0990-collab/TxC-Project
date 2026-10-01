@@ -145,7 +145,7 @@ export const ModalReplanejamento = ({
             border: `1px solid ${T.line}`,
           }}
         >
-          <Upload size={13} /> Escolher arquivo .xlsx / .csv
+          <Upload size={13} /> Escolher planilha Excel (.xlsx)
         </button>
       </div>
     </Modal>
