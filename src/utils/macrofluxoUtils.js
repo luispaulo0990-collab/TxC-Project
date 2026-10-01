@@ -1,4 +1,4 @@
-import { uid, iso, addDays, D, parseData } from "./dateUtils";
+import { uid, iso, addDays, diffDays, D, parseData } from "./dateUtils";
 import { BLACK, ORANGE, DIAS_MES } from "../constants/theme";
 
 /* ─── Modelos Padrão de Macrofluxo ──────────────────────────── */
