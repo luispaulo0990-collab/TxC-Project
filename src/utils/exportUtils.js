@@ -331,17 +331,17 @@ export const exportarModeloReplanejamento = ({ proj, torreId, flash }) => {
     XLSX.utils.book_append_sheet(wb, wsInstr, "Instruções");
 
     /* ── Aba de Replanejamento (dados) ── */
-    // Filtra atividades pela torre (ou todas se torreId === "TODAS")
-    const atividades = proj.atividades.filter(
-      (a) => torreId === "TODAS" || a.torreId === torreId
-    );
+    const atividades = Array.isArray(proj?.atividades)
+      ? proj.atividades.filter((a) => torreId === "TODAS" || a.torreId === torreId)
+      : [];
+    const torres = Array.isArray(proj?.torres) ? proj.torres : [];
 
     // Cabeçalho
     const cabecalho = ["Atividade", "Inicio", "Fim", "Torre", "Situação"];
 
     const linhas = [cabecalho];
     atividades.forEach((a) => {
-      const torre = proj.torres.find((t) => t.id === a.torreId);
+      const torre = torres.find((t) => t.id === a.torreId);
       const di = D(a.dataIni);
       const df = D(a.dataFim);
       linhas.push([
@@ -366,18 +366,25 @@ export const exportarModeloReplanejamento = ({ proj, torreId, flash }) => {
 
     XLSX.utils.book_append_sheet(wb, wsReplan, "Replanejamento");
 
-    const nomeArq = (proj.nome || "obra").replace(/[\/\\:*?"<>|]/g, "-");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    baixar(
-      `modelo-replanejamento-${nomeArq}.xlsx`,
-      wbout,
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      flash
-    );
+    const nomeArq = (proj?.nome || "obra").replace(/[\/\\:*?"<>|]/g, "-");
+    const nomeCompleto = `modelo-replanejamento-${nomeArq}.xlsx`;
+
+    try {
+      XLSX.writeFile(wb, nomeCompleto);
+    } catch {
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      baixar(
+        nomeCompleto,
+        wbout,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        flash
+      );
+    }
+
     if (flash) flash("Modelo de replanejamento exportado");
   } catch (err) {
     console.error(err);
-    if (flash) flash("Erro ao gerar modelo de replanejamento");
+    if (flash) flash("Erro ao gerar modelo de replanejamento: " + (err?.message || ""));
   }
 };
 

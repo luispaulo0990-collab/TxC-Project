@@ -376,15 +376,22 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
 export function exportarModeloAtividades({ proj, torreId, flash }) {
   try {
     const wb = XLSX.utils.book_new();
-    const torre = proj.torres.find((t) => t.id === torreId) || proj.torres[0];
+    const torres = Array.isArray(proj?.torres) ? proj.torres : [];
+    const torre = torres.find((t) => t.id === torreId) || torres[0];
+    const torreNome = torre?.nome || "Torre 1";
+
+    const locais = Array.isArray(proj?.locais) ? proj.locais : [];
+    const pavIniNome = locais.find((l) => l.tipo === "FUNDACAO" || l.tipo === "TERREO")?.nome || "Fundação";
+    const pavFimNome = locais.length > 0 ? locais[locais.length - 1]?.nome || "Cobertura" : "Cobertura";
 
     const linhas = [
       ["Atividade", "Inicio", "Fim", "Torre", "Pavimento Inicial", "Pavimento Final", "Modo"],
-      ["Estrutura de Concreto", fmtBR(hoje()), fmtBR(addDays(hoje(), 90)), torre?.nome || "Torre 1", "Térreo", "Cobertura", "LINHA"],
-      ["Alvenaria de Vedação", fmtBR(addDays(hoje(), 30)), fmtBR(addDays(hoje(), 120)), torre?.nome || "Torre 1", "1º Pavimento", "Cobertura", "LINHA"],
-      ["Instalações Elétricas / Hidráulicas", fmtBR(addDays(hoje(), 45)), fmtBR(addDays(hoje(), 135)), torre?.nome || "Torre 1", "1º Pavimento", "Cobertura", "LINHA"],
-      ["Revestimento Interno", fmtBR(addDays(hoje(), 60)), fmtBR(addDays(hoje(), 150)), torre?.nome || "Torre 1", "1º Pavimento", "Cobertura", "LINHA"],
-      ["Instalação de Esquadrias", fmtBR(addDays(hoje(), 90)), fmtBR(addDays(hoje(), 180)), torre?.nome || "Torre 1", "1º Pavimento", "Cobertura", "LINHA"],
+      ["Estrutura de Concreto", fmtBR(hoje()), fmtBR(addDays(hoje(), 90)), torreNome, pavIniNome, pavFimNome, "LINHA"],
+      ["Alvenaria de Vedação", fmtBR(addDays(hoje(), 30)), fmtBR(addDays(hoje(), 120)), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
+      ["Instalações Elétricas / Hidráulicas", fmtBR(addDays(hoje(), 45)), fmtBR(addDays(hoje(), 135)), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
+      ["Revestimento Interno", fmtBR(addDays(hoje(), 60)), fmtBR(addDays(hoje(), 150)), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
+      ["Instalação de Esquadrias", fmtBR(addDays(hoje(), 90)), fmtBR(addDays(hoje(), 180)), torreNome, "1º Pavimento", pavFimNome, "LINHA"],
+      ["Instalação de Elevadores", fmtBR(addDays(hoje(), 100)), fmtBR(addDays(hoje(), 160)), torreNome, pavIniNome, pavIniNome, "BLOCO"],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(linhas);
@@ -399,11 +406,18 @@ export function exportarModeloAtividades({ proj, torreId, flash }) {
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, "Modelo Atividades");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    baixar("modelo-criacao-atividades.xlsx", wbout, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", flash);
+
+    try {
+      XLSX.writeFile(wb, "modelo-criacao-atividades.xlsx");
+    } catch {
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      baixar("modelo-criacao-atividades.xlsx", wbout, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", flash);
+    }
+
     if (flash) flash("Modelo de atividades baixado com sucesso!");
   } catch (e) {
-    if (flash) flash("Erro ao gerar modelo de atividades");
+    console.error("Erro ao gerar modelo de atividades:", e);
+    if (flash) flash("Erro ao gerar modelo de atividades: " + (e?.message || ""));
   }
 }
 
@@ -413,27 +427,41 @@ export function exportarModeloAtividades({ proj, torreId, flash }) {
 export function exportarModeloAvanco({ proj, torreId, flash }) {
   try {
     const wb = XLSX.utils.book_new();
-    const atividades = proj.atividades.filter(
-      (a) => torreId === "TODAS" || a.torreId === torreId
-    );
+    const atividades = Array.isArray(proj?.atividades)
+      ? proj.atividades.filter((a) => torreId === "TODAS" || a.torreId === torreId)
+      : [];
+    const torres = Array.isArray(proj?.torres) ? proj.torres : [];
+    const locais = Array.isArray(proj?.locais) ? proj.locais : [];
 
     const linhas = [
       ["Atividade", "Torre", "% Avanço", "Pavimento Atual", "Data Real Inicio", "Data Real Fim", "Status"],
     ];
 
-    atividades.forEach((a) => {
-      const t = proj.torres.find((x) => x.id === a.torreId);
-      const pavAtual = proj.locais.find((l) => l.id === a.pavimentoAtualId);
+    if (atividades.length === 0) {
       linhas.push([
-        a.nome,
-        t ? t.nome : "",
-        a.avanco != null ? a.avanco : 0,
-        pavAtual ? pavAtual.nome : "",
-        a.realIni ? fmtBR(D(a.realIni)) : "",
-        a.realFim ? fmtBR(D(a.realFim)) : "",
-        a.avanco === 100 ? "Concluída" : a.avanco > 0 ? "Em Andamento" : "Não Iniciada",
+        "Estrutura de Concreto",
+        torres[0]?.nome || "Torre 1",
+        50,
+        "5º Pavimento",
+        fmtBR(hoje()),
+        "",
+        "Em Andamento",
       ]);
-    });
+    } else {
+      atividades.forEach((a) => {
+        const t = torres.find((x) => x.id === a.torreId);
+        const pavAtual = locais.find((l) => l.id === a.pavimentoAtualId);
+        linhas.push([
+          a.nome,
+          t ? t.nome : "",
+          a.avanco != null ? a.avanco : 0,
+          pavAtual ? pavAtual.nome : "",
+          a.realIni ? fmtBR(D(a.realIni)) : "",
+          a.realFim ? fmtBR(D(a.realFim)) : "",
+          a.avanco === 100 ? "Concluída" : a.avanco > 0 ? "Em Andamento" : "Não Iniciada",
+        ]);
+      });
+    }
 
     const ws = XLSX.utils.aoa_to_sheet(linhas);
     ws["!cols"] = [
@@ -447,10 +475,17 @@ export function exportarModeloAvanco({ proj, torreId, flash }) {
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, "Apontamento de Avanço");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    baixar("modelo-apontamento-avanco.xlsx", wbout, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", flash);
+
+    try {
+      XLSX.writeFile(wb, "modelo-apontamento-avanco.xlsx");
+    } catch {
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      baixar("modelo-apontamento-avanco.xlsx", wbout, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", flash);
+    }
+
     if (flash) flash("Modelo de avanço baixado com sucesso!");
   } catch (e) {
-    if (flash) flash("Erro ao gerar modelo de avanço");
+    console.error("Erro ao gerar modelo de avanço:", e);
+    if (flash) flash("Erro ao gerar modelo de avanço: " + (e?.message || ""));
   }
 }
