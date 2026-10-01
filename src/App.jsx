@@ -1046,6 +1046,17 @@ export default function App() {
             onRefresh={() => { carregarGrupos(); listar(); }}
           />
         )}
+        {modalConfirmacao && (
+          <ModalConfirmarExclusao
+            T={T}
+            titulo={modalConfirmacao.titulo}
+            mensagem={modalConfirmacao.mensagem}
+            itemNome={modalConfirmacao.itemNome}
+            textoBotao={modalConfirmacao.textoBotao}
+            onConfirmar={modalConfirmacao.onConfirmar}
+            onCancelar={() => setModalConfirmacao(null)}
+          />
+        )}
       </>
     );
   }
