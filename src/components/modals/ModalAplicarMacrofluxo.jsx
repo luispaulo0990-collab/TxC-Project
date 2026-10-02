@@ -29,20 +29,18 @@ export const ModalAplicarMacrofluxo = ({
 
   const handleCarregarModeloPadrao = async () => {
     const modelos = getModelosPadraoMacrofluxo();
-    for (const m of modelos) {
-      if (onSalvarMacrofluxo) {
-        try {
-          await onSalvarMacrofluxo(m);
-        } catch (e) {
-          console.warn("Erro ao salvar modelo no banco:", e);
-        }
+    const padrao = modelos[0];
+    if (!padrao) return;
+
+    const jaExiste = macros.some((m) => m.id === padrao.id || m.nome === padrao.nome);
+    if (!jaExiste && onSalvarMacrofluxo) {
+      try {
+        await onSalvarMacrofluxo(padrao);
+      } catch (e) {
+        console.warn("Erro ao salvar modelo no banco:", e);
       }
     }
-    setProj?.((p) => ({
-      ...p,
-      macrofluxos: [...(p.macrofluxos || []), ...modelos],
-    }));
-    setMacroId(modelos[0].id);
+    setMacroId(padrao.id);
   };
 
   const handleAplicar = () => {

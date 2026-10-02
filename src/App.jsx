@@ -164,59 +164,49 @@ export default function App() {
   const carregarMacrofluxos = useCallback(async () => {
     try {
       const data = await apiClient.getMacrofluxos();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         setMacrofluxos(data);
         return data;
       }
-      // Se a biblioteca estiver vazia no banco, inicia com o modelo padrão
-      const padroes = getModelosPadraoMacrofluxo();
-      setMacrofluxos(padroes);
-      try {
-        for (const m of padroes) {
-          await apiClient.salvarMacrofluxo(m, user?.id);
-        }
-      } catch (e) {
-        console.warn("Aviso ao persistir modelos padrão no banco:", e);
-      }
-      return padroes;
     } catch (err) {
       console.warn("Erro ao buscar macrofluxos da nuvem:", err);
-      const fallback = getModelosPadraoMacrofluxo();
-      setMacrofluxos(fallback);
-      return fallback;
     }
-  }, [user]);
+    return [];
+  }, []);
 
   const handleSalvarMacrofluxo = useCallback(async (macro) => {
+    if (!macro || !macro.id) return null;
     try {
       const saved = await apiClient.salvarMacrofluxo(macro, user?.id);
+      const resultado = saved || macro;
       setMacrofluxos((prev) => {
-        const existe = prev.some((m) => m.id === macro.id);
+        const existe = prev.some((m) => m.id === resultado.id);
         if (existe) {
-          return prev.map((m) => (m.id === macro.id ? { ...m, ...saved } : m));
+          return prev.map((m) => (m.id === resultado.id ? resultado : m));
         }
-        return [...prev, saved || macro];
+        return [...prev, resultado];
       });
-      // Sincronizar também no projeto aberto caso possua campo legado
+      // Sincronizar também no projeto aberto
       setProj((p) => {
         if (!p) return p;
         const listaAtual = p.macrofluxos || [];
-        const jaTem = listaAtual.some((m) => m.id === macro.id);
+        const jaTem = listaAtual.some((m) => m.id === resultado.id);
         const novaLista = jaTem
-          ? listaAtual.map((m) => (m.id === macro.id ? { ...m, ...saved } : m))
-          : [...listaAtual, saved || macro];
+          ? listaAtual.map((m) => (m.id === resultado.id ? resultado : m))
+          : [...listaAtual, resultado];
         return { ...p, macrofluxos: novaLista };
       });
       flash(`Macrofluxo "${macro.nome}" salvo no banco com sucesso!`);
-      return saved;
+      return resultado;
     } catch (err) {
       console.error("Erro ao salvar macrofluxo:", err);
       flash("Erro ao salvar macrofluxo no banco de dados.");
       throw err;
     }
-  }, [user, flash]);
+  }, [user?.id, flash]);
 
   const handleExcluirMacrofluxo = useCallback(async (id) => {
+    if (!id) return;
     try {
       await apiClient.excluirMacrofluxo(id);
       setMacrofluxos((prev) => prev.filter((m) => m.id !== id));

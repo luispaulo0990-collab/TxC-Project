@@ -41,25 +41,29 @@ export const MacrofluxoView = ({
   onVoltar,
   onAplicarTorre,
 }) => {
-  const macrofluxos = (macrofluxosProp && macrofluxosProp.length > 0)
-    ? macrofluxosProp
-    : (proj?.macrofluxos || []);
+  // Lista local estável de macrofluxos para edição com resposta imediata (0ms lag, zero flicker)
+  const [macros, setMacros] = useState(() => {
+    if (Array.isArray(macrofluxosProp) && macrofluxosProp.length > 0) return macrofluxosProp;
+    if (Array.isArray(proj?.macrofluxos) && proj.macrofluxos.length > 0) return proj.macrofluxos;
+    return [];
+  });
 
-  const [selMacroId, setSelMacroId] = useState(macrofluxos[0]?.id || null);
+  // Atualizar lista local se macrofluxosProp for carregado inicialmente
+  const propsLoadedRef = useRef(false);
+  useEffect(() => {
+    if (Array.isArray(macrofluxosProp) && macrofluxosProp.length > 0 && !propsLoadedRef.current) {
+      propsLoadedRef.current = true;
+      setMacros(macrofluxosProp);
+    }
+  }, [macrofluxosProp]);
+
+  const [selMacroId, setSelMacroId] = useState(() => macros[0]?.id || null);
   const [modalConfirmacao, setModalConfirmacao] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [ultimoSalvo, setUltimoSalvo] = useState(null);
 
-  // Sincronizar seleção inicial caso mude a lista
-  useEffect(() => {
-    if (!selMacroId && macrofluxos.length > 0) {
-      setSelMacroId(macrofluxos[0].id);
-    } else if (selMacroId && !macrofluxos.some((m) => m.id === selMacroId)) {
-      setSelMacroId(macrofluxos[0]?.id || null);
-    }
-  }, [macrofluxos, selMacroId]);
-
-  const selMacro = macrofluxos.find((m) => m.id === selMacroId) || null;
+  // Macrofluxo selecionado (calculado diretamente sem useEffects reativos)
+  const selMacro = macros.find((m) => m.id === selMacroId) || macros[0] || null;
 
   // Auditoria de Incoerências de Predecessoras no Cronograma Atual
   const incoerencias = useMemo(() => auditarIncoerenciasPredecessoras(proj), [proj]);
@@ -69,33 +73,14 @@ export const MacrofluxoView = ({
     setProj?.(novo);
   };
 
-  // Timer para debounce de salvamento no banco
-  const saveTimeoutRef = useRef(null);
-  const debouncedSave = useCallback((macro) => {
-    if (!onSalvarMacrofluxo || !macro) return;
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    setSalvando(true);
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await onSalvarMacrofluxo(macro);
-        setUltimoSalvo(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      } catch (err) {
-        console.error("Erro no auto-save do macrofluxo:", err);
-      } finally {
-        setSalvando(false);
-      }
-    }, 700);
-  }, [onSalvarMacrofluxo]);
-
   const handleSalvarManual = async () => {
     if (!selMacro || !onSalvarMacrofluxo) return;
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     setSalvando(true);
     try {
       await onSalvarMacrofluxo(selMacro);
-      setUltimoSalvo(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setUltimoSalvo(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (err) {
-      console.error("Erro ao salvar macrofluxo manualmente:", err);
+      console.error("Erro ao salvar macrofluxo:", err);
     } finally {
       setSalvando(false);
     }
@@ -104,47 +89,57 @@ export const MacrofluxoView = ({
   const novoMacrofluxo = async () => {
     const novo = {
       id: uid(),
-      nome: `Macrofluxo Padrão ${macrofluxos.length + 1}`,
-      descricao: "Sequência construtiva padrão compartilhada no banco",
+      nome: `Macrofluxo Padrão ${macros.length + 1}`,
+      descricao: "Sequência construtiva padrão",
       atividadesPadrao: [],
     };
+    setMacros((prev) => [...prev, novo]);
+    setSelMacroId(novo.id);
     if (onSalvarMacrofluxo) {
       try {
         await onSalvarMacrofluxo(novo);
+        setUltimoSalvo(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       } catch (e) {
         console.warn("Erro ao salvar novo macrofluxo:", e);
       }
     }
-    setProj?.((p) => ({ ...p, macrofluxos: [...(p.macrofluxos || []), novo] }));
-    setSelMacroId(novo.id);
   };
 
   const carregarModeloPadrao = async () => {
     const modelos = getModelosPadraoMacrofluxo();
-    for (const m of modelos) {
-      if (onSalvarMacrofluxo) {
-        try {
-          await onSalvarMacrofluxo(m);
-        } catch (e) {
-          console.warn("Erro ao salvar modelo padrão:", e);
+    const novaLista = [...macros];
+    let selecionadoId = null;
+
+    for (const mod of modelos) {
+      const jaExiste = novaLista.find((m) => m.id === mod.id || m.nome === mod.nome);
+      if (!jaExiste) {
+        novaLista.push(mod);
+        if (onSalvarMacrofluxo) {
+          try {
+            await onSalvarMacrofluxo(mod);
+          } catch (e) {
+            console.warn("Erro ao salvar modelo padrão:", e);
+          }
         }
+        if (!selecionadoId) selecionadoId = mod.id;
+      } else {
+        if (!selecionadoId) selecionadoId = jaExiste.id;
       }
     }
-    setProj?.((p) => ({
-      ...p,
-      macrofluxos: [...(p.macrofluxos || []), ...modelos],
-    }));
-    setSelMacroId(modelos[0].id);
+
+    setMacros(novaLista);
+    if (selecionadoId) setSelMacroId(selecionadoId);
+    setUltimoSalvo(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   };
 
   const excluirMacrofluxo = async (id) => {
+    const restantes = macros.filter((m) => m.id !== id);
+    setMacros(restantes);
+    if (selMacroId === id) {
+      setSelMacroId(restantes[0]?.id || null);
+    }
     if (onExcluirMacrofluxo) {
       await onExcluirMacrofluxo(id);
-    }
-    setProj?.((p) => ({ ...p, macrofluxos: (p.macrofluxos || []).filter((m) => m.id !== id) }));
-    if (selMacroId === id) {
-      const restantes = macrofluxos.filter((m) => m.id !== id);
-      setSelMacroId(restantes[0]?.id || null);
     }
   };
 
@@ -162,16 +157,9 @@ export const MacrofluxoView = ({
   };
 
   const atualizarMacrofluxo = (id, obj) => {
-    const macroAtual = macrofluxos.find((m) => m.id === id);
-    if (!macroAtual) return;
-    const atualizado = { ...macroAtual, ...obj };
-
-    setProj?.((p) => ({
-      ...p,
-      macrofluxos: (p.macrofluxos || []).map((m) => (m.id === id ? atualizado : m)),
-    }));
-
-    debouncedSave(atualizado);
+    setMacros((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, ...obj } : m))
+    );
   };
 
   const novaAtividadePadrao = () => {
@@ -273,7 +261,7 @@ export const MacrofluxoView = ({
         </div>
 
         {/* Botão de carregar modelo se estiver vazio */}
-        {macrofluxos.length === 0 && (
+        {macros.length === 0 && (
           <div className="p-4 text-center">
             <p className="text-xs mb-3" style={{ color: T.dim }}>
               Você ainda não cadastrou nenhum macrofluxo.
@@ -290,8 +278,8 @@ export const MacrofluxoView = ({
 
         {/* Lista de Macrofluxos */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {macrofluxos.map((m) => {
-            const isSelected = selMacroId === m.id;
+          {macros.map((m) => {
+            const isSelected = selMacro?.id === m.id;
             return (
               <div
                 key={m.id}
@@ -329,7 +317,7 @@ export const MacrofluxoView = ({
           })}
         </div>
 
-        {macrofluxos.length > 0 && (
+        {macros.length > 0 && (
           <div className="p-3 border-t" style={{ borderColor: T.line }}>
             <button
               onClick={carregarModeloPadrao}
@@ -402,7 +390,16 @@ export const MacrofluxoView = ({
                   <span>{salvando ? "Salvando..." : "Salvar no Banco"}</span>
                 </button>
                 <button
-                  onClick={() => onAplicarTorre && onAplicarTorre(selMacro.id)}
+                  onClick={async () => {
+                    if (selMacro && onSalvarMacrofluxo) {
+                      try {
+                        await onSalvarMacrofluxo(selMacro);
+                      } catch {}
+                    }
+                    if (onAplicarTorre && selMacro) {
+                      onAplicarTorre(selMacro.id);
+                    }
+                  }}
                   className="px-4 py-2 text-xs font-bold rounded flex items-center gap-1.5 text-white shadow-sm transition-all hover:brightness-110 active:scale-95"
                   style={{ background: ORANGE }}
                   title="Gerar as atividades deste macrofluxo em uma torre da obra"

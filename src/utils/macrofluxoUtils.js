@@ -3,15 +3,15 @@ import { BLACK, ORANGE, DIAS_MES } from "../constants/theme";
 
 /* ─── Modelos Padrão de Macrofluxo ──────────────────────────── */
 export function getModelosPadraoMacrofluxo() {
-  const m1Id = uid();
-  const a1 = uid();
-  const a2 = uid();
-  const a3 = uid();
-  const a4 = uid();
-  const a5 = uid();
-  const a6 = uid();
-  const a7 = uid();
-  const a8 = uid();
+  const m1Id = "macro-padrao-residencial";
+  const a1 = "ativ-padrao-estrutura";
+  const a2 = "ativ-padrao-instalacoes";
+  const a3 = "ativ-padrao-contrapiso";
+  const a4 = "ativ-padrao-gesso";
+  const a5 = "ativ-padrao-revestimento";
+  const a6 = "ativ-padrao-loucas";
+  const a7 = "ativ-padrao-pintura";
+  const a8 = "ativ-padrao-limpeza";
 
   return [
     {
