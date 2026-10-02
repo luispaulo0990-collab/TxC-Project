@@ -142,7 +142,71 @@ export const apiClient = {
         .upsert(payload, { onConflict: 'id' })
         .select();
       if (!error && data && data.length > 0) {
-        return data[0];
+        const salvo = data[0];
+
+        // Sincronizar atividades na tabela public.atividades com identificação da obra
+        try {
+          const atividades = Array.isArray(projetoComUser.atividades) ? projetoComUser.atividades : [];
+          const torres = Array.isArray(projetoComUser.torres) ? projetoComUser.torres : [];
+          const nomeObra = projeto.nome || 'Sem nome';
+
+          if (atividades.length > 0) {
+            const ativRows = atividades.map((ativ) => {
+              const torre = torres.find((t) => t.id === ativ.torreId);
+              return {
+                id: String(ativ.id),
+                projeto_id: String(projeto.id),
+                projeto_nome: nomeObra,
+                obra_nome: nomeObra,
+                nome: ativ.nome || 'Nova atividade',
+                torre_id: ativ.torreId ? String(ativ.torreId) : null,
+                torre_nome: torre?.nome || '',
+                data_inicio: ativ.dataIni || null,
+                data_fim: ativ.dataFim || null,
+                avanco: Number(ativ.avanco) || 0,
+                cor: ativ.cor || '',
+                modo: ativ.modo || 'LINHA',
+                dados: ativ,
+                ...(effectiveUserId ? { user_id: effectiveUserId } : {}),
+                updated_at: new Date().toISOString(),
+              };
+            });
+
+            const { error: ativErr } = await supabasePublic
+              .from('atividades')
+              .upsert(ativRows, { onConflict: 'id' });
+
+            if (ativErr) {
+              const baseRows = ativRows.map((r) => ({
+                id: r.id,
+                projeto_id: r.projeto_id,
+                nome: r.nome,
+                dados: r.dados,
+                ...(r.user_id ? { user_id: r.user_id } : {}),
+                updated_at: r.updated_at,
+              }));
+              await supabasePublic.from('atividades').upsert(baseRows, { onConflict: 'id' });
+            }
+
+            const idsAtuais = atividades.map((a) => String(a.id));
+            if (idsAtuais.length > 0) {
+              await supabasePublic
+                .from('atividades')
+                .delete()
+                .eq('projeto_id', String(projeto.id))
+                .not('id', 'in', `(${idsAtuais.join(',')})`);
+            }
+          } else {
+            await supabasePublic
+              .from('atividades')
+              .delete()
+              .eq('projeto_id', String(projeto.id));
+          }
+        } catch (e) {
+          console.warn('Erro ao sincronizar public.atividades no cliente:', e);
+        }
+
+        return salvo;
       }
       if (error) {
         console.error('supabasePublic salvarProjeto error:', error);
@@ -174,6 +238,10 @@ export const apiClient = {
 
     // Fallback direto via Supabase
     try {
+      try {
+        await supabasePublic.from('atividades').delete().eq('projeto_id', id);
+      } catch {}
+
       const { data, error } = await supabasePublic
         .from('projetos')
         .delete()

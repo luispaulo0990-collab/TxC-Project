@@ -65,10 +65,81 @@ export const projetosRepository = {
       console.error('Erro ao salvar projeto no Supabase:', error);
       throw error;
     }
-    return data?.[0];
+
+    const salvo = data?.[0];
+
+    // Sincronizar atividades na tabela public.atividades com identificação da obra
+    try {
+      const atividades = Array.isArray(dados.atividades) ? dados.atividades : [];
+      const torres = Array.isArray(dados.torres) ? dados.torres : [];
+      const nomeObra = projeto.nome || 'Sem nome';
+
+      if (atividades.length > 0) {
+        const ativRows = atividades.map((ativ) => {
+          const torre = torres.find((t) => t.id === ativ.torreId);
+          return {
+            id: String(ativ.id),
+            projeto_id: String(projeto.id),
+            projeto_nome: nomeObra,
+            obra_nome: nomeObra,
+            nome: ativ.nome || 'Nova atividade',
+            torre_id: ativ.torreId ? String(ativ.torreId) : null,
+            torre_nome: torre?.nome || '',
+            data_inicio: ativ.dataIni || null,
+            data_fim: ativ.dataFim || null,
+            avanco: Number(ativ.avanco) || 0,
+            cor: ativ.cor || '',
+            modo: ativ.modo || 'LINHA',
+            dados: ativ,
+            ...(effectiveUserId ? { user_id: effectiveUserId } : {}),
+            updated_at: new Date().toISOString(),
+          };
+        });
+
+        const { error: ativErr } = await supabaseAdmin
+          .from('atividades')
+          .upsert(ativRows, { onConflict: 'id' });
+
+        if (ativErr) {
+          console.warn('Tentativa com colunas estendidas falhou, gravando colunas base:', ativErr.message);
+          const baseRows = ativRows.map((r) => ({
+            id: r.id,
+            projeto_id: r.projeto_id,
+            nome: r.nome,
+            dados: r.dados,
+            ...(r.user_id ? { user_id: r.user_id } : {}),
+            updated_at: r.updated_at,
+          }));
+          await supabaseAdmin.from('atividades').upsert(baseRows, { onConflict: 'id' });
+        }
+
+        // Remove atividades que foram excluídas desta obra
+        const idsAtuais = atividades.map((a) => String(a.id));
+        if (idsAtuais.length > 0) {
+          await supabaseAdmin
+            .from('atividades')
+            .delete()
+            .eq('projeto_id', String(projeto.id))
+            .not('id', 'in', `(${idsAtuais.join(',')})`);
+        }
+      } else {
+        await supabaseAdmin
+          .from('atividades')
+          .delete()
+          .eq('projeto_id', String(projeto.id));
+      }
+    } catch (e) {
+      console.warn('Erro ao sincronizar tabela atividades no servidor:', e);
+    }
+
+    return salvo;
   },
 
   async delete(id) {
+    try {
+      await supabaseAdmin.from('atividades').delete().eq('projeto_id', id);
+    } catch {}
+
     const { data, error } = await supabaseAdmin
       .from('projetos')
       .delete()
