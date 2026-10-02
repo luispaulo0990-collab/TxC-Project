@@ -1,38 +1,38 @@
 -- ============================================================
 -- Migration: Persistência de Atividades com Identificação da Obra
--- Execute este script no SQL Editor do Supabase para que a tabela
--- de atividades contenha todas as colunas necessárias e seja
--- visível em qual obra (projeto) cada atividade foi criada.
+-- Execute este script no SQL Editor do Supabase
 -- ============================================================
 
--- 1. Cria a tabela de atividades caso não exista
-create table if not exists public.atividades (
+-- 1. Recria a tabela public.atividades com os tipos e colunas corretos
+-- (Como as atividades ficam armazenadas com segurança dentro de projetos.dados,
+--  o drop/create garante que não haja conflitos de tipo UUID/TEXT anteriores)
+drop table if exists public.atividades cascade;
+
+create table public.atividades (
   id text primary key default gen_random_uuid()::text,
   projeto_id text references public.projetos(id) on delete cascade,
+  projeto_nome text,
+  obra_nome text,
   nome text not null default 'Nova atividade',
+  torre_id text,
+  torre_nome text,
+  data_inicio text,
+  data_fim text,
+  avanco numeric default 0,
+  cor text,
+  modo text default 'LINHA',
   user_id uuid references auth.users(id) on delete set null,
   dados jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
--- 2. Adiciona colunas para identificar claramente a obra e detalhes da atividade
-alter table public.atividades add column if not exists projeto_nome text;
-alter table public.atividades add column if not exists obra_nome text;
-alter table public.atividades add column if not exists torre_id text;
-alter table public.atividades add column if not exists torre_nome text;
-alter table public.atividades add column if not exists data_inicio text;
-alter table public.atividades add column if not exists data_fim text;
-alter table public.atividades add column if not exists avanco numeric default 0;
-alter table public.atividades add column if not exists cor text;
-alter table public.atividades add column if not exists modo text default 'LINHA';
-
--- 3. Cria índices para busca rápida por obra e por atividade
+-- 2. Índices para consultas rápidas
 create index if not exists idx_atividades_projeto_id on public.atividades(projeto_id);
 create index if not exists idx_atividades_projeto_nome on public.atividades(projeto_nome);
 create index if not exists idx_atividades_obra_nome on public.atividades(obra_nome);
 
--- 4. Habilita Row Level Security e concede permissões globais
+-- 3. Habilita Row Level Security e permissões de acesso compartilhadas
 alter table public.atividades enable row level security;
 
 drop policy if exists "atividades_all" on public.atividades;
@@ -46,7 +46,7 @@ create policy "atividades_insert_all" on public.atividades for insert with check
 create policy "atividades_update_all" on public.atividades for update using (true) with check (true);
 create policy "atividades_delete_all" on public.atividades for delete using (true);
 
--- 5. Sincronização inicial (Backfill): migra todas as atividades das obras existentes para a tabela
+-- 4. Backfill: Popula a tabela com todas as atividades das obras que já existem hoje no banco
 insert into public.atividades (
   id,
   projeto_id,
@@ -65,8 +65,8 @@ insert into public.atividades (
   updated_at
 )
 select
-  coalesce(ativ->>'id', gen_random_uuid()::text) as id,
-  p.id as projeto_id,
+  coalesce(ativ->>'id', gen_random_uuid()::text)::text as id,
+  p.id::text as projeto_id,
   p.nome as projeto_nome,
   p.nome as obra_nome,
   coalesce(ativ->>'nome', 'Atividade') as nome,
