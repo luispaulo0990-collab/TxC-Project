@@ -219,18 +219,18 @@ export const Sidebar = ({
                         />
                         <div className="min-w-0 flex-1">
                           <div
-                            className="text-xs truncate flex items-center gap-1 font-medium"
+                            className="text-[13px] truncate flex items-center gap-1 font-semibold"
                             style={{ color: a.visivel === false ? T.dim : T.text }}
                           >
                             {a.nome}
                             {a.realIni && (
                               <span
-                                style={{ width: 5, height: 5, borderRadius: 5, background: ERRO, display: "inline-block" }}
+                                style={{ width: 6, height: 6, borderRadius: 6, background: ERRO, display: "inline-block" }}
                                 title="Possui avanço real registrado"
                               />
                             )}
                           </div>
-                          <div style={{ ...NUM, fontSize: 10, color: T.dim }}>
+                          <div style={{ ...NUM, fontSize: 11, color: T.dim }}>
                             {a.modo === "BLOCO" ? `bloco · ${m.meses.toFixed(1)} mês` : `${m.ritmoMes.toFixed(1)} pav/mês`}
                           </div>
                         </div>

@@ -116,7 +116,7 @@ export const SidebarNav = ({
           <input
             value={proj?.nome || ""}
             onChange={(e) => setProj((p) => ({ ...p, nome: e.target.value }))}
-            className="text-xs outline-none py-1.5 px-2.5 rounded-xl font-semibold transition-all hover:bg-white/[0.08] focus:bg-white/[0.1] focus:ring-1 focus:ring-orange-500/50 border truncate text-white"
+            className="text-[13px] outline-none py-1.5 px-2.5 rounded-xl font-semibold transition-all hover:bg-white/[0.08] focus:bg-white/[0.1] focus:ring-1 focus:ring-orange-500/50 border truncate text-white"
             style={{
               background: "rgba(255, 255, 255, 0.05)",
               borderColor: "rgba(255, 255, 255, 0.08)",
@@ -126,57 +126,20 @@ export const SidebarNav = ({
           />
         </div>
 
-        {/* Ações Rápidas Globais no Canto Superior Esquerdo */}
-        <div className="grid grid-cols-3 gap-1.5 pt-1">
-          <button
-            onClick={() => onSalvar && onSalvar(proj)}
-            className="py-1.5 px-1 text-xs flex items-center justify-center gap-1 rounded-xl font-bold transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer shadow-sm"
-            style={{
-              background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)",
-              boxShadow: "0 2px 8px rgba(254, 80, 0, 0.25)",
-            }}
-            title="Salvar obra no banco de dados"
-          >
-            <Save size={13} /> Salvar
-          </button>
-          <button
-            onClick={() => onAbrirModal && onAbrirModal("importmenu")}
-            className="py-1.5 px-1 text-xs flex items-center justify-center gap-1 rounded-xl font-semibold transition-all hover:bg-white/[0.12] active:scale-95 text-white cursor-pointer"
-            style={{
-              background: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-            }}
-            title="Importar planilha de atividades ou avanços"
-          >
-            <Upload size={13} /> Importar
-          </button>
-          <button
-            onClick={() => onAbrirModal && onAbrirModal("exportar")}
-            className="py-1.5 px-1 text-xs flex items-center justify-center gap-1 rounded-xl font-semibold transition-all hover:bg-white/[0.12] active:scale-95 text-white cursor-pointer"
-            style={{
-              background: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-            }}
-            title="Exportar em Excel ou Imagem"
-          >
-            <Download size={13} /> Exportar
-          </button>
-        </div>
-
         {/* Filtro de Torre */}
         <div>
           <label
-            className="text-[9.5px] uppercase font-bold tracking-wider block mb-1.5 px-1"
-            style={{ color: "rgba(255, 255, 255, 0.45)" }}
+            className="text-[10.5px] uppercase font-bold tracking-wider block mb-1.5 px-1"
+            style={{ color: "rgba(255, 255, 255, 0.55)" }}
           >
             Torre Ativa
           </label>
           <div className="relative flex items-center">
-            <Building2 size={13} className="absolute left-3 text-white/50 pointer-events-none" />
+            <Building2 size={14} className="absolute left-3 text-white/50 pointer-events-none" />
             <select
               value={filtroTorre}
               onChange={(e) => setFiltroTorre(e.target.value)}
-              className="w-full text-xs pl-8 pr-3 py-2 outline-none rounded-xl transition-all cursor-pointer font-medium text-white appearance-none"
+              className="w-full text-[13px] pl-8.5 pr-3 py-2 outline-none rounded-xl transition-all cursor-pointer font-medium text-white appearance-none"
               style={{
                 background: "rgba(255, 255, 255, 0.06)",
                 border: "1px solid rgba(255, 255, 255, 0.09)",
@@ -200,7 +163,7 @@ export const SidebarNav = ({
         {/* Itens de Navegação Principal */}
         <div className="flex flex-col gap-1">
           <span
-            className="text-[9.5px] uppercase font-bold tracking-wider px-2 mb-0.5"
+            className="text-[10px] uppercase font-bold tracking-wider px-2 mb-0.5"
             style={{ color: "rgba(255, 255, 255, 0.45)" }}
           >
             Visualizações
@@ -212,22 +175,22 @@ export const SidebarNav = ({
               <button
                 key={item.id}
                 onClick={() => setVista(item.id)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all font-semibold cursor-pointer active:scale-[0.99]"
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] transition-all font-semibold cursor-pointer active:scale-[0.99]"
                 style={{
                   background: active
                     ? "linear-gradient(135deg, #FE5000 0%, #E04600 100%)"
                     : "transparent",
-                  color: active ? "#ffffff" : "rgba(255, 255, 255, 0.72)",
+                  color: active ? "#ffffff" : "rgba(255, 255, 255, 0.8)",
                   boxShadow: active ? "0 4px 14px rgba(254, 80, 0, 0.28)" : "none",
                 }}
               >
                 <div className="flex items-center gap-2.5">
-                  <Icon size={16} style={{ color: active ? "#ffffff" : "rgba(255, 255, 255, 0.6)" }} />
-                  <span>{item.label}</span>
+                  <Icon size={17} style={{ color: active ? "#ffffff" : "rgba(255, 255, 255, 0.65)" }} />
+                  <span className="font-semibold">{item.label}</span>
                 </div>
                 {item.badge && !active && (
                   <span
-                    className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide"
+                    className="text-[9.5px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide"
                     style={{ background: `${OK}30`, color: OK }}
                   >
                     {item.badge}

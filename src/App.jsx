@@ -1289,6 +1289,8 @@ export default function App() {
                 setExibirCruzamentos={setExibirCruzamentos}
                 showActivities={showActivities}
                 setShowActivities={setShowActivities}
+                onSalvar={salvar}
+                onAbrirModal={setModal}
                 selId={selId}
                 setSelId={(id) => {
                   setSelId(id);

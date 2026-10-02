@@ -24,6 +24,9 @@ import {
   Maximize2,
   Plus,
   Minus,
+  Upload,
+  Download,
+  Save,
 } from "lucide-react";
 
 export const FlowlineChart = ({
@@ -50,6 +53,8 @@ export const FlowlineChart = ({
   setExibirCruzamentos,
   showActivities = true,
   setShowActivities,
+  onAbrirModal,
+  onSalvar,
   selId,
   setSelId,
   dragInfo,
@@ -161,16 +166,16 @@ export const FlowlineChart = ({
           )}
         </div>
 
-        {/* Lado Direito: Controles de Altura dos Pavimentos e Zoom do Gráfico */}
-        <div className="flex items-center gap-3">
+        {/* Lado Direito: Controles de Altura dos Pavimentos, Zoom do Gráfico e Ações (Superior Direito) */}
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Zoom Vertical: Altura das Faixas de Pavimento */}
           {setRowH && (
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: T.dim }}>
-                Altura Pavs:
+              <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: T.dim }}>
+                Altura:
               </span>
               <div
-                className="flex items-center rounded-lg px-1 py-0.5"
+                className="flex items-center rounded-lg px-1.5 py-0.5"
                 style={{ background: T.raised, border: `1px solid ${T.line}` }}
               >
                 <button
@@ -179,9 +184,9 @@ export const FlowlineChart = ({
                   style={{ color: T.muted }}
                   title="Diminuir altura dos pavimentos (comprimir)"
                 >
-                  <Minus size={11} />
+                  <Minus size={12} />
                 </button>
-                <span className="text-xs px-1.5 font-bold" style={{ ...NUM, color: T.text, minWidth: 32, textAlign: "center" }}>
+                <span className="text-[13px] px-1.5 font-bold" style={{ ...NUM, color: T.text, minWidth: 36, textAlign: "center" }}>
                   {rowH}px
                 </span>
                 <button
@@ -190,7 +195,7 @@ export const FlowlineChart = ({
                   style={{ color: T.muted }}
                   title="Aumentar altura dos pavimentos (expandir)"
                 >
-                  <Plus size={11} />
+                  <Plus size={12} />
                 </button>
               </div>
             </div>
@@ -199,11 +204,11 @@ export const FlowlineChart = ({
           {/* Zoom Horizontal: Escala de Dias / Tempo */}
           {setPxPerDay && (
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: T.dim }}>
+              <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: T.dim }}>
                 Zoom:
               </span>
               <div
-                className="flex items-center rounded-lg px-1 py-0.5"
+                className="flex items-center rounded-lg px-1.5 py-0.5"
                 style={{ background: T.raised, border: `1px solid ${T.line}` }}
               >
                 <button
@@ -212,9 +217,9 @@ export const FlowlineChart = ({
                   style={{ color: T.muted }}
                   title="Diminuir Zoom"
                 >
-                  <ZoomOut size={12} />
+                  <ZoomOut size={13} />
                 </button>
-                <span className="text-xs px-1.5 font-bold" style={{ ...NUM, color: T.text, minWidth: 40, textAlign: "center" }}>
+                <span className="text-[13px] px-1.5 font-bold" style={{ ...NUM, color: T.text, minWidth: 42, textAlign: "center" }}>
                   {Math.round(pxPerDay * 30)}%
                 </span>
                 <button
@@ -223,7 +228,7 @@ export const FlowlineChart = ({
                   style={{ color: T.muted }}
                   title="Aumentar Zoom"
                 >
-                  <ZoomIn size={12} />
+                  <ZoomIn size={13} />
                 </button>
                 <button
                   onClick={() => setPxPerDay(4.2)}
@@ -231,10 +236,61 @@ export const FlowlineChart = ({
                   style={{ color: T.muted }}
                   title="Restaurar Zoom Padrão"
                 >
-                  <Maximize2 size={11} />
+                  <Maximize2 size={12} />
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Separador vertical sutil */}
+          <div className="h-5 w-px mx-0.5" style={{ background: T.line }} />
+
+          {/* Ações no Canto Superior Direito: Importar, Exportar e Salvar Obra */}
+          {onAbrirModal && (
+            <button
+              onClick={() => onAbrirModal("importmenu")}
+              className="px-2.5 py-1 text-[12.5px] flex items-center gap-1.5 rounded-lg font-semibold transition-all hover:bg-black/5 active:scale-95 cursor-pointer"
+              style={{
+                background: T.raised,
+                border: `1px solid ${T.line}`,
+                color: T.text,
+              }}
+              title="Importar planilha de atividades ou avanços"
+            >
+              <Upload size={13} style={{ color: ORANGE }} />
+              <span>Importar</span>
+            </button>
+          )}
+
+          {onAbrirModal && (
+            <button
+              onClick={() => onAbrirModal("exportar")}
+              className="px-2.5 py-1 text-[12.5px] flex items-center gap-1.5 rounded-lg font-semibold transition-all hover:bg-black/5 active:scale-95 cursor-pointer"
+              style={{
+                background: T.raised,
+                border: `1px solid ${T.line}`,
+                color: T.text,
+              }}
+              title="Exportar em Excel (.xlsx) ou Imagem (.png)"
+            >
+              <Download size={13} style={{ color: "#059669" }} />
+              <span>Exportar</span>
+            </button>
+          )}
+
+          {onSalvar && (
+            <button
+              onClick={() => onSalvar(proj)}
+              className="px-3.5 py-1 text-[12.5px] flex items-center gap-1.5 rounded-lg font-bold transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer shadow-xs"
+              style={{
+                background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)",
+                boxShadow: "0 2px 8px rgba(254, 80, 0, 0.28)",
+              }}
+              title="Salvar alterações da obra no Supabase"
+            >
+              <Save size={14} />
+              <span>Salvar Obra</span>
+            </button>
           )}
         </div>
       </div>
@@ -248,10 +304,10 @@ export const FlowlineChart = ({
               style={{ width: LABEL_W, height: HEADER_H, background: BLACK, zIndex: 30 }}
             >
               <div className="flex flex-col min-w-0">
-                <span style={{ fontSize: 9.5, letterSpacing: 1.5, color: "#fff", fontWeight: 800 }}>
+                <span style={{ fontSize: 11, letterSpacing: 1.5, color: "#fff", fontWeight: 800 }}>
                   CAMINHO
                 </span>
-                <span style={{ ...NUM, fontSize: 8.5, color: "rgba(255,255,255,0.45)" }}>
+                <span style={{ ...NUM, fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
                   {rows.length} locais
                 </span>
               </div>
@@ -274,11 +330,11 @@ export const FlowlineChart = ({
                     {x1 - x0 > 34 && (
                       <text
                         x={(x0 + x1) / 2}
-                        y={16}
+                        y={17}
                         fill="#fff"
                         fontFamily={FONT}
-                        fontSize={11}
-                        fontWeight="500"
+                        fontSize={13}
+                        fontWeight="700"
                         textAnchor="middle"
                         letterSpacing="1"
                       >
@@ -296,9 +352,10 @@ export const FlowlineChart = ({
                             <text
                               x={sx + wSemana / 2}
                               y={39}
-                              fill="rgba(255,255,255,0.45)"
+                              fill="rgba(255,255,255,0.65)"
                               fontFamily={FONT}
-                              fontSize={8.5}
+                              fontSize={10.5}
+                              fontWeight="600"
                               textAnchor="middle"
                             >
                               {s.n}
@@ -316,8 +373,8 @@ export const FlowlineChart = ({
               {xHoje >= 0 && xHoje <= chartW && (
                 <g>
                   <line x1={xHoje} y1={0} x2={xHoje} y2={HEADER_H} stroke={ORANGE} strokeWidth={1.5} />
-                  <rect x={xHoje - 18} y={32} width={36} height={14} rx={2} fill={ORANGE} />
-                  <text x={xHoje} y={42} fill="#fff" fontFamily={FONT} fontSize={8.5} fontWeight="700" textAnchor="middle">
+                  <rect x={xHoje - 20} y={30} width={40} height={15} rx={2} fill={ORANGE} />
+                  <text x={xHoje} y={41.5} fill="#fff" fontFamily={FONT} fontSize={10} fontWeight="800" textAnchor="middle">
                     HOJE
                   </text>
                 </g>
@@ -340,8 +397,8 @@ export const FlowlineChart = ({
                   <div className="flex items-center justify-center select-none" style={{ width: TOWER_STRIP, background: T.strip }}>
                     <span
                       style={{
-                        fontSize: 10,
-                        fontWeight: 700,
+                        fontSize: 12,
+                        fontWeight: 800,
                         color: T.stripText,
                         writingMode: "vertical-rl",
                         transform: "rotate(180deg)",
@@ -365,7 +422,8 @@ export const FlowlineChart = ({
                         <span
                           style={{
                             ...NUM,
-                            fontSize: Math.min(10, rowH * 0.44),
+                            fontSize: Math.min(13.5, Math.max(11, rowH * 0.44)),
+                            fontWeight: 600,
                             color: r.tipo === "TIPO" ? T.label : T.labelAlt,
                           }}
                         >
@@ -751,8 +809,11 @@ export const FlowlineChart = ({
                           y={my}
                           fill={a.cor}
                           fontFamily={FONT}
-                          fontSize={9.5}
-                          fontWeight="600"
+                          fontSize={12}
+                          fontWeight="700"
+                          stroke={T.surface}
+                          strokeWidth={2.5}
+                          paintOrder="stroke fill"
                           textAnchor="middle"
                           style={{ cursor: "pointer", userSelect: "none" }}
                           onPointerDown={(e) => onDown(e, a, "move")}
@@ -773,18 +834,18 @@ export const FlowlineChart = ({
                         <>
                           {/* Pílula Central de Inclinação / Velocidade */}
                           <g
-                            transform={`translate(${mx}, ${my - 16})`}
+                            transform={`translate(${mx}, ${my - 18})`}
                             style={{ cursor: "ew-resize" }}
                             onPointerDown={(e) => onDown(e, a, "tilt")}
                             onPointerMove={onMove}
                             onPointerUp={onUp}
                           >
                             <rect
-                              x={-42}
-                              y={-9}
-                              width={84}
-                              height={18}
-                              rx={9}
+                              x={-48}
+                              y={-10}
+                              width={96}
+                              height={20}
+                              rx={10}
                               fill={ORANGE}
                               stroke="#FFFFFF"
                               strokeWidth={1.5}
@@ -792,10 +853,10 @@ export const FlowlineChart = ({
                             />
                             <text
                               x={0}
-                              y={3.5}
+                              y={4}
                               fill="#FFFFFF"
                               fontFamily={FONT}
-                              fontSize={9}
+                              fontSize={10.5}
                               fontWeight="700"
                               textAnchor="middle"
                               style={{ ...NUM }}
