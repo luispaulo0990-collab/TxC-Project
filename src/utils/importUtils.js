@@ -4,6 +4,38 @@ import { normalizar } from "./geometryUtils";
 import { BLACK } from "../constants/theme";
 import { baixar } from "./exportUtils";
 
+/* Paleta de cores vibrantes e contrastantes para atividades importadas (sem preto) */
+export const CORES_ALEATORIAS = [
+  "#1F4E79", // Azul Profundo
+  "#2E86AB", // Azul Médio
+  "#0284C7", // Azul Céu
+  "#0D9488", // Teal
+  "#2E9E63", // Verde Esmeralda
+  "#7FB069", // Verde Folha
+  "#16A34A", // Verde Floresta
+  "#C9A227", // Dourado
+  "#D97706", // Âmbar
+  "#FE5000", // Laranja TxC
+  "#EA580C", // Laranja Queimado
+  "#D64545", // Vermelho
+  "#B5446E", // Framboesa
+  "#DB2777", // Rosa Vivo
+  "#7D5BA6", // Roxo Ametista
+  "#6366F1", // Índigo
+  "#8B5CF6", // Violeta
+  "#4CA1A3", // Turquesa
+  "#5C6F82", // Grafite Azulado
+  "#E0862A", // Tangerina
+];
+
+let ultimaCorAleatoria = null;
+export function gerarCorAleatoria() {
+  const opcoes = CORES_ALEATORIAS.filter((c) => c !== ultimaCorAleatoria);
+  const corEscolhida = opcoes[Math.floor(Math.random() * opcoes.length)] || CORES_ALEATORIAS[0];
+  ultimaCorAleatoria = corEscolhida;
+  return corEscolhida;
+}
+
 /**
  * Normaliza e identifica colunas de uma planilha
  */
@@ -160,7 +192,7 @@ export async function processarArquivoImportacao({ file, tipo, proj, torreAtivaI
       locIniNome,
       locFimNome,
       modo: modoStr === "BLOCO" ? "BLOCO" : "LINHA",
-      cor: corStr || BLACK,
+      cor: corStr || "",
       status: statusStr,
     });
   }
@@ -243,11 +275,19 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
         df = ajustarFimDeSemanaParaSegunda(addDays(di, 7));
       }
 
+      const corEhPretoOuVazio =
+        !r.cor ||
+        r.cor === BLACK ||
+        String(r.cor).toLowerCase() === "black" ||
+        String(r.cor).toLowerCase() === "#000" ||
+        String(r.cor).toLowerCase() === "#000000";
+      const corFinal = !corEhPretoOuVazio ? r.cor : gerarCorAleatoria();
+
       const nova = {
         id: uid(),
         torreId: targetTorre.id,
         nome: r.nome,
-        cor: r.cor || BLACK,
+        cor: corFinal,
         modo: r.modo || "LINHA",
         visivel: true,
         locIniId: locIni.id,

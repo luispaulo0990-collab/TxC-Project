@@ -5,7 +5,7 @@ import { D, iso, addDays, diffDays, uid, hoje, fmtBR, calcularDiasProdutivos, aj
 import { segIntersect } from "./utils/geometryUtils";
 import { storage } from "./utils/storageUtils";
 import { buildSVG, exportarPNG, exportarExcel, exportarModeloReplanejamento } from "./utils/exportUtils";
-import { processarArquivoImportacao, aplicarImportacaoAoProjeto, exportarModeloAtividades, exportarModeloAvanco } from "./utils/importUtils";
+import { processarArquivoImportacao, aplicarImportacaoAoProjeto, exportarModeloAtividades, exportarModeloAvanco, gerarCorAleatoria } from "./utils/importUtils";
 
 import { SidebarNav } from "./components/layout/SidebarNav";
 import { Sidebar } from "./components/layout/Sidebar";
@@ -59,6 +59,7 @@ export default function App() {
   const [tema, setTema] = useState("claro");
   const [vista, setVista] = useState("grafico"); // grafico | avanco | resumo | metas | macrofluxo
   const [exibirRealizado, setExibirRealizado] = useState(true);
+  const [exibirCruzamentos, setExibirCruzamentos] = useState(true);
 
   const T = THEME[tema];
   const chartRef = useRef(null);
@@ -626,7 +627,7 @@ export default function App() {
       id: uid(),
       torreId: t.id,
       nome: "Nova atividade",
-      cor: BLACK,
+      cor: gerarCorAleatoria(),
       modo: "LINHA",
       visivel: true,
       locIniId: ls[0].id,
@@ -1174,6 +1175,8 @@ export default function App() {
         setPxPerDay={setPxPerDay}
         exibirRealizado={exibirRealizado}
         setExibirRealizado={setExibirRealizado}
+        exibirCruzamentos={exibirCruzamentos}
+        setExibirCruzamentos={setExibirCruzamentos}
         showActivities={showActivities}
         setShowActivities={setShowActivities}
         onAbrirModal={setModal}
@@ -1289,6 +1292,8 @@ export default function App() {
                 incoerencias={incoerenciasPredecessoras}
                 exibirRealizado={exibirRealizado}
                 setExibirRealizado={setExibirRealizado}
+                exibirCruzamentos={exibirCruzamentos}
+                setExibirCruzamentos={setExibirCruzamentos}
                 selId={selId}
                 setSelId={(id) => {
                   setSelId(id);
@@ -1308,6 +1313,8 @@ export default function App() {
                 T={T}
                 alertas={alertas}
                 status={status}
+                exibirCruzamentos={exibirCruzamentos}
+                setExibirCruzamentos={setExibirCruzamentos}
                 onSelectConflito={(aId) => {
                   setSelId(aId);
                   setShowProps(true);

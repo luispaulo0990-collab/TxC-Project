@@ -22,6 +22,7 @@ import {
   EyeOff,
   PanelLeftClose,
   PanelLeftOpen,
+  AlertTriangle,
 } from "lucide-react";
 import { ORANGE, OK, NUM } from "../../constants/theme";
 
@@ -38,6 +39,8 @@ export const SidebarNav = ({
   setPxPerDay,
   exibirRealizado = true,
   setExibirRealizado,
+  exibirCruzamentos = true,
+  setExibirCruzamentos,
   showActivities = true,
   setShowActivities,
   onAbrirModal,
@@ -261,6 +264,34 @@ export const SidebarNav = ({
               }}
             >
               {exibirRealizado ? "ON" : "OFF"}
+            </span>
+          </button>
+        </div>
+
+        {/* Alternância dos Apontamentos de Cruzamentos */}
+        <div className="pt-1.5" style={{ borderColor: "rgba(255, 255, 255, 0.08)" }}>
+          <button
+            onClick={() => setExibirCruzamentos && setExibirCruzamentos(!exibirCruzamentos)}
+            className="w-full py-2 px-2.5 text-xs flex items-center justify-between rounded-xl transition-all cursor-pointer hover:brightness-110"
+            style={{
+              background: exibirCruzamentos ? "rgba(214, 69, 69, 0.12)" : "rgba(255, 255, 255, 0.04)",
+              border: `1px solid ${exibirCruzamentos ? "rgba(214, 69, 69, 0.35)" : "rgba(255, 255, 255, 0.08)"}`,
+              color: exibirCruzamentos ? "#F87171" : "rgba(255, 255, 255, 0.65)",
+            }}
+            title={exibirCruzamentos ? "Clique para ocultar os apontamentos de cruzamentos no gráfico" : "Clique para exibir os apontamentos de cruzamentos no gráfico"}
+          >
+            <div className="flex items-center gap-2 font-semibold">
+              <AlertTriangle size={14} />
+              <span>Cruzamentos</span>
+            </div>
+            <span
+              className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
+              style={{
+                background: exibirCruzamentos ? "rgba(214, 69, 69, 0.25)" : "rgba(255, 255, 255, 0.08)",
+                color: exibirCruzamentos ? "#ffffff" : "rgba(255, 255, 255, 0.5)",
+              }}
+            >
+              {exibirCruzamentos ? "ON" : "OFF"}
             </span>
           </button>
         </div>
