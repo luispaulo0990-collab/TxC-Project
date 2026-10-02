@@ -53,9 +53,9 @@ export const SidebarNav = ({
   const navItems = [
     { id: "grafico", label: "Gráfico TxC", icon: Layers },
     { id: "avanco", label: "Avanço Físico", icon: TrendingUp, badge: "Novo" },
-    { id: "metas", label: "Metas Lookahead", icon: Target },
+    { id: "metas", label: "Metas", icon: Target },
     { id: "macrofluxo", label: "Macrofluxos", icon: Zap },
-    { id: "resumo", label: "Resumo Executivo", icon: LayoutDashboard },
+    { id: "resumo", label: "Resumo", icon: LayoutDashboard },
   ];
 
   // Iniciais do usuário para o avatar suave
