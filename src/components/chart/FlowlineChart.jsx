@@ -13,7 +13,7 @@ import {
 } from "../../constants/theme";
 import { D, fmtBR, diffDays, hoje } from "../../utils/dateUtils";
 import { contraste } from "../../utils/geometryUtils";
-import { Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 export const FlowlineChart = ({
   T,
@@ -65,58 +65,16 @@ export const FlowlineChart = ({
           {/* Cabeçalho do Eixo X fixo no topo */}
           <div className="flex sticky top-0" style={{ zIndex: 20 }}>
             <div
-              className="sticky left-0 flex items-center justify-between px-2 shadow-sm gap-1"
+              className="sticky left-0 flex items-center justify-between px-3 shadow-sm"
               style={{ width: LABEL_W, height: HEADER_H, background: BLACK, zIndex: 30 }}
             >
-              <div className="flex flex-col min-w-0 mr-auto">
-                <span style={{ fontSize: 9, letterSpacing: 1.2, color: "#fff", fontWeight: 800 }}>
+              <div className="flex flex-col min-w-0">
+                <span style={{ fontSize: 9.5, letterSpacing: 1.5, color: "#fff", fontWeight: 800 }}>
                   CAMINHO
                 </span>
-                <span style={{ ...NUM, fontSize: 8, color: "rgba(255,255,255,0.45)" }}>
+                <span style={{ ...NUM, fontSize: 8.5, color: "rgba(255,255,255,0.45)" }}>
                   {rows.length} locais
                 </span>
-              </div>
-
-              <div className="flex items-center gap-1 shrink-0">
-                {setExibirCruzamentos && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExibirCruzamentos(!exibirCruzamentos);
-                    }}
-                    className="flex items-center gap-1 px-1.5 py-1 rounded text-[9.5px] font-bold transition-all shadow-xs shrink-0 select-none cursor-pointer"
-                    style={{
-                      background: exibirCruzamentos ? "rgba(214, 69, 69, 0.22)" : "rgba(255, 255, 255, 0.12)",
-                      color: exibirCruzamentos ? "#F87171" : "rgba(255, 255, 255, 0.65)",
-                      border: `1px solid ${exibirCruzamentos ? "rgba(214, 69, 69, 0.45)" : "rgba(255, 255, 255, 0.2)"}`,
-                    }}
-                    title={exibirCruzamentos ? "Clique para ocultar os apontamentos de cruzamentos no gráfico" : "Clique para exibir os apontamentos de cruzamentos no gráfico"}
-                  >
-                    <AlertTriangle size={11} />
-                    <span>{exibirCruzamentos ? "Cruz. ON" : "Cruz. OFF"}</span>
-                  </button>
-                )}
-
-                {setExibirRealizado && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExibirRealizado(!exibirRealizado);
-                    }}
-                    className="flex items-center gap-1 px-1.5 py-1 rounded text-[9.5px] font-bold transition-all shadow-xs shrink-0 select-none cursor-pointer"
-                    style={{
-                      background: exibirRealizado ? "rgba(16, 185, 129, 0.22)" : "rgba(255, 255, 255, 0.12)",
-                      color: exibirRealizado ? "#34D399" : "rgba(255, 255, 255, 0.65)",
-                      border: `1px solid ${exibirRealizado ? "rgba(16, 185, 129, 0.45)" : "rgba(255, 255, 255, 0.2)"}`,
-                    }}
-                    title={exibirRealizado ? "Clique para desabilitar a visão do realizado" : "Clique para habilitar a visão do realizado"}
-                  >
-                    {exibirRealizado ? <Eye size={11} /> : <EyeOff size={11} />}
-                    <span>{exibirRealizado ? "Realiz. ON" : "Realiz. OFF"}</span>
-                  </button>
-                )}
               </div>
             </div>
 
