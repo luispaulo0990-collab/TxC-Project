@@ -31,17 +31,17 @@ const getCurrentUser = () => {
 };
 
 export const apiClient = {
-  async getProjetos(customUserId = null) {
-    const user = getCurrentUser();
-    const effectiveUserId = customUserId || user?.id || null;
-
+  async getProjetos(filterUserId = null) {
     try {
       const res = await fetch(apiUrl('/api/projetos'), {
         headers: getAuthHeaders()
       });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data)) return data;
+        if (Array.isArray(data)) {
+          if (filterUserId) return data.filter((p) => p.user_id === filterUserId);
+          return data;
+        }
       }
     } catch (err) {
       console.warn('apiClient.getProjetos proxy error, tentando Supabase direto:', err);
@@ -54,8 +54,8 @@ export const apiClient = {
         .select('id, nome, updated_at, created_at, user_id, grupo_id, dados')
         .order('updated_at', { ascending: false });
 
-      if (effectiveUserId) {
-        query = query.eq('user_id', effectiveUserId);
+      if (filterUserId) {
+        query = query.eq('user_id', filterUserId);
       }
 
       const { data, error } = await query;

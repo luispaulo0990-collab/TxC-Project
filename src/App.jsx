@@ -83,7 +83,7 @@ export default function App() {
         localIdx = r ? JSON.parse(r.value) : [];
       } catch {}
 
-      const serverProjetos = await apiClient.getProjetos(user?.id);
+      const serverProjetos = await apiClient.getProjetos();
       const serverLista = Array.isArray(serverProjetos)
         ? serverProjetos.map((item) => {
             const p = item.dados || item;

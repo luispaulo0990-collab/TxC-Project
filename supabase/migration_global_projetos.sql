@@ -17,11 +17,14 @@ create table if not exists public.projetos (
 -- 2. Habilitar Row Level Security
 alter table public.projetos enable row level security;
 
--- 3. Remover políticas antigas que filtravam por user_id individual
+-- 3. Remover políticas antigas que filtravam por user_id individual ou grupo
 drop policy if exists "projetos_select_own" on public.projetos;
+drop policy if exists "projetos_select_own_or_grupo" on public.projetos;
 drop policy if exists "projetos_insert_own" on public.projetos;
 drop policy if exists "projetos_update_own" on public.projetos;
+drop policy if exists "projetos_update_own_or_grupo" on public.projetos;
 drop policy if exists "projetos_delete_own" on public.projetos;
+drop policy if exists "projetos_delete_own_or_admin" on public.projetos;
 
 drop policy if exists "projetos_select_all" on public.projetos;
 drop policy if exists "projetos_insert_all" on public.projetos;

@@ -10,8 +10,7 @@ router.use(optionalJwtMiddleware);
 // GET all projetos
 router.get('/', async (req, res) => {
   try {
-    const userId = req.user?.sub || req.user?.id || null;
-    const items = await projetosRepository.getAll(userId);
+    const items = await projetosRepository.getAll();
     res.json(items);
   } catch (err) {
     console.error('Error fetching projetos:', err);
@@ -22,8 +21,7 @@ router.get('/', async (req, res) => {
 // GET projeto by ID
 router.get('/:id', async (req, res) => {
   try {
-    const userId = req.user?.sub || req.user?.id || null;
-    const item = await projetosRepository.getById(req.params.id, userId);
+    const item = await projetosRepository.getById(req.params.id);
     if (!item) return res.status(404).json({ error: 'Projeto não encontrado' });
     res.json(item);
   } catch (err) {
@@ -63,8 +61,7 @@ router.post('/', async (req, res) => {
 // DELETE projeto
 router.delete('/:id', async (req, res) => {
   try {
-    const userId = req.user?.sub || req.user?.id || null;
-    const deleted = await projetosRepository.delete(req.params.id, userId);
+    const deleted = await projetosRepository.delete(req.params.id);
     res.json({ success: true, deleted });
   } catch (err) {
     console.error('Error deleting projeto:', err);
