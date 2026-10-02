@@ -13,7 +13,18 @@ import {
 } from "../../constants/theme";
 import { D, fmtBR, diffDays, hoje } from "../../utils/dateUtils";
 import { contraste } from "../../utils/geometryUtils";
-import { AlertTriangle } from "lucide-react";
+import {
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Plus,
+  Minus,
+} from "lucide-react";
 
 export const FlowlineChart = ({
   T,
@@ -25,7 +36,9 @@ export const FlowlineChart = ({
   chartW,
   chartH,
   rowH,
+  setRowH,
   pxPerDay,
+  setPxPerDay,
   xOf,
   yMid,
   ativVisiveis,
@@ -35,6 +48,8 @@ export const FlowlineChart = ({
   setExibirRealizado,
   exibirCruzamentos = true,
   setExibirCruzamentos,
+  showActivities = true,
+  setShowActivities,
   selId,
   setSelId,
   dragInfo,
@@ -60,6 +75,170 @@ export const FlowlineChart = ({
 
   return (
     <main className="flex-1 min-w-0 flex flex-col overflow-hidden select-none" style={{ background: T.bg }}>
+      {/* ── Barra Superior de Controles e Ferramentas do Gráfico ── */}
+      <div
+        className="flex items-center justify-between px-3 py-1.5 shrink-0 border-b select-none flex-wrap gap-2 shadow-xs"
+        style={{
+          background: T.panel,
+          borderColor: T.line,
+        }}
+      >
+        {/* Lado Esquerdo: Alternâncias de Visibilidade do Gráfico */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {setShowActivities && (
+            <button
+              onClick={() => setShowActivities(!showActivities)}
+              className="px-2.5 py-1 text-xs flex items-center gap-1.5 rounded-lg transition-all font-semibold cursor-pointer"
+              style={{
+                background: showActivities ? "rgba(254, 80, 0, 0.12)" : T.raised,
+                border: `1px solid ${showActivities ? "rgba(254, 80, 0, 0.35)" : T.line}`,
+                color: showActivities ? ORANGE : T.muted,
+              }}
+              title={showActivities ? "Ocultar coluna lateral de atividades" : "Exibir coluna lateral de atividades"}
+            >
+              {showActivities ? <PanelLeftClose size={13} style={{ color: ORANGE }} /> : <PanelLeftOpen size={13} />}
+              <span>Coluna Atividades</span>
+              <span
+                className="text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider"
+                style={{
+                  background: showActivities ? ORANGE : "rgba(0,0,0,0.08)",
+                  color: showActivities ? "#fff" : T.dim,
+                }}
+              >
+                {showActivities ? "Visível" : "Oculta"}
+              </span>
+            </button>
+          )}
+
+          {setExibirRealizado && (
+            <button
+              onClick={() => setExibirRealizado(!exibirRealizado)}
+              className="px-2.5 py-1 text-xs flex items-center gap-1.5 rounded-lg transition-all font-semibold cursor-pointer"
+              style={{
+                background: exibirRealizado ? "rgba(16, 185, 129, 0.12)" : T.raised,
+                border: `1px solid ${exibirRealizado ? "rgba(16, 185, 129, 0.35)" : T.line}`,
+                color: exibirRealizado ? "#059669" : T.muted,
+              }}
+              title={exibirRealizado ? "Ocultar apontamentos de realizado" : "Exibir apontamentos de realizado"}
+            >
+              {exibirRealizado ? <Eye size={13} style={{ color: "#10B981" }} /> : <EyeOff size={13} />}
+              <span>Visão do Realizado</span>
+              <span
+                className="text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider"
+                style={{
+                  background: exibirRealizado ? "#10B981" : "rgba(0,0,0,0.08)",
+                  color: exibirRealizado ? "#fff" : T.dim,
+                }}
+              >
+                {exibirRealizado ? "ON" : "OFF"}
+              </span>
+            </button>
+          )}
+
+          {setExibirCruzamentos && (
+            <button
+              onClick={() => setExibirCruzamentos(!exibirCruzamentos)}
+              className="px-2.5 py-1 text-xs flex items-center gap-1.5 rounded-lg transition-all font-semibold cursor-pointer"
+              style={{
+                background: exibirCruzamentos ? "rgba(220, 38, 38, 0.12)" : T.raised,
+                border: `1px solid ${exibirCruzamentos ? "rgba(220, 38, 38, 0.35)" : T.line}`,
+                color: exibirCruzamentos ? "#DC2626" : T.muted,
+              }}
+              title={exibirCruzamentos ? "Ocultar apontamentos de cruzamentos no gráfico" : "Exibir apontamentos de cruzamentos no gráfico"}
+            >
+              <AlertTriangle size={13} style={{ color: exibirCruzamentos ? "#DC2626" : T.dim }} />
+              <span>Cruzamentos</span>
+              <span
+                className="text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider"
+                style={{
+                  background: exibirCruzamentos ? "#EF4444" : "rgba(0,0,0,0.08)",
+                  color: exibirCruzamentos ? "#fff" : T.dim,
+                }}
+              >
+                {exibirCruzamentos ? "ON" : "OFF"}
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* Lado Direito: Controles de Altura dos Pavimentos e Zoom do Gráfico */}
+        <div className="flex items-center gap-3">
+          {/* Zoom Vertical: Altura das Faixas de Pavimento */}
+          {setRowH && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: T.dim }}>
+                Altura Pavs:
+              </span>
+              <div
+                className="flex items-center rounded-lg px-1 py-0.5"
+                style={{ background: T.raised, border: `1px solid ${T.line}` }}
+              >
+                <button
+                  onClick={() => setRowH((h) => Math.max(18, h - 3))}
+                  className="p-1 rounded hover:bg-black/5 transition-colors cursor-pointer"
+                  style={{ color: T.muted }}
+                  title="Diminuir altura dos pavimentos (comprimir)"
+                >
+                  <Minus size={11} />
+                </button>
+                <span className="text-xs px-1.5 font-bold" style={{ ...NUM, color: T.text, minWidth: 32, textAlign: "center" }}>
+                  {rowH}px
+                </span>
+                <button
+                  onClick={() => setRowH((h) => Math.min(60, h + 3))}
+                  className="p-1 rounded hover:bg-black/5 transition-colors cursor-pointer"
+                  style={{ color: T.muted }}
+                  title="Aumentar altura dos pavimentos (expandir)"
+                >
+                  <Plus size={11} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Zoom Horizontal: Escala de Dias / Tempo */}
+          {setPxPerDay && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: T.dim }}>
+                Zoom:
+              </span>
+              <div
+                className="flex items-center rounded-lg px-1 py-0.5"
+                style={{ background: T.raised, border: `1px solid ${T.line}` }}
+              >
+                <button
+                  onClick={() => setPxPerDay((z) => Math.max(1.2, z / 1.25))}
+                  className="p-1 rounded hover:bg-black/5 transition-colors cursor-pointer"
+                  style={{ color: T.muted }}
+                  title="Diminuir Zoom"
+                >
+                  <ZoomOut size={12} />
+                </button>
+                <span className="text-xs px-1.5 font-bold" style={{ ...NUM, color: T.text, minWidth: 40, textAlign: "center" }}>
+                  {Math.round(pxPerDay * 30)}%
+                </span>
+                <button
+                  onClick={() => setPxPerDay((z) => Math.min(16, z * 1.25))}
+                  className="p-1 rounded hover:bg-black/5 transition-colors cursor-pointer"
+                  style={{ color: T.muted }}
+                  title="Aumentar Zoom"
+                >
+                  <ZoomIn size={12} />
+                </button>
+                <button
+                  onClick={() => setPxPerDay(4.2)}
+                  className="p-1 rounded hover:bg-black/5 transition-colors cursor-pointer ml-0.5"
+                  style={{ color: T.muted }}
+                  title="Restaurar Zoom Padrão"
+                >
+                  <Maximize2 size={11} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-auto" onClick={() => setSelId(null)}>
         <div style={{ width: LABEL_W + chartW, position: "relative" }}>
           {/* Cabeçalho do Eixo X fixo no topo */}

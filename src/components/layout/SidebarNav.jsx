@@ -7,22 +7,13 @@ import {
   Zap,
   LayoutDashboard,
   Building2,
-  Plus,
   Upload,
   Download,
   Save,
   Sun,
   Moon,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
   ChevronLeft,
   LogOut,
-  Eye,
-  EyeOff,
-  PanelLeftClose,
-  PanelLeftOpen,
-  AlertTriangle,
 } from "lucide-react";
 import { ORANGE, OK, NUM } from "../../constants/theme";
 
@@ -135,6 +126,43 @@ export const SidebarNav = ({
           />
         </div>
 
+        {/* Ações Rápidas Globais no Canto Superior Esquerdo */}
+        <div className="grid grid-cols-3 gap-1.5 pt-1">
+          <button
+            onClick={() => onSalvar && onSalvar(proj)}
+            className="py-1.5 px-1 text-xs flex items-center justify-center gap-1 rounded-xl font-bold transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer shadow-sm"
+            style={{
+              background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)",
+              boxShadow: "0 2px 8px rgba(254, 80, 0, 0.25)",
+            }}
+            title="Salvar obra no banco de dados"
+          >
+            <Save size={13} /> Salvar
+          </button>
+          <button
+            onClick={() => onAbrirModal && onAbrirModal("importmenu")}
+            className="py-1.5 px-1 text-xs flex items-center justify-center gap-1 rounded-xl font-semibold transition-all hover:bg-white/[0.12] active:scale-95 text-white cursor-pointer"
+            style={{
+              background: "rgba(255, 255, 255, 0.06)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
+            title="Importar planilha de atividades ou avanços"
+          >
+            <Upload size={13} /> Importar
+          </button>
+          <button
+            onClick={() => onAbrirModal && onAbrirModal("exportar")}
+            className="py-1.5 px-1 text-xs flex items-center justify-center gap-1 rounded-xl font-semibold transition-all hover:bg-white/[0.12] active:scale-95 text-white cursor-pointer"
+            style={{
+              background: "rgba(255, 255, 255, 0.06)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
+            title="Exportar em Excel ou Imagem"
+          >
+            <Download size={13} /> Exportar
+          </button>
+        </div>
+
         {/* Filtro de Torre */}
         <div>
           <label
@@ -167,7 +195,7 @@ export const SidebarNav = ({
         </div>
       </div>
 
-      {/* ── Centro: Abas de Navegação & Ações ── */}
+      {/* ── Centro: Abas de Navegação ── */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3.5 custom-scrollbar">
         {/* Itens de Navegação Principal */}
         <div className="flex flex-col gap-1">
@@ -209,197 +237,6 @@ export const SidebarNav = ({
             );
           })}
         </div>
-
-        {/* Alternância da Coluna de Atividades (visível no gráfico) */}
-        {vista === "grafico" && setShowActivities && (
-          <div className="pt-2 border-t" style={{ borderColor: "rgba(255, 255, 255, 0.08)" }}>
-            <button
-              onClick={() => setShowActivities(!showActivities)}
-              className="w-full py-2 px-2.5 text-xs flex items-center justify-between rounded-xl transition-all cursor-pointer hover:bg-white/[0.08]"
-              style={{
-                background: showActivities ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                color: showActivities ? "#ffffff" : "rgba(255, 255, 255, 0.55)",
-              }}
-              title={showActivities ? "Clique para ocultar a coluna de atividades" : "Clique para exibir a coluna de atividades"}
-            >
-              <div className="flex items-center gap-2 font-semibold">
-                {showActivities ? <PanelLeftClose size={14} style={{ color: ORANGE }} /> : <PanelLeftOpen size={14} />}
-                <span>Coluna Atividades</span>
-              </div>
-              <span
-                className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
-                style={{
-                  background: showActivities ? "rgba(254, 80, 0, 0.18)" : "rgba(255, 255, 255, 0.08)",
-                  color: showActivities ? ORANGE : "rgba(255, 255, 255, 0.5)",
-                }}
-              >
-                {showActivities ? "Visível" : "Oculta"}
-              </span>
-            </button>
-          </div>
-        )}
-
-        {/* Alternância da Visão do Realizado */}
-        <div className={vista === "grafico" && setShowActivities ? "pt-0" : "pt-2 border-t"} style={{ borderColor: "rgba(255, 255, 255, 0.08)" }}>
-          <button
-            onClick={() => setExibirRealizado && setExibirRealizado(!exibirRealizado)}
-            className="w-full py-2 px-2.5 text-xs flex items-center justify-between rounded-xl transition-all cursor-pointer hover:brightness-110"
-            style={{
-              background: exibirRealizado ? "rgba(16, 185, 129, 0.12)" : "rgba(255, 255, 255, 0.04)",
-              border: `1px solid ${exibirRealizado ? "rgba(16, 185, 129, 0.35)" : "rgba(255, 255, 255, 0.08)"}`,
-              color: exibirRealizado ? "#34D399" : "rgba(255, 255, 255, 0.65)",
-            }}
-            title={exibirRealizado ? "Clique para ocultar os avanços realizados" : "Clique para exibir os avanços realizados"}
-          >
-            <div className="flex items-center gap-2 font-semibold">
-              {exibirRealizado ? <Eye size={14} /> : <EyeOff size={14} />}
-              <span>Visão do Realizado</span>
-            </div>
-            <span
-              className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
-              style={{
-                background: exibirRealizado ? "rgba(16, 185, 129, 0.25)" : "rgba(255, 255, 255, 0.08)",
-                color: exibirRealizado ? "#ffffff" : "rgba(255, 255, 255, 0.5)",
-              }}
-            >
-              {exibirRealizado ? "ON" : "OFF"}
-            </span>
-          </button>
-        </div>
-
-        {/* Alternância dos Apontamentos de Cruzamentos */}
-        <div className="pt-1.5" style={{ borderColor: "rgba(255, 255, 255, 0.08)" }}>
-          <button
-            onClick={() => setExibirCruzamentos && setExibirCruzamentos(!exibirCruzamentos)}
-            className="w-full py-2 px-2.5 text-xs flex items-center justify-between rounded-xl transition-all cursor-pointer hover:brightness-110"
-            style={{
-              background: exibirCruzamentos ? "rgba(214, 69, 69, 0.12)" : "rgba(255, 255, 255, 0.04)",
-              border: `1px solid ${exibirCruzamentos ? "rgba(214, 69, 69, 0.35)" : "rgba(255, 255, 255, 0.08)"}`,
-              color: exibirCruzamentos ? "#F87171" : "rgba(255, 255, 255, 0.65)",
-            }}
-            title={exibirCruzamentos ? "Clique para ocultar os apontamentos de cruzamentos no gráfico" : "Clique para exibir os apontamentos de cruzamentos no gráfico"}
-          >
-            <div className="flex items-center gap-2 font-semibold">
-              <AlertTriangle size={14} />
-              <span>Cruzamentos</span>
-            </div>
-            <span
-              className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
-              style={{
-                background: exibirCruzamentos ? "rgba(214, 69, 69, 0.25)" : "rgba(255, 255, 255, 0.08)",
-                color: exibirCruzamentos ? "#ffffff" : "rgba(255, 255, 255, 0.5)",
-              }}
-            >
-              {exibirCruzamentos ? "ON" : "OFF"}
-            </span>
-          </button>
-        </div>
-
-        {/* Ações de Obra / Import & Export */}
-        <div className="flex flex-col gap-1.5 pt-2 border-t" style={{ borderColor: "rgba(255, 255, 255, 0.08)" }}>
-          <span
-            className="text-[9.5px] uppercase font-bold tracking-wider px-2 mb-0.5"
-            style={{ color: "rgba(255, 255, 255, 0.45)" }}
-          >
-            Ações Rápidas
-          </span>
-
-          {onNovaAtividade && (
-            <button
-              onClick={onNovaAtividade}
-              className="w-full py-2 px-3 text-xs flex items-center justify-center gap-2 rounded-xl transition-all font-bold hover:brightness-110 active:scale-[0.98] shadow-sm cursor-pointer"
-              style={{
-                background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)",
-                color: "#ffffff",
-                boxShadow: "0 3px 12px rgba(254, 80, 0, 0.22)",
-              }}
-            >
-              <Plus size={14} /> Nova Atividade
-            </button>
-          )}
-
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              onClick={() => onAbrirModal("importmenu")}
-              className="py-2 px-2 text-xs flex items-center justify-center gap-1.5 rounded-xl transition-all font-semibold cursor-pointer hover:bg-white/[0.12] active:scale-95 text-white"
-              style={{
-                background: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid rgba(255, 255, 255, 0.09)",
-              }}
-              title="Importar planilha de atividades ou avanços"
-            >
-              <Upload size={13} /> Importar
-            </button>
-            <button
-              onClick={() => onAbrirModal("exportar")}
-              className="py-2 px-2 text-xs flex items-center justify-center gap-1.5 rounded-xl font-bold transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer shadow-sm"
-              style={{
-                background: "linear-gradient(135deg, #059669 0%, #10B981 100%)",
-                border: "1px solid rgba(16, 185, 129, 0.3)",
-              }}
-              title="Exportar em Excel (.xlsx) ou Imagem (.png)"
-            >
-              <Download size={13} /> Exportar
-            </button>
-          </div>
-
-          <button
-            onClick={() => onSalvar(proj)}
-            className="w-full py-2 px-3 text-xs flex items-center justify-center gap-2 rounded-xl transition-all font-semibold cursor-pointer hover:bg-white/[0.12] active:scale-[0.98] text-white"
-            style={{
-              background: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.09)",
-            }}
-            title="Sincronizar e salvar no Supabase"
-          >
-            <Save size={13} /> Salvar Obra
-          </button>
-        </div>
-
-        {/* Controles de Zoom (Ativos no modo Gráfico) */}
-        {vista === "grafico" && (
-          <div className="flex flex-col gap-1.5 pt-2 border-t" style={{ borderColor: "rgba(255, 255, 255, 0.08)" }}>
-            <span
-              className="text-[9.5px] uppercase font-bold tracking-wider px-2"
-              style={{ color: "rgba(255, 255, 255, 0.45)" }}
-            >
-              Zoom do Gráfico
-            </span>
-            <div
-              className="flex items-center justify-between p-1 rounded-xl"
-              style={{
-                background: "rgba(255, 255, 255, 0.04)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-              }}
-            >
-              <button
-                onClick={() => setPxPerDay((z) => Math.max(1.2, z / 1.3))}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors cursor-pointer"
-                title="Diminuir Zoom"
-              >
-                <ZoomOut size={13} />
-              </button>
-              <span className="text-xs px-1 font-bold" style={{ ...NUM, color: "rgba(255,255,255,0.85)" }}>
-                {Math.round(pxPerDay * 30)}%
-              </span>
-              <button
-                onClick={() => setPxPerDay((z) => Math.min(14, z * 1.3))}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors cursor-pointer"
-                title="Aumentar Zoom"
-              >
-                <ZoomIn size={13} />
-              </button>
-              <button
-                onClick={() => setPxPerDay(3.4)}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors cursor-pointer"
-                title="Restaurar Zoom Padrão"
-              >
-                <Maximize2 size={12} />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Rodapé: Tema & Usuário ── */}

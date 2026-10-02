@@ -45,8 +45,8 @@ export default function App() {
   const [proj, setProj] = useState(null);
   const [selId, setSelId] = useState(null);
   const [modalConfirmacao, setModalConfirmacao] = useState(null);
-  const [pxPerDay, setPxPerDay] = useState(3.4);
-  const [rowH] = useState(23);
+  const [pxPerDay, setPxPerDay] = useState(4.2);
+  const [rowH, setRowH] = useState(30);
   const [snapWeek] = useState(false);
   const [tab, setTab] = useState("atividades");
   const [filtroTorre, setFiltroTorre] = useState("TODAS");
@@ -1171,16 +1171,7 @@ export default function App() {
         setFiltroTorre={setFiltroTorre}
         tema={tema}
         setTema={setTema}
-        pxPerDay={pxPerDay}
-        setPxPerDay={setPxPerDay}
-        exibirRealizado={exibirRealizado}
-        setExibirRealizado={setExibirRealizado}
-        exibirCruzamentos={exibirCruzamentos}
-        setExibirCruzamentos={setExibirCruzamentos}
-        showActivities={showActivities}
-        setShowActivities={setShowActivities}
         onAbrirModal={setModal}
-        onNovaAtividade={novaAtividade}
         onSalvar={salvar}
         onVoltarHome={voltarParaHome}
         onLogout={handleLogout}
@@ -1284,7 +1275,9 @@ export default function App() {
                 chartW={chartW}
                 chartH={chartH}
                 rowH={rowH}
+                setRowH={setRowH}
                 pxPerDay={pxPerDay}
+                setPxPerDay={setPxPerDay}
                 xOf={xOf}
                 yMid={yMid}
                 ativVisiveis={ativVisiveis}
@@ -1294,6 +1287,8 @@ export default function App() {
                 setExibirRealizado={setExibirRealizado}
                 exibirCruzamentos={exibirCruzamentos}
                 setExibirCruzamentos={setExibirCruzamentos}
+                showActivities={showActivities}
+                setShowActivities={setShowActivities}
                 selId={selId}
                 setSelId={(id) => {
                   setSelId(id);
