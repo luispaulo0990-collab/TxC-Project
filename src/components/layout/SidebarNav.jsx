@@ -13,6 +13,7 @@ import {
   Sun,
   Moon,
   ChevronLeft,
+  ChevronDown,
   LogOut,
 } from "lucide-react";
 import { ORANGE, OK, NUM } from "../../constants/theme";
@@ -135,14 +136,16 @@ export const SidebarNav = ({
             Torre Ativa
           </label>
           <div className="relative flex items-center">
-            <Building2 size={14} className="absolute left-3 text-white/50 pointer-events-none" />
+            <Building2 size={15} className="absolute left-3 text-white/50 pointer-events-none" />
             <select
               value={filtroTorre}
               onChange={(e) => setFiltroTorre(e.target.value)}
-              className="w-full text-[13px] pl-8.5 pr-3 py-2 outline-none rounded-xl transition-all cursor-pointer font-medium text-white appearance-none"
+              className="w-full text-[13px] py-2 outline-none rounded-xl transition-all cursor-pointer font-medium text-white appearance-none"
               style={{
                 background: "rgba(255, 255, 255, 0.06)",
                 border: "1px solid rgba(255, 255, 255, 0.09)",
+                paddingLeft: "36px",
+                paddingRight: "28px",
               }}
             >
               <option value="TODAS" style={{ color: "#000" }}>
@@ -154,6 +157,7 @@ export const SidebarNav = ({
                 </option>
               ))}
             </select>
+            <ChevronDown size={14} className="absolute right-3 text-white/40 pointer-events-none" />
           </div>
         </div>
       </div>

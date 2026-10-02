@@ -90,31 +90,6 @@ export const FlowlineChart = ({
       >
         {/* Lado Esquerdo: Alternâncias de Visibilidade do Gráfico */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {setShowActivities && (
-            <button
-              onClick={() => setShowActivities(!showActivities)}
-              className="px-2.5 py-1 text-xs flex items-center gap-1.5 rounded-lg transition-all font-semibold cursor-pointer"
-              style={{
-                background: showActivities ? "rgba(254, 80, 0, 0.12)" : T.raised,
-                border: `1px solid ${showActivities ? "rgba(254, 80, 0, 0.35)" : T.line}`,
-                color: showActivities ? ORANGE : T.muted,
-              }}
-              title={showActivities ? "Ocultar coluna lateral de atividades" : "Exibir coluna lateral de atividades"}
-            >
-              {showActivities ? <PanelLeftClose size={13} style={{ color: ORANGE }} /> : <PanelLeftOpen size={13} />}
-              <span>Coluna Atividades</span>
-              <span
-                className="text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider"
-                style={{
-                  background: showActivities ? ORANGE : "rgba(0,0,0,0.08)",
-                  color: showActivities ? "#fff" : T.dim,
-                }}
-              >
-                {showActivities ? "Visível" : "Oculta"}
-              </span>
-            </button>
-          )}
-
           {setExibirRealizado && (
             <button
               onClick={() => setExibirRealizado(!exibirRealizado)}
