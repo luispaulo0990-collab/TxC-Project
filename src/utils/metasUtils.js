@@ -32,7 +32,13 @@ export function calcularMetasAtividades({ proj, rows, rowIdx, dataRef, dataFimPe
     // 1. Progresso até a data de referência (Hoje)
     let percConcluidoAteHoje = 0;
     let pavConcluidosAteHoje = 0;
-    if (ref >= df) {
+    if (a.realFim) {
+      percConcluidoAteHoje = 100;
+      pavConcluidosAteHoje = nLoc;
+    } else if (a.avanco != null && Number(a.avanco) > 0) {
+      percConcluidoAteHoje = Math.min(100, Math.max(0, Number(a.avanco)));
+      pavConcluidosAteHoje = Math.round((percConcluidoAteHoje / 100) * nLoc);
+    } else if (ref >= df) {
       percConcluidoAteHoje = 100;
       pavConcluidosAteHoje = nLoc;
     } else if (ref > di) {
@@ -47,7 +53,7 @@ export function calcularMetasAtividades({ proj, rows, rowIdx, dataRef, dataFimPe
     const iniJanela = new Date(Math.max(ref.getTime(), di.getTime()));
     const fimJanela = new Date(Math.min(fimPeriodo.getTime(), df.getTime()));
 
-    const temMetaNoPeriodo = iniJanela <= fimJanela && fimPeriodo >= di && ref <= df;
+    const temMetaNoPeriodo = iniJanela <= fimJanela && fimPeriodo >= di && ref <= df && percConcluidoAteHoje < 100;
 
     let pavimentosNoPeriodo = 0;
     let percNoPeriodo = 0;
@@ -135,17 +141,68 @@ export function calcularMetasAtividades({ proj, rows, rowIdx, dataRef, dataFimPe
     };
   });
 
+  const diasNoPeriodo = diffDays(ref, fimPeriodo);
+  const resumoGeral = calcularResumoMetas(resultadoAtividades, diasNoPeriodo);
+
   return {
     dataRef: ref,
     dataFimPeriodo: fimPeriodo,
-    diasNoPeriodo: diffDays(ref, fimPeriodo),
-    totalAtividades: ativs.length,
+    diasNoPeriodo,
+    ...resumoGeral,
     totalPavimentosGeral,
     totalPavimentosConcluidos,
     totalPavimentosMetaPeriodo,
-    percGeralConcluido: totalPavimentosGeral > 0 ? Math.round((totalPavimentosConcluidos / totalPavimentosGeral) * 100) : 0,
-    percGeralMetaPeriodo: totalPavimentosGeral > 0 ? Math.round((totalPavimentosMetaPeriodo / totalPavimentosGeral) * 100) : 0,
-    atividadesComMeta: resultadoAtividades.filter((a) => a.temMetaNoPeriodo),
     todasAtividades: resultadoAtividades,
+  };
+}
+
+/**
+ * Calcula o resumo consolidado de metas e avanço com peso igual (1/N) por atividade.
+ * Cada atividade representa 100% do seu escopo, evitando distorções por soma de pavimentos.
+ */
+export function calcularResumoMetas(listaAtividades, diasNoPeriodo = 30) {
+  const total = listaAtividades ? listaAtividades.length : 0;
+  if (total === 0) {
+    return {
+      totalAtividades: 0,
+      pesoIndividual: 0,
+      percGeralConcluido: 0,
+      percGeralMetaPeriodo: 0,
+      percAcumuladoPrevisto: 0,
+      atividadesComMeta: [],
+      totalAtividadesConcluidas: 0,
+      totalAtividadesEmAndamento: 0,
+      totalAtividadesNaoIniciadas: 0,
+      diasNoPeriodo,
+    };
+  }
+
+  // Cada atividade vale 100% de si mesma. O peso de cada uma no total é 1 / total (1/N).
+  // A evolução geral é a média aritmética das evoluções de todas as atividades.
+  const somaProgresso = listaAtividades.reduce((s, a) => s + (a.percConcluidoAteHoje || 0), 0);
+  const somaMeta = listaAtividades.reduce((s, a) => s + (a.percNoPeriodo || 0), 0);
+
+  const percGeralConcluido = Math.round(somaProgresso / total);
+  const percGeralMetaPeriodo = Math.round(somaMeta / total);
+  const percAcumuladoPrevisto = Math.min(100, percGeralConcluido + percGeralMetaPeriodo);
+
+  const atividadesComMeta = listaAtividades.filter((a) => a.temMetaNoPeriodo && a.percNoPeriodo > 0);
+  const totalAtividadesConcluidas = listaAtividades.filter((a) => a.percConcluidoAteHoje >= 100).length;
+  const totalAtividadesEmAndamento = listaAtividades.filter(
+    (a) => a.percConcluidoAteHoje > 0 && a.percConcluidoAteHoje < 100
+  ).length;
+  const totalAtividadesNaoIniciadas = listaAtividades.filter((a) => a.percConcluidoAteHoje === 0).length;
+
+  return {
+    totalAtividades: total,
+    pesoIndividual: Number((100 / total).toFixed(1)),
+    percGeralConcluido,
+    percGeralMetaPeriodo,
+    percAcumuladoPrevisto,
+    atividadesComMeta,
+    totalAtividadesConcluidas,
+    totalAtividadesEmAndamento,
+    totalAtividadesNaoIniciadas,
+    diasNoPeriodo,
   };
 }

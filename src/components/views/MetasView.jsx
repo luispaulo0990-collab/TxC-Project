@@ -20,7 +20,7 @@ import * as XLSX from "xlsx";
 import { Modal } from "../common/Modal";
 import { ORANGE, ERRO, OK, FONT, NUM, THEME, DIAS_MES } from "../../constants/theme";
 import { D, iso, addDays, fmtBR, hoje, diffDays } from "../../utils/dateUtils";
-import { calcularMetasAtividades } from "../../utils/metasUtils";
+import { calcularMetasAtividades, calcularResumoMetas } from "../../utils/metasUtils";
 import { baixar } from "../../utils/exportUtils";
 
 export const MetasView = ({
@@ -69,6 +69,15 @@ export const MetasView = ({
       dataFimPeriodo: dataFimCalculada,
     });
   }, [proj, rows, rowIdx, dataRefStr, dataFimCalculada]);
+
+  // KPIs consolidados com peso proporcional por atividade (1/N) para o cenário/torre em foco
+  const kpisResumo = useMemo(() => {
+    if (filtroTorre === "TODAS") {
+      return dadosMetas;
+    }
+    const ativsCenario = dadosMetas.todasAtividades.filter((a) => a.torreId === filtroTorre);
+    return calcularResumoMetas(ativsCenario, dadosMetas.diasNoPeriodo);
+  }, [dadosMetas, filtroTorre]);
 
   // Filtragem das atividades
   const atividadesFiltradas = useMemo(() => {
@@ -288,29 +297,29 @@ export const MetasView = ({
           <CardKPI
             icon={Target}
             label="Meta de Produção no Período"
-            valor={`+${dadosMetas.percGeralMetaPeriodo}%`}
-            sub={`${dadosMetas.totalPavimentosMetaPeriodo} pavs em ${dadosMetas.diasNoPeriodo} dias (${fmtBR(D(dataRefStr))} a ${fmtBR(dataFimCalculada)})`}
+            valor={`+${kpisResumo.percGeralMetaPeriodo}%`}
+            sub={`${kpisResumo.atividadesComMeta.length} frentes com meta em ${kpisResumo.diasNoPeriodo} dias (${fmtBR(D(dataRefStr))} a ${fmtBR(dataFimCalculada)})`}
             cor={ORANGE}
           />
           <CardKPI
             icon={TrendingUp}
             label="Avanço Acumulado Previsto"
-            valor={`${Math.min(100, dadosMetas.percGeralConcluido + dadosMetas.percGeralMetaPeriodo)}%`}
-            sub={`atual: ${dadosMetas.percGeralConcluido}% + meta: ${dadosMetas.percGeralMetaPeriodo}%`}
+            valor={`${kpisResumo.percAcumuladoPrevisto}%`}
+            sub={`atual: ${kpisResumo.percGeralConcluido}% + meta: ${kpisResumo.percGeralMetaPeriodo}%`}
             cor={OK}
           />
           <CardKPI
             icon={Layers}
             label="Frentes de Trabalho Ativas"
-            valor={`${dadosMetas.atividadesComMeta.length}`}
-            sub={`de ${dadosMetas.totalAtividades} atividades totais`}
+            valor={`${kpisResumo.atividadesComMeta.length}`}
+            sub={`de ${kpisResumo.totalAtividades} atividades totais (peso 1/${kpisResumo.totalAtividades || 1})`}
             cor="#2E86AB"
           />
           <CardKPI
             icon={Clock}
             label="Progresso Atual (Hoje)"
-            valor={`${dadosMetas.percGeralConcluido}%`}
-            sub={`${dadosMetas.totalPavimentosConcluidos}/${dadosMetas.totalPavimentosGeral} pavs executados`}
+            valor={`${kpisResumo.percGeralConcluido}%`}
+            sub={`${kpisResumo.totalAtividadesConcluidas} concluídas · ${kpisResumo.totalAtividadesEmAndamento} em andamento`}
             cor={T.dim}
           />
         </div>
