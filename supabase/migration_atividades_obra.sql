@@ -3,14 +3,13 @@
 -- Execute este script no SQL Editor do Supabase
 -- ============================================================
 
--- 1. Recria a tabela public.atividades com os tipos e colunas corretos
--- (Como as atividades ficam armazenadas com segurança dentro de projetos.dados,
---  o drop/create garante que não haja conflitos de tipo UUID/TEXT anteriores)
+-- 1. Recria a tabela public.atividades
+-- Nota: projeto_id é UUID para compatibilidade com public.projetos(id)
 drop table if exists public.atividades cascade;
 
 create table public.atividades (
   id text primary key default gen_random_uuid()::text,
-  projeto_id text references public.projetos(id) on delete cascade,
+  projeto_id uuid references public.projetos(id) on delete cascade,
   projeto_nome text,
   obra_nome text,
   nome text not null default 'Nova atividade',
@@ -27,12 +26,12 @@ create table public.atividades (
   updated_at timestamptz not null default now()
 );
 
--- 2. Índices para consultas rápidas
+-- 2. Índices para consultas rápidas por obra
 create index if not exists idx_atividades_projeto_id on public.atividades(projeto_id);
 create index if not exists idx_atividades_projeto_nome on public.atividades(projeto_nome);
 create index if not exists idx_atividades_obra_nome on public.atividades(obra_nome);
 
--- 3. Habilita Row Level Security e permissões de acesso compartilhadas
+-- 3. Habilita Row Level Security e permissões compartilhadas para toda a equipe
 alter table public.atividades enable row level security;
 
 drop policy if exists "atividades_all" on public.atividades;
@@ -65,8 +64,8 @@ insert into public.atividades (
   updated_at
 )
 select
-  coalesce(ativ->>'id', gen_random_uuid()::text)::text as id,
-  p.id::text as projeto_id,
+  coalesce(ativ->>'id', gen_random_uuid()::text) as id,
+  p.id as projeto_id,
   p.nome as projeto_nome,
   p.nome as obra_nome,
   coalesce(ativ->>'nome', 'Atividade') as nome,
