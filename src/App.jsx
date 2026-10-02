@@ -29,7 +29,7 @@ import { ModalAplicarMacrofluxo } from "./components/modals/ModalAplicarMacroflu
 import { HomeScreen } from "./components/views/HomeScreen";
 import { AuthScreen } from "./components/views/AuthScreen";
 import { ModalGerenciarGrupo } from "./components/modals/ModalGerenciarGrupo";
-import { gerarAtividadesDoMacrofluxo, auditarIncoerenciasPredecessoras } from "./utils/macrofluxoUtils";
+import { gerarAtividadesDoMacrofluxo, auditarIncoerenciasPredecessoras, getModelosPadraoMacrofluxo } from "./utils/macrofluxoUtils";
 import { apiClient } from "./utils/apiClient";
 import { obterSessao, logout } from "./utils/supabaseClient";
 import { usePermissao } from "./hooks/usePermissao";
@@ -51,6 +51,7 @@ export default function App() {
   const [tab, setTab] = useState("atividades");
   const [filtroTorre, setFiltroTorre] = useState("TODAS");
   const [salvos, setSalvos] = useState([]);
+  const [macrofluxos, setMacrofluxos] = useState([]);
   const [status, setStatus] = useState("");
   const [modal, setModal] = useState(null);
   const [collapsed, setCollapsed] = useState({});
@@ -159,6 +160,80 @@ export default function App() {
     }
   }, [user]);
 
+  /* ─── Biblioteca Global de Macrofluxos (Persistência no Supabase) ────────── */
+  const carregarMacrofluxos = useCallback(async () => {
+    try {
+      const data = await apiClient.getMacrofluxos();
+      if (Array.isArray(data) && data.length > 0) {
+        setMacrofluxos(data);
+        return data;
+      }
+      // Se a biblioteca estiver vazia no banco, inicia com o modelo padrão
+      const padroes = getModelosPadraoMacrofluxo();
+      setMacrofluxos(padroes);
+      try {
+        for (const m of padroes) {
+          await apiClient.salvarMacrofluxo(m, user?.id);
+        }
+      } catch (e) {
+        console.warn("Aviso ao persistir modelos padrão no banco:", e);
+      }
+      return padroes;
+    } catch (err) {
+      console.warn("Erro ao buscar macrofluxos da nuvem:", err);
+      const fallback = getModelosPadraoMacrofluxo();
+      setMacrofluxos(fallback);
+      return fallback;
+    }
+  }, [user]);
+
+  const handleSalvarMacrofluxo = useCallback(async (macro) => {
+    try {
+      const saved = await apiClient.salvarMacrofluxo(macro, user?.id);
+      setMacrofluxos((prev) => {
+        const existe = prev.some((m) => m.id === macro.id);
+        if (existe) {
+          return prev.map((m) => (m.id === macro.id ? { ...m, ...saved } : m));
+        }
+        return [...prev, saved || macro];
+      });
+      // Sincronizar também no projeto aberto caso possua campo legado
+      setProj((p) => {
+        if (!p) return p;
+        const listaAtual = p.macrofluxos || [];
+        const jaTem = listaAtual.some((m) => m.id === macro.id);
+        const novaLista = jaTem
+          ? listaAtual.map((m) => (m.id === macro.id ? { ...m, ...saved } : m))
+          : [...listaAtual, saved || macro];
+        return { ...p, macrofluxos: novaLista };
+      });
+      flash(`Macrofluxo "${macro.nome}" salvo no banco com sucesso!`);
+      return saved;
+    } catch (err) {
+      console.error("Erro ao salvar macrofluxo:", err);
+      flash("Erro ao salvar macrofluxo no banco de dados.");
+      throw err;
+    }
+  }, [user, flash]);
+
+  const handleExcluirMacrofluxo = useCallback(async (id) => {
+    try {
+      await apiClient.excluirMacrofluxo(id);
+      setMacrofluxos((prev) => prev.filter((m) => m.id !== id));
+      setProj((p) => {
+        if (!p) return p;
+        return {
+          ...p,
+          macrofluxos: (p.macrofluxos || []).filter((m) => m.id !== id),
+        };
+      });
+      flash("Macrofluxo excluído da biblioteca.");
+    } catch (err) {
+      console.error("Erro ao excluir macrofluxo:", err);
+      flash("Erro ao excluir macrofluxo do banco.");
+    }
+  }, [flash]);
+
   useEffect(() => {
     async function initAuth() {
       try {
@@ -183,7 +258,8 @@ export default function App() {
       }
     }
     initAuth();
-  }, []);
+    carregarMacrofluxos();
+  }, [carregarMacrofluxos]);
 
   const carregarGrupos = useCallback(async () => {
     try {
@@ -207,6 +283,7 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     carregarGrupos();
+    carregarMacrofluxos();
     const params = new URLSearchParams(window.location.search);
     const obraId = params.get("obra") || params.get("p") || params.get("projeto");
     if (obraId) {
@@ -214,7 +291,7 @@ export default function App() {
     } else {
       listar();
     }
-  }, [user, listar, carregarGrupos]);
+  }, [user, listar, carregarGrupos, carregarMacrofluxos]);
 
   const handleLogout = async () => {
     await logout();
@@ -993,6 +1070,7 @@ export default function App() {
         torreId,
         dataInicio,
         substituirExistentes,
+        listaMacrofluxos: macrofluxos,
       });
       setProj(res.novoProj);
       if (torreId !== "TODAS") {
@@ -1228,6 +1306,9 @@ export default function App() {
             T={T}
             proj={proj}
             setProj={setProj}
+            macrofluxos={macrofluxos}
+            onSalvarMacrofluxo={handleSalvarMacrofluxo}
+            onExcluirMacrofluxo={handleExcluirMacrofluxo}
             onVoltar={() => setVista("grafico")}
             onAplicarTorre={(macroId) =>
               setModal({
@@ -1417,6 +1498,8 @@ export default function App() {
           T={T}
           proj={proj}
           setProj={setProj}
+          macrofluxos={macrofluxos}
+          onSalvarMacrofluxo={handleSalvarMacrofluxo}
           torreId={modal.torreId}
           macroIdInicial={modal.macroId}
           onClose={() => setModal(null)}

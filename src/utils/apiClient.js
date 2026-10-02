@@ -257,6 +257,146 @@ export const apiClient = {
   },
 
   /* ─── Comentários por Atividade (Persistidos no Supabase) ──── */
+  /* ─── Biblioteca Global de Macrofluxos ─────────────────────── */
+  async getMacrofluxos(filterUserId = null) {
+    try {
+      const res = await fetch(apiUrl('/api/macrofluxos'), {
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          return data;
+        }
+      }
+    } catch (err) {
+      console.warn('apiClient.getMacrofluxos proxy error, tentando Supabase direto:', err);
+    }
+
+    // Fallback direto via Supabase
+    try {
+      let query = supabasePublic
+        .from('macrofluxos')
+        .select('id, nome, descricao, atividades_padrao, user_id, created_at, updated_at')
+        .order('nome', { ascending: true });
+
+      if (filterUserId) {
+        query = query.eq('user_id', filterUserId);
+      }
+
+      const { data, error } = await query;
+      if (!error && Array.isArray(data)) {
+        return data.map((row) => ({
+          id: row.id,
+          nome: row.nome,
+          descricao: row.descricao || '',
+          atividadesPadrao: row.atividades_padrao || [],
+          user_id: row.user_id,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+        }));
+      }
+      if (error) {
+        console.warn('supabasePublic getMacrofluxos error:', error);
+      }
+    } catch (err) {
+      console.warn('supabasePublic getMacrofluxos exception:', err);
+    }
+    return [];
+  },
+
+  async salvarMacrofluxo(macro, customUserId = null) {
+    const user = getCurrentUser();
+    const effectiveUserId = customUserId || macro.user_id || user?.id || null;
+    const payloadEnvio = {
+      id: macro.id,
+      nome: macro.nome || 'Novo Macrofluxo',
+      descricao: macro.descricao || '',
+      atividadesPadrao: macro.atividadesPadrao || macro.atividades_padrao || [],
+      user_id: effectiveUserId,
+    };
+
+    try {
+      const res = await fetch(apiUrl(`/api/macrofluxos/${encodeURIComponent(macro.id)}`), {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payloadEnvio),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data) return data;
+      }
+    } catch (err) {
+      console.warn('apiClient.salvarMacrofluxo proxy error, tentando Supabase direto:', err);
+    }
+
+    // Fallback direto via Supabase
+    try {
+      const dbPayload = {
+        id: macro.id,
+        nome: macro.nome || 'Novo Macrofluxo',
+        descricao: macro.descricao || '',
+        atividades_padrao: macro.atividadesPadrao || macro.atividades_padrao || [],
+        ...(effectiveUserId ? { user_id: effectiveUserId } : {}),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabasePublic
+        .from('macrofluxos')
+        .upsert(dbPayload, { onConflict: 'id' })
+        .select()
+        .single();
+
+      if (!error && data) {
+        return {
+          id: data.id,
+          nome: data.nome,
+          descricao: data.descricao || '',
+          atividadesPadrao: data.atividades_padrao || [],
+          user_id: data.user_id,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        };
+      }
+      if (error) {
+        console.error('supabasePublic salvarMacrofluxo error:', error);
+        throw error;
+      }
+    } catch (err) {
+      console.error('Falha ao salvar macrofluxo no Supabase direto:', err);
+      throw err;
+    }
+
+    return payloadEnvio;
+  },
+
+  async excluirMacrofluxo(id) {
+    try {
+      const res = await fetch(apiUrl(`/api/macrofluxos/${encodeURIComponent(id)}`), {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        return true;
+      }
+    } catch (err) {
+      console.warn('apiClient.excluirMacrofluxo proxy error, tentando Supabase direto:', err);
+    }
+
+    // Fallback direto via Supabase
+    try {
+      const { error } = await supabasePublic
+        .from('macrofluxos')
+        .delete()
+        .eq('id', id);
+
+      return !error;
+    } catch (err) {
+      console.error('supabasePublic excluirMacrofluxo exception:', err);
+      return false;
+    }
+  },
+
   async getComentariosAtividade(projetoId, atividadeId) {
     if (!projetoId || !atividadeId) return [];
     try {

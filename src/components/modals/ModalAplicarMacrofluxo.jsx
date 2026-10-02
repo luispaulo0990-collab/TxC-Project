@@ -1,19 +1,24 @@
 import React, { useState } from "react";
 import { Modal } from "../common/Modal";
 import { ORANGE, NUM, BLACK } from "../../constants/theme";
-import { Zap, Sparkles, Building2, Calendar, Layers, RefreshCw } from "lucide-react";
+import { Zap, Sparkles, Building2, Calendar, Layers, RefreshCw, Database } from "lucide-react";
 import { getModelosPadraoMacrofluxo } from "../../utils/macrofluxoUtils";
 
 export const ModalAplicarMacrofluxo = ({
   T,
   proj,
   setProj,
+  macrofluxos: macrofluxosProp,
+  onSalvarMacrofluxo,
   torreId: torreIdInicial,
   macroIdInicial,
   onClose,
   onAplicar,
 }) => {
-  const macros = proj.macrofluxos || [];
+  const macros = (macrofluxosProp && macrofluxosProp.length > 0)
+    ? macrofluxosProp
+    : (proj.macrofluxos || []);
+
   const [macroId, setMacroId] = useState(macroIdInicial || macros[0]?.id || "");
   const [torreId, setTorreId] = useState(torreIdInicial || proj.torres?.[0]?.id || "TODAS");
   const [dataInicioStr, setDataInicioStr] = useState(proj.dataZero || new Date().toISOString().slice(0, 10));
@@ -22,9 +27,18 @@ export const ModalAplicarMacrofluxo = ({
   const selMacro = macros.find((m) => m.id === macroId);
   const torreSelecionada = proj.torres.find((t) => t.id === torreId);
 
-  const handleCarregarModeloPadrao = () => {
+  const handleCarregarModeloPadrao = async () => {
     const modelos = getModelosPadraoMacrofluxo();
-    setProj((p) => ({
+    for (const m of modelos) {
+      if (onSalvarMacrofluxo) {
+        try {
+          await onSalvarMacrofluxo(m);
+        } catch (e) {
+          console.warn("Erro ao salvar modelo no banco:", e);
+        }
+      }
+    }
+    setProj?.((p) => ({
       ...p,
       macrofluxos: [...(p.macrofluxos || []), ...modelos],
     }));
@@ -96,9 +110,14 @@ export const ModalAplicarMacrofluxo = ({
 
             {/* Seleção de Macrofluxo */}
             <div>
-              <label className="block text-xs font-bold mb-1.5 flex items-center gap-1" style={{ color: T.text }}>
-                <Layers size={13} /> Padrão Construtivo (Macrofluxo)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold flex items-center gap-1" style={{ color: T.text }}>
+                  <Layers size={13} /> Padrão Construtivo (Macrofluxo)
+                </label>
+                <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                  <Database size={10} /> Biblioteca no Banco
+                </span>
+              </div>
               <select
                 value={macroId}
                 onChange={(e) => setMacroId(e.target.value)}

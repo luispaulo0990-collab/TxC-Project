@@ -111,10 +111,14 @@ export function gerarAtividadesDoMacrofluxo({
   torreId,
   dataInicio,
   substituirExistentes = true,
+  listaMacrofluxos = null,
 }) {
   if (!proj) throw new Error("Projeto não informado");
   
-  const macro = (proj.macrofluxos || []).find((m) => m.id === macrofluxoId);
+  const pool = (Array.isArray(listaMacrofluxos) && listaMacrofluxos.length > 0)
+    ? listaMacrofluxos
+    : (proj.macrofluxos || []);
+  const macro = pool.find((m) => m.id === macrofluxoId);
   if (!macro) throw new Error("Macrofluxo não encontrado");
   if (!macro.atividadesPadrao || macro.atividadesPadrao.length === 0) {
     throw new Error("O macrofluxo selecionado não possui atividades cadastradas");

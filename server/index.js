@@ -11,6 +11,7 @@ import authRouter from './routes/auth.js';
 import healthRouter from './routes/health.js';
 import projetosRouter from './routes/projetos.js';
 import gruposRouter from './routes/grupos.js';
+import macrofluxosRouter from './routes/macrofluxos.js';
 
 assertRequiredEnv();
 
@@ -67,6 +68,9 @@ app.use('/api/grupos', jwtMiddleware, gruposRouter);
 
 // Projetos routes (with optional or verified JWT)
 app.use('/api/projetos', optionalJwtMiddleware, projetosRouter);
+
+// Macrofluxos routes (shared templates library)
+app.use('/api/macrofluxos', optionalJwtMiddleware, macrofluxosRouter);
 
 // Atividades routes (protected with JWT)
 app.use('/api/atividades', jwtMiddleware, atividadesRouter);

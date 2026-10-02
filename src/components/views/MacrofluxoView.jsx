@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   ArrowLeft,
   Plus,
@@ -17,6 +17,10 @@ import {
   ShieldAlert,
   ArrowRight,
   RefreshCw,
+  Cloud,
+  Check,
+  Database,
+  Save,
 } from "lucide-react";
 import { uid, fmtBR } from "../../utils/dateUtils";
 import { BLACK, ORANGE, NUM } from "../../constants/theme";
@@ -27,10 +31,33 @@ import {
 } from "../../utils/macrofluxoUtils";
 import { ModalConfirmarExclusao } from "../modals/ModalConfirmarExclusao";
 
-export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) => {
-  const macrofluxos = proj?.macrofluxos || [];
+export const MacrofluxoView = ({
+  T,
+  proj,
+  setProj,
+  macrofluxos: macrofluxosProp,
+  onSalvarMacrofluxo,
+  onExcluirMacrofluxo,
+  onVoltar,
+  onAplicarTorre,
+}) => {
+  const macrofluxos = (macrofluxosProp && macrofluxosProp.length > 0)
+    ? macrofluxosProp
+    : (proj?.macrofluxos || []);
+
   const [selMacroId, setSelMacroId] = useState(macrofluxos[0]?.id || null);
   const [modalConfirmacao, setModalConfirmacao] = useState(null);
+  const [salvando, setSalvando] = useState(false);
+  const [ultimoSalvo, setUltimoSalvo] = useState(null);
+
+  // Sincronizar seleção inicial caso mude a lista
+  useEffect(() => {
+    if (!selMacroId && macrofluxos.length > 0) {
+      setSelMacroId(macrofluxos[0].id);
+    } else if (selMacroId && !macrofluxos.some((m) => m.id === selMacroId)) {
+      setSelMacroId(macrofluxos[0]?.id || null);
+    }
+  }, [macrofluxos, selMacroId]);
 
   const selMacro = macrofluxos.find((m) => m.id === selMacroId) || null;
 
@@ -39,31 +66,82 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
 
   const handleCorrigirIncoerencia = (ativId) => {
     const novo = corrigirIncoerenciaPredecessora(proj, ativId);
-    setProj(novo);
+    setProj?.(novo);
   };
 
-  const novoMacrofluxo = () => {
+  // Timer para debounce de salvamento no banco
+  const saveTimeoutRef = useRef(null);
+  const debouncedSave = useCallback((macro) => {
+    if (!onSalvarMacrofluxo || !macro) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    setSalvando(true);
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await onSalvarMacrofluxo(macro);
+        setUltimoSalvo(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      } catch (err) {
+        console.error("Erro no auto-save do macrofluxo:", err);
+      } finally {
+        setSalvando(false);
+      }
+    }, 700);
+  }, [onSalvarMacrofluxo]);
+
+  const handleSalvarManual = async () => {
+    if (!selMacro || !onSalvarMacrofluxo) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    setSalvando(true);
+    try {
+      await onSalvarMacrofluxo(selMacro);
+      setUltimoSalvo(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    } catch (err) {
+      console.error("Erro ao salvar macrofluxo manualmente:", err);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const novoMacrofluxo = async () => {
     const novo = {
       id: uid(),
       nome: `Macrofluxo Padrão ${macrofluxos.length + 1}`,
-      descricao: "Sequência de atividades padrão da construtora",
+      descricao: "Sequência construtiva padrão compartilhada no banco",
       atividadesPadrao: [],
     };
-    setProj((p) => ({ ...p, macrofluxos: [...(p.macrofluxos || []), novo] }));
+    if (onSalvarMacrofluxo) {
+      try {
+        await onSalvarMacrofluxo(novo);
+      } catch (e) {
+        console.warn("Erro ao salvar novo macrofluxo:", e);
+      }
+    }
+    setProj?.((p) => ({ ...p, macrofluxos: [...(p.macrofluxos || []), novo] }));
     setSelMacroId(novo.id);
   };
 
-  const carregarModeloPadrao = () => {
+  const carregarModeloPadrao = async () => {
     const modelos = getModelosPadraoMacrofluxo();
-    setProj((p) => ({
+    for (const m of modelos) {
+      if (onSalvarMacrofluxo) {
+        try {
+          await onSalvarMacrofluxo(m);
+        } catch (e) {
+          console.warn("Erro ao salvar modelo padrão:", e);
+        }
+      }
+    }
+    setProj?.((p) => ({
       ...p,
       macrofluxos: [...(p.macrofluxos || []), ...modelos],
     }));
     setSelMacroId(modelos[0].id);
   };
 
-  const excluirMacrofluxo = (id) => {
-    setProj((p) => ({ ...p, macrofluxos: p.macrofluxos.filter((m) => m.id !== id) }));
+  const excluirMacrofluxo = async (id) => {
+    if (onExcluirMacrofluxo) {
+      await onExcluirMacrofluxo(id);
+    }
+    setProj?.((p) => ({ ...p, macrofluxos: (p.macrofluxos || []).filter((m) => m.id !== id) }));
     if (selMacroId === id) {
       const restantes = macrofluxos.filter((m) => m.id !== id);
       setSelMacroId(restantes[0]?.id || null);
@@ -73,7 +151,7 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
   const pedirExcluirMacrofluxo = (m) => {
     setModalConfirmacao({
       titulo: "Excluir Macrofluxo",
-      mensagem: "Tem certeza que deseja excluir este modelo de macrofluxo?",
+      mensagem: "Tem certeza que deseja excluir este modelo de macrofluxo do banco de dados? Ele será removido da biblioteca global de obras.",
       itemNome: m.nome,
       textoBotao: "Excluir Macrofluxo",
       onConfirmar: () => {
@@ -84,10 +162,16 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
   };
 
   const atualizarMacrofluxo = (id, obj) => {
-    setProj((p) => ({
+    const macroAtual = macrofluxos.find((m) => m.id === id);
+    if (!macroAtual) return;
+    const atualizado = { ...macroAtual, ...obj };
+
+    setProj?.((p) => ({
       ...p,
-      macrofluxos: p.macrofluxos.map((m) => (m.id === id ? { ...m, ...obj } : m)),
+      macrofluxos: (p.macrofluxos || []).map((m) => (m.id === id ? atualizado : m)),
     }));
+
+    debouncedSave(atualizado);
   };
 
   const novaAtividadePadrao = () => {
@@ -170,14 +254,19 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
           >
             <ArrowLeft size={16} /> Voltar
           </button>
-          <span className="font-bold text-sm" style={{ color: T.text }}>
-            Macrofluxos
-          </span>
+          <div className="text-center">
+            <span className="font-bold text-sm block" style={{ color: T.text }}>
+              Macrofluxos
+            </span>
+            <span className="text-[10px] flex items-center justify-center gap-1 text-emerald-600 font-medium">
+              <Database size={10} /> Biblioteca Global
+            </span>
+          </div>
           <button
             onClick={novoMacrofluxo}
-            className="p-1.5 rounded transition-all hover:brightness-110 active:scale-95 flex items-center justify-center text-white"
+            className="p-1.5 rounded transition-all hover:brightness-110 active:scale-95 flex items-center justify-center text-white shadow-xs"
             style={{ background: ORANGE }}
-            title="Criar novo macrofluxo"
+            title="Criar novo macrofluxo global"
           >
             <Plus size={16} />
           </button>
@@ -262,7 +351,25 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
               className="p-5 rounded-lg shadow-sm border flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
               style={{ background: T.panel, borderColor: T.line }}
             >
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center gap-1">
+                    <Database size={10} /> Salvo no Banco de Dados
+                  </span>
+                  <span className="text-[11px]" style={{ color: T.dim }}>
+                    {salvando ? (
+                      <span className="text-amber-500 flex items-center gap-1">
+                        <RefreshCw size={11} className="animate-spin" /> Salvando alterações...
+                      </span>
+                    ) : ultimoSalvo ? (
+                      <span className="text-emerald-500 flex items-center gap-1">
+                        <Check size={11} /> Atualizado às {ultimoSalvo}
+                      </span>
+                    ) : (
+                      <span>Disponível para qualquer obra</span>
+                    )}
+                  </span>
+                </div>
                 <input
                   value={selMacro.nome}
                   onChange={(e) =>
@@ -283,7 +390,17 @@ export const MacrofluxoView = ({ T, proj, setProj, onVoltar, onAplicarTorre }) =
                 />
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  onClick={handleSalvarManual}
+                  disabled={salvando}
+                  className="px-3.5 py-2 text-xs font-semibold rounded flex items-center gap-1.5 transition-all border hover:bg-black/5 active:scale-95"
+                  style={{ borderColor: T.line, color: T.text, background: T.raised }}
+                  title="Salvar alterações imediatamente no banco de dados"
+                >
+                  {salvando ? <RefreshCw size={13} className="animate-spin text-amber-500" /> : <Save size={13} className="text-emerald-500" />}
+                  <span>{salvando ? "Salvando..." : "Salvar no Banco"}</span>
+                </button>
                 <button
                   onClick={() => onAplicarTorre && onAplicarTorre(selMacro.id)}
                   className="px-4 py-2 text-xs font-bold rounded flex items-center gap-1.5 text-white shadow-sm transition-all hover:brightness-110 active:scale-95"
