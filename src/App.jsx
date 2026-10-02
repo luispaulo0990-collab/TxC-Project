@@ -6,6 +6,7 @@ import { segIntersect } from "./utils/geometryUtils";
 import { storage } from "./utils/storageUtils";
 import { buildSVG, exportarPNG, exportarExcel, exportarModeloReplanejamento } from "./utils/exportUtils";
 import { processarArquivoImportacao, aplicarImportacaoAoProjeto, exportarModeloAtividades, exportarModeloAvanco, gerarCorAleatoria } from "./utils/importUtils";
+import { calcularStatusAtividade } from "./utils/statusUtils";
 
 import { SidebarNav } from "./components/layout/SidebarNav";
 import { Sidebar } from "./components/layout/Sidebar";
@@ -1119,20 +1120,25 @@ export default function App() {
 
   const pavimentoHoje = useCallback(
     (a) => {
-      const i = rowIdx[a.locIniId],
-        f = rowIdx[a.locFimId];
-      if (i == null || f == null) return null;
-      const di = D(a.dataIni),
-        df = D(a.dataFim),
-        h = hoje();
-      if (h <= di) return { estado: "não iniciada", loc: null };
-      if (h >= df) return { estado: "concluída", loc: null };
-      const p = diffDays(di, h) / Math.max(1, diffDays(di, df));
-      const idxLoc = Math.round(i + p * (f - i));
-      const r = rows[idxLoc];
-      return { estado: "em execução", loc: r ? r.nome : null };
+      if (!a) return null;
+      const calc = calcularStatusAtividade(a, proj, rowIdx, hoje());
+      if (!calc) return null;
+      const estado =
+        calc.status === "ATRASADA"
+          ? "em atraso"
+          : calc.status === "CONCLUIDA"
+          ? "concluída"
+          : calc.status === "EM_ANDAMENTO"
+          ? "em execução"
+          : "não iniciada";
+      const loc = calc.pavAtualNome || calc.pavCorteNome || null;
+      return {
+        estado,
+        loc,
+        ...calc,
+      };
     },
-    [rowIdx, rows]
+    [proj, rowIdx]
   );
 
   /* ─── Renderização ──────────────────────────────────────────── */

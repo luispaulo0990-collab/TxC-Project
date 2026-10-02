@@ -570,18 +570,25 @@ export const FlowlineChart = ({
                       />
 
                       {/* Preenchimento de Avanço no Bloco */}
-                      {avancoPct > 0 && exibirRealizado && (
-                        <rect
-                          x={x}
-                          y={y + 2}
-                          width={(w * avancoPct) / 100}
-                          height={h - 4}
-                          fill={OK}
-                          fillOpacity={0.4}
-                          stroke={OK}
-                          strokeWidth={1}
-                        />
-                      )}
+                      {avancoPct > 0 && exibirRealizado && (() => {
+                        const cortaHojeBloco = xHoje >= x;
+                        const corteRatioBloco = cortaHojeBloco ? Math.min(1, (xHoje - x) / Math.max(1, w)) : 0;
+                        const emAtrasoBloco = cortaHojeBloco && (avancoPct / 100 < corteRatioBloco) && !a.realFim && avancoPct !== 100;
+                        const corBlocoAvanco = emAtrasoBloco ? ERRO : OK;
+
+                        return (
+                          <rect
+                            x={x}
+                            y={y + 2}
+                            width={(w * avancoPct) / 100}
+                            height={h - 4}
+                            fill={corBlocoAvanco}
+                            fillOpacity={0.4}
+                            stroke={corBlocoAvanco}
+                            strokeWidth={1}
+                          />
+                        );
+                      })()}
 
                       {cabe ? (
                         <text
@@ -672,6 +679,14 @@ export const FlowlineChart = ({
                   const avancoY = y1 + avancoRatio * (y2 - y1);
                   const temAvanco = avancoRatio > 0;
 
+                  // Interseção com a Linha de Corte de Hoje
+                  const cortaHoje = xHoje >= x1;
+                  const corteRatio = cortaHoje ? Math.min(1, (xHoje - x1) / Math.max(1, x2 - x1)) : 0;
+                  const emAtraso = cortaHoje && (avancoRatio < corteRatio) && !a.realFim && a.avanco !== 100;
+                  const corAvanco = emAtraso ? ERRO : OK;
+                  const corteX = x1 + corteRatio * (x2 - x1);
+                  const corteY = y1 + corteRatio * (y2 - y1);
+
                   return (
                     <g
                       key={a.id}
@@ -741,25 +756,32 @@ export const FlowlineChart = ({
                             y1={y1}
                             x2={avancoX}
                             y2={avancoY}
-                            stroke={OK}
+                            stroke={corAvanco}
                             strokeWidth={on ? 4.5 : 3.5}
                             strokeLinecap="round"
                           />
                           {/* Jóia / Marcador de Ponto de Avanço Atual */}
-                          <circle cx={avancoX} cy={avancoY} r={5} fill={OK} stroke="#FFFFFF" strokeWidth={1.5} />
+                          <circle cx={avancoX} cy={avancoY} r={5} fill={corAvanco} stroke="#FFFFFF" strokeWidth={1.5} />
                           {pxPerDay > 2 && (
                             <text
                               x={avancoX + 7}
                               y={avancoY - 3}
-                              fill={OK}
+                              fill={corAvanco}
                               fontFamily={FONT}
                               fontSize={8.5}
                               fontWeight="700"
                               style={{ ...NUM }}
                             >
-                              {Math.round(avancoRatio * 100)}%
+                              {Math.round(avancoRatio * 100)}%{emAtraso ? " (atraso)" : ""}
                             </text>
                           )}
+                        </g>
+                      )}
+
+                      {/* Ponto de corte da Linha Hoje quando a atividade está selecionada */}
+                      {on && cortaHoje && xHoje <= x2 && (
+                        <g pointerEvents="none">
+                          <circle cx={corteX} cy={corteY} r={4} fill={ORANGE} stroke="#FFFFFF" strokeWidth={1.2} />
                         </g>
                       )}
 

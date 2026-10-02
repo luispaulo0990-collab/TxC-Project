@@ -15,6 +15,7 @@ import { Metr } from "../common/Metr";
 import { ComentariosAtividade } from "../common/ComentariosAtividade";
 import { PALETTE, ORANGE, ERRO, OK, NUM } from "../../constants/theme";
 import { D, fmtBR, hoje, iso } from "../../utils/dateUtils";
+import { calcularStatusAtividade } from "../../utils/statusUtils";
 
 export const PropertiesPanel = ({
   T,
@@ -221,97 +222,123 @@ export const PropertiesPanel = ({
             </Campo>
 
             {/* ── Seção de Avanço Físico e Realizado ── */}
-            <div className="mt-3 p-3 rounded-sm border" style={{ background: T.raised, borderColor: T.line }}>
-              <div className="flex items-center justify-between mb-2">
-                <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: OK, fontWeight: 700 }} className="flex items-center gap-1">
-                  <TrendingUp size={12} /> AVANÇO FÍSICO (% REALIZADO)
-                </div>
-                <span className="text-xs font-bold" style={{ ...NUM, color: OK }}>
-                  {avancoAtual}%
-                </span>
-              </div>
+            {(() => {
+              const statusInfo = calcularStatusAtividade(sel, proj, {}, hoje());
+              const corStatus = statusInfo.emAtraso ? ERRO : OK;
 
-              {/* Botões rápidos */}
-              <div className="flex gap-1 mb-2">
-                {[0, 25, 50, 75, 100].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => {
-                      const patch = { avanco: v };
-                      if (v === 100 && !sel.realFim) patch.realFim = iso(hoje());
-                      if (v > 0 && !sel.realIni) patch.realIni = iso(hoje());
-                      if (v === 0) { patch.realIni = null; patch.realFim = null; }
-                      upA(sel.id, patch);
-                    }}
-                    className="flex-1 py-1 text-xs font-bold rounded-xs transition-colors"
-                    style={{
-                      ...NUM,
-                      background: avancoAtual === v ? OK : T.panel,
-                      color: avancoAtual === v ? "#ffffff" : T.text,
-                      border: `1px solid ${avancoAtual === v ? OK : T.line}`,
-                    }}
-                  >
-                    {v}%
-                  </button>
-                ))}
-              </div>
+              return (
+                <div className="mt-3 p-3 rounded-sm border" style={{ background: T.raised, borderColor: T.line }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: corStatus, fontWeight: 700 }} className="flex items-center gap-1">
+                      <TrendingUp size={12} /> AVANÇO FÍSICO (% REALIZADO)
+                    </div>
+                    <span className="text-xs font-bold" style={{ ...NUM, color: corStatus }}>
+                      {avancoAtual}%
+                    </span>
+                  </div>
 
-              {/* Slider de Avanço */}
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="5"
-                value={avancoAtual}
-                onChange={(e) => upA(sel.id, { avanco: Number(e.target.value) })}
-                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-600 mb-2"
-              />
+                  {/* Banner de Status com a Linha de Corte Hoje */}
+                  {statusInfo.corteHojeAtivo && (
+                    <div
+                      className="px-2 py-1 mb-2 rounded text-[11px] font-semibold flex items-center justify-between gap-1"
+                      style={{
+                        background: statusInfo.emAtraso ? `${ERRO}18` : `${OK}18`,
+                        color: statusInfo.emAtraso ? ERRO : OK,
+                        border: `1px solid ${statusInfo.emAtraso ? ERRO : OK}40`,
+                      }}
+                    >
+                      <span className="flex items-center gap-1">
+                        {statusInfo.emAtraso ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
+                        {statusInfo.emAtraso ? "Em Atraso vs Linha Hoje" : "Em dia com Linha Hoje"}
+                      </span>
+                      <span style={{ ...NUM, fontSize: 10 }}>
+                        Corte: {statusInfo.pavCorteNome || `${statusInfo.pavsPrevistosCorte}º pav`}
+                      </span>
+                    </div>
+                  )}
 
-              {/* Pavimento Atual da Frente */}
-              <div className="mt-1">
-                <label className="text-[10px] font-bold block mb-1" style={{ color: T.dim }}>
-                  Pavimento Atual / Executado:
-                </label>
-                <select
-                  value={sel.pavimentoAtualId || ""}
-                  onChange={(e) => upA(sel.id, { pavimentoAtualId: e.target.value || null })}
-                  className="w-full text-xs px-2 py-1 rounded outline-none border"
-                  style={{ background: T.input, borderColor: T.line, color: T.text }}
-                >
-                  <option value="">Automático pelo %</option>
-                  {locais.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  {/* Botões rápidos */}
+                  <div className="flex gap-1 mb-2">
+                    {[0, 25, 50, 75, 100].map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => {
+                          const patch = { avanco: v };
+                          if (v === 100 && !sel.realFim) patch.realFim = iso(hoje());
+                          if (v > 0 && !sel.realIni) patch.realIni = iso(hoje());
+                          if (v === 0) { patch.realIni = null; patch.realFim = null; }
+                          upA(sel.id, patch);
+                        }}
+                        className="flex-1 py-1 text-xs font-bold rounded-xs transition-colors"
+                        style={{
+                          ...NUM,
+                          background: avancoAtual === v ? corStatus : T.panel,
+                          color: avancoAtual === v ? "#ffffff" : T.text,
+                          border: `1px solid ${avancoAtual === v ? corStatus : T.line}`,
+                        }}
+                      >
+                        {v}%
+                      </button>
+                    ))}
+                  </div>
 
-              {/* Datas de Início e Fim Reais */}
-              <div className="grid grid-cols-2 gap-1.5 mt-2">
-                <div>
-                  <label className="text-[9.5px] block mb-0.5" style={{ color: T.dim }}>Início Real:</label>
+                  {/* Slider de Avanço */}
                   <input
-                    type="date"
-                    value={sel.realIni || ""}
-                    onChange={(e) => upA(sel.id, { realIni: e.target.value || null })}
-                    className="w-full text-xs px-1 py-1 rounded outline-none border"
-                    style={{ ...NUM, background: T.input, borderColor: T.line, color: T.text, colorScheme: T.scheme }}
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={avancoAtual}
+                    onChange={(e) => upA(sel.id, { avanco: Number(e.target.value) })}
+                    className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-600 mb-2"
                   />
+                  {/* Pavimento Atual da Frente */}
+                  <div className="mt-2">
+                    <label className="text-[10px] font-bold block mb-1" style={{ color: T.dim }}>
+                      Pavimento Atual / Executado:
+                    </label>
+                    <select
+                      value={sel.pavimentoAtualId || ""}
+                      onChange={(e) => upA(sel.id, { pavimentoAtualId: e.target.value || null })}
+                      className="w-full text-xs px-2 py-1 rounded outline-none border"
+                      style={{ background: T.input, borderColor: T.line, color: T.text }}
+                    >
+                      <option value="">Automático pelo %</option>
+                      {locais.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Datas de Início e Fim Reais */}
+                  <div className="grid grid-cols-2 gap-1.5 mt-2">
+                    <div>
+                      <label className="text-[9.5px] block mb-0.5" style={{ color: T.dim }}>Início Real:</label>
+                      <input
+                        type="date"
+                        value={sel.realIni || ""}
+                        onChange={(e) => upA(sel.id, { realIni: e.target.value || null })}
+                        className="w-full text-xs px-1 py-1 rounded outline-none border"
+                        style={{ ...NUM, background: T.input, borderColor: T.line, color: T.text, colorScheme: T.scheme }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9.5px] block mb-0.5" style={{ color: T.dim }}>Fim Real:</label>
+                      <input
+                        type="date"
+                        value={sel.realFim || ""}
+                        onChange={(e) => upA(sel.id, { realFim: e.target.value || null })}
+                        className="w-full text-xs px-1 py-1 rounded outline-none border"
+                        style={{ ...NUM, background: T.input, borderColor: T.line, color: T.text, colorScheme: T.scheme }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[9.5px] block mb-0.5" style={{ color: T.dim }}>Fim Real:</label>
-                  <input
-                    type="date"
-                    value={sel.realFim || ""}
-                    onChange={(e) => upA(sel.id, { realFim: e.target.value || null })}
-                    className="w-full text-xs px-1 py-1 rounded outline-none border"
-                    style={{ ...NUM, background: T.input, borderColor: T.line, color: T.text, colorScheme: T.scheme }}
-                  />
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {sel.modo === "LINHA" && (
               <div className="mt-3 p-3 rounded-sm" style={{ background: T.raised, border: `1px solid ${T.line}` }}>

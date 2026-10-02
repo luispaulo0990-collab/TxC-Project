@@ -23,6 +23,7 @@ import { D, iso, addDays, fmtBR, hoje, diffDays } from "../../utils/dateUtils";
 import { normalizar } from "../../utils/geometryUtils";
 import { baixar } from "../../utils/exportUtils";
 import { exportarModeloAvanco } from "../../utils/importUtils";
+import { calcularStatusAtividade } from "../../utils/statusUtils";
 
 export const AvancoView = ({
   T,
@@ -41,59 +42,22 @@ export const AvancoView = ({
   const [dataCorteStr, setDataCorteStr] = useState(() => iso(hoje()));
   const [ordenacao, setOrdenacao] = useState("padrao"); // padrao | nome | avanco_asc | avanco_desc | inicio
 
-  // Lista de atividades com status enriquecido
+  // Lista de atividades com status enriquecido conforme o corte da linha Hoje
   const atividadesCalculadas = useMemo(() => {
     if (!proj || !proj.atividades) return [];
-    const hojeData = D(dataCorteStr);
 
     return proj.atividades.map((a) => {
-      const torre = proj.torres.find((t) => t.id === a.torreId);
-      const locIni = proj.locais.find((l) => l.id === a.locIniId);
-      const locFim = proj.locais.find((l) => l.id === a.locFimId);
-      const pavAtual = proj.locais.find((l) => l.id === a.pavimentoAtualId);
-
-      const di = D(a.dataIni);
-      const df = D(a.dataFim);
-      const duracaoPlan = Math.max(1, diffDays(di, df));
-
-      // Percentual de avanço (0 a 100)
-      let avanco = a.avanco != null ? Number(a.avanco) : 0;
-      if (a.realFim && avanco === 0) avanco = 100;
-      if (a.realIni && !a.realFim && avanco === 0) avanco = 10;
-
-      // Status derivado
-      let status = "NAO_INICIADA";
-      if (avanco >= 100) {
-        status = "CONCLUIDA";
-      } else if (avanco > 0 || a.realIni) {
-        if (hojeData > df) {
-          status = "ATRASADA";
-        } else {
-          status = "EM_ANDAMENTO";
-        }
-      } else if (hojeData > di) {
-        status = "ATRASADA";
-      }
-
-      // Pavimentos totais da atividade
-      const iIdx = rowIdx[a.locIniId] ?? 0;
-      const fIdx = rowIdx[a.locFimId] ?? 0;
-      const totalPavs = Math.abs(fIdx - iIdx) + 1;
-
-      // Cálculo de pavimento estimado com base no avanço
-      const pavsConcluidos = Math.round((avanco / 100) * totalPavs);
+      const calc = calcularStatusAtividade(a, proj, rowIdx, dataCorteStr);
+      const torre = proj.torres?.find((t) => t.id === a.torreId);
+      const locIni = proj.locais?.find((l) => l.id === a.locIniId);
+      const locFim = proj.locais?.find((l) => l.id === a.locFimId);
 
       return {
         ...a,
+        ...calc,
         torreNome: torre?.nome || "Torre",
         locIniNome: locIni?.nome || "Início",
         locFimNome: locFim?.nome || "Fim",
-        pavAtualNome: pavAtual?.nome || null,
-        duracaoPlan,
-        avanco,
-        status,
-        totalPavs,
-        pavsConcluidos,
       };
     });
   }, [proj, rowIdx, dataCorteStr]);
@@ -179,10 +143,14 @@ export const AvancoView = ({
         "Torre": a.torreNome,
         "Atividade": a.nome,
         "Status": a.status === "CONCLUIDA" ? "Concluída" : a.status === "EM_ANDAMENTO" ? "Em Andamento" : a.status === "ATRASADA" ? "Atrasada" : "Não Iniciada",
-        "% Avanço Físico": `${a.avanco}%`,
+        "% Avanço Realizado": `${a.avanco}%`,
         "Pavimento Atual": a.pavAtualNome || "—",
-        "Pavimentos Totais": a.totalPavs,
         "Pavimentos Executados": a.pavsConcluidos,
+        "Corte Linha Hoje (Pav Previsto)": a.pavCorteNome || (a.pavsPrevistosCorte ? `${a.pavsPrevistosCorte}º pav` : "—"),
+        "Corte Linha Hoje (% Previsto)": `${a.pctPrevistoCorte}%`,
+        "Diferença em Pavimentos": a.corteHojeAtivo ? (a.diferencaPavs >= 0 ? `+${a.diferencaPavs}` : `${a.diferencaPavs}`) : "—",
+        "Diferença em %": a.corteHojeAtivo ? (a.diferencaPct >= 0 ? `+${a.diferencaPct}%` : `${a.diferencaPct}%`) : "—",
+        "Pavimentos Totais": a.totalPavs,
         "Data Início (Planejada)": fmtBR(D(a.dataIni)),
         "Data Término (Planejada)": fmtBR(D(a.dataFim)),
         "Data Início (Real)": a.realIni ? fmtBR(D(a.realIni)) : "—",
@@ -195,10 +163,14 @@ export const AvancoView = ({
         { wch: 18 },
         { wch: 35 },
         { wch: 16 },
-        { wch: 16 },
-        { wch: 22 },
         { wch: 18 },
         { wch: 20 },
+        { wch: 20 },
+        { wch: 28 },
+        { wch: 24 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 18 },
         { wch: 22 },
         { wch: 22 },
         { wch: 18 },
@@ -345,7 +317,7 @@ export const AvancoView = ({
               {estatisticas.atrasadas}
             </span>
             <span className="text-[10px]" style={{ color: ERRO }}>
-              Requer atenção
+              Abaixo da linha Hoje
             </span>
           </div>
 
@@ -582,21 +554,52 @@ export const AvancoView = ({
 
                 {/* Barra de Progresso Físico Interativa */}
                 <div className="mt-3.5 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs" style={{ ...NUM }}>
-                    <span style={{ color: T.dim, fontSize: 11 }}>
-                      Progresso Físico Realizado:
-                    </span>
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between text-xs flex-wrap gap-2" style={{ ...NUM }}>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span style={{ color: T.dim, fontSize: 11 }}>
+                        Progresso Realizado:
+                      </span>
                       <span className="font-bold text-sm" style={{ color: statusCor }}>
                         {a.avanco}%
                       </span>
                       <span style={{ color: T.muted, fontSize: 11 }}>
-                        ({a.pavsConcluidos} de {a.totalPavs} pavimentos executados)
+                        ({a.pavsConcluidos} de {a.totalPavs} pavs · {a.pavAtualNome || "—"})
                       </span>
+                    </div>
+
+                    {/* Comparação com o corte da Linha de Hoje */}
+                    <div className="flex items-center gap-2">
+                      {a.corteHojeAtivo ? (
+                        <span
+                          className="px-2 py-0.5 rounded text-[11px] font-semibold flex items-center gap-1"
+                          style={{
+                            background: a.emAtraso ? `${ERRO}18` : `${OK}18`,
+                            color: a.emAtraso ? ERRO : OK,
+                            border: `1px solid ${a.emAtraso ? ERRO : OK}40`,
+                          }}
+                        >
+                          {a.emAtraso ? (
+                            <>
+                              <AlertTriangle size={11} />
+                              Atraso: {Math.abs(a.diferencaPavs)} pav ({Math.abs(a.diferencaPct)}%) vs Corte Hoje ({a.pavCorteNome || a.pavsPrevistosCorte + "º pav"})
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 size={11} />
+                              Em dia com Linha Hoje ({a.pavCorteNome || a.pavsPrevistosCorte + "º pav"})
+                            </>
+                          )}
+                        </span>
+                      ) : (
+                        <span style={{ color: T.dim, fontSize: 11 }}>
+                          Início posterior à linha de corte
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <div className="relative flex items-center">
+                  {/* Range Slider com Marcador Visual de Corte Hoje */}
+                  <div className="relative flex items-center py-1">
                     <input
                       type="range"
                       min="0"
@@ -604,11 +607,33 @@ export const AvancoView = ({
                       step="5"
                       value={a.avanco}
                       onChange={(e) => atualizarAtividade(a.id, { avanco: Number(e.target.value) })}
-                      className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-orange-500 relative z-10"
                       style={{
                         background: `linear-gradient(to right, ${statusCor} 0%, ${statusCor} ${a.avanco}%, ${T.line} ${a.avanco}%, ${T.line} 100%)`,
                       }}
                     />
+
+                    {/* Marcador vertical de onde a Linha Hoje corta a atividade */}
+                    {a.corteHojeAtivo && (
+                      <div
+                        className="absolute pointer-events-none z-20 flex flex-col items-center"
+                        style={{
+                          left: `${Math.min(99, Math.max(1, a.pctPrevistoCorte))}%`,
+                          transform: "translateX(-50%)",
+                          top: -3,
+                        }}
+                        title={`Linha Hoje corta em ${a.pctPrevistoCorte}% (${a.pavCorteNome || a.pavsPrevistosCorte + "º pav"})`}
+                      >
+                        <span
+                          className="w-2 h-2 rotate-45 rounded-[1px] shadow-sm"
+                          style={{ background: ORANGE }}
+                        />
+                        <div
+                          className="w-0.5 h-3.5"
+                          style={{ background: ORANGE }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 

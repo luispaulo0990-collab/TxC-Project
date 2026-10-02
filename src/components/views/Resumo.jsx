@@ -14,8 +14,18 @@ export const Resumo = ({ T, proj, metrica, pavimentoHoje, rowIdx, onVoltar, onSe
     const s = pavimentoHoje(a);
     return s && s.estado === "em execução";
   });
-  const concl = ativs.filter((a) => D(a.dataFim) <= h).length;
-  const naoIni = ativs.filter((a) => D(a.dataIni) > h).length;
+  const emAtraso = ativs.filter((a) => {
+    const s = pavimentoHoje(a);
+    return s && (s.estado === "em atraso" || s.emAtraso);
+  });
+  const concl = ativs.filter((a) => {
+    const s = pavimentoHoje(a);
+    return s && s.estado === "concluída";
+  }).length;
+  const naoIni = ativs.filter((a) => {
+    const s = pavimentoHoje(a);
+    return s && s.estado === "não iniciada";
+  }).length;
   const comReal = ativs.filter((a) => a.realIni).length;
   const velMedia = (() => {
     const ls = ativs.filter((a) => a.modo === "LINHA");
@@ -68,8 +78,12 @@ export const Resumo = ({ T, proj, metrica, pavimentoHoje, rowIdx, onVoltar, onSe
             icon={TrendingUp}
             label="Andamento"
             valor={`${concl}/${ativs.length}`}
-            sub={`${emExec.length} em execução · ${naoIni} a iniciar`}
-            cor={OK}
+            sub={
+              emAtraso.length > 0
+                ? `${emExec.length} em dia · ${emAtraso.length} em atraso`
+                : `${emExec.length} em execução · ${naoIni} a iniciar`
+            }
+            cor={emAtraso.length > 0 ? ERRO : OK}
           />
         </div>
 
@@ -108,7 +122,14 @@ export const Resumo = ({ T, proj, metrica, pavimentoHoje, rowIdx, onVoltar, onSe
                   const m = metrica(a);
                   const s = pavimentoHoje(a);
                   const torre = proj.torres.find((t) => t.id === a.torreId);
-                  const corEstado = s?.estado === "em execução" ? ORANGE : s?.estado === "concluída" ? OK : T.dim;
+                  const corEstado =
+                    s?.estado === "em atraso"
+                      ? ERRO
+                      : s?.estado === "em execução"
+                      ? ORANGE
+                      : s?.estado === "concluída"
+                      ? OK
+                      : T.dim;
                   return (
                     <tr
                       key={a.id}
