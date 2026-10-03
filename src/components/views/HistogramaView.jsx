@@ -42,7 +42,6 @@ export const HistogramaView = ({
   const [buscaAtividade, setBuscaAtividade] = useState("");
   const [cargoFiltro, setCargoFiltro] = useState("TODOS");
   const [granularidade, setGranularidade] = useState("diario"); // "diario" | "semanal" | "mensal"
-  const [tipoGrafico, setTipoGrafico] = useState("empilhado"); // "empilhado" | "acumulado"
   const [cargosOcultos, setCargosOcultos] = useState(new Set());
   const [tooltipInfo, setTooltipInfo] = useState(null);
 
@@ -252,7 +251,7 @@ export const HistogramaView = ({
       picoData,
       mediaDiaria,
       totalHomensDia,
-      cargoTop: cargoTop ? `${cargoTop.nome} (${cargoTop.totalHomens} h-d)` : "Nenhum",
+      cargoTop: cargoTop ? `${cargoTop.nome} (${cargoTop.totalHomens} homens)` : "Nenhum",
       totalApontamentos: apontamentosFiltrados.length,
     };
   }, [dadosGrafico, cargosPresentes, apontamentosFiltrados]);
@@ -370,7 +369,7 @@ export const HistogramaView = ({
       // Aba 2: Resumo por Cargo
       const sheetCargos = cargosPresentes.map((c) => ({
         "Cargo": c.nome,
-        "Total Homem-Dia": c.totalHomens,
+        "Total de Homens": c.totalHomens,
         "% do Total": metricas.totalHomensDia > 0 ? `${Math.round((c.totalHomens / metricas.totalHomensDia) * 100)}%` : "0%",
         "Apontamentos Realizados": c.apontamentos,
       }));
@@ -382,7 +381,7 @@ export const HistogramaView = ({
         "Torre": a.torreNome,
         "Atividade": a.nome,
         "% Avanço Atual": `${a.avanco}%`,
-        "Total Homens-Dia": a.totalHomens,
+        "Total de Homens": a.totalHomens,
         "Qtd de Apontamentos": a.totalApontamentos,
         "Cargos Utilizados": a.cargos.map((c) => `${c.qtd}x ${c.cargo}`).join(", "),
         "Último Apontamento": a.ultimoApontamento ? fmtBR(D(a.ultimoApontamento.data)) : "—",
@@ -419,13 +418,9 @@ export const HistogramaView = ({
 
   // Cálculo de Escala do Gráfico
   const maxGrafico = useMemo(() => {
-    if (tipoGrafico === "acumulado") {
-      const maxAcc = Math.max(...dadosGrafico.map((d) => d.totalAcumulado), 10);
-      return Math.ceil(maxAcc * 1.15);
-    }
     const maxVal = Math.max(...dadosGrafico.map((d) => d.total), 5);
     return Math.ceil(maxVal * 1.25);
-  }, [dadosGrafico, tipoGrafico]);
+  }, [dadosGrafico]);
 
   return (
     <div
@@ -528,21 +523,21 @@ export const HistogramaView = ({
             </span>
           </div>
 
-          {/* Card 3: Homens-Dia Totais */}
+          {/* Card 3: Total de Homens */}
           <div className="p-3 rounded-xl border flex flex-col justify-between" style={{ background: T.raised, borderColor: T.line }}>
             <span className="text-[10px] uppercase font-bold tracking-wider" style={{ color: T.dim }}>
-              Esforço Total
+              Total de Homens
             </span>
             <div className="mt-1">
               <span className="text-xl font-black" style={{ ...NUM, color: "#38BDF8" }}>
                 {metricas.totalHomensDia}
               </span>
               <span className="text-xs ml-1 font-semibold" style={{ color: T.muted }}>
-                homens-dia
+                homens
               </span>
             </div>
             <span className="text-[10.5px]" style={{ color: T.muted }}>
-              Volume de trabalho
+              Efetivo total alocado
             </span>
           </div>
 
@@ -639,30 +634,6 @@ export const HistogramaView = ({
             ))}
           </div>
 
-          {/* Tipo de Visualização */}
-          <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: T.line }}>
-            <button
-              onClick={() => setTipoGrafico("empilhado")}
-              className="px-2.5 py-1.5 transition-colors font-semibold flex items-center gap-1"
-              style={{
-                background: tipoGrafico === "empilhado" ? OK : T.raised,
-                color: tipoGrafico === "empilhado" ? "#ffffff" : T.muted,
-              }}
-            >
-              <BarChart3 size={13} /> Histograma
-            </button>
-            <button
-              onClick={() => setTipoGrafico("acumulado")}
-              className="px-2.5 py-1.5 transition-colors font-semibold flex items-center gap-1"
-              style={{
-                background: tipoGrafico === "acumulado" ? OK : T.raised,
-                color: tipoGrafico === "acumulado" ? "#ffffff" : T.muted,
-              }}
-            >
-              <TrendingUp size={13} /> Curva S (Acumulado)
-            </button>
-          </div>
-
           {/* Filtro de Cargo */}
           <select
             value={cargoFiltro}
@@ -673,7 +644,7 @@ export const HistogramaView = ({
             <option value="TODOS">Todos os cargos</option>
             {cargosPresentes.map((c) => (
               <option key={c.nome} value={c.nome}>
-                {c.nome} ({c.totalHomens} h-d)
+                {c.nome} ({c.totalHomens} homens)
               </option>
             ))}
           </select>
@@ -725,7 +696,7 @@ export const HistogramaView = ({
           </div>
         ) : (
           <>
-            {/* ── 1. GRÁFICO PRINCIPAL DE HISTOGRAMA / CURVA S ── */}
+            {/* ── 1. GRÁFICO PRINCIPAL DE HISTOGRAMA DE MÃO DE OBRA ── */}
             <div
               className="p-4 sm:p-5 rounded-2xl border shadow-xs"
               style={{ background: T.panel, borderColor: T.line }}
@@ -734,9 +705,7 @@ export const HistogramaView = ({
                 <div>
                   <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: T.text }}>
                     <BarChart3 size={16} style={{ color: ORANGE }} />
-                    {tipoGrafico === "empilhado"
-                      ? "Distribuição Temporal de Homens por Cargo"
-                      : "Curva S Cumulativa de Homens-Dia"}
+                    Distribuição Temporal de Homens por Cargo
                   </h2>
                   <p className="text-xs mt-0.5" style={{ color: T.muted }}>
                     Passe o cursor sobre as barras para inspecionar os cargos e atividades daquele período.
@@ -787,8 +756,7 @@ export const HistogramaView = ({
 
                       {/* Renderização de Barras */}
                       {dadosGrafico.map((d, idx) => {
-                        const valExibicao = tipoGrafico === "acumulado" ? d.totalAcumulado : d.total;
-                        const alturaPct = maxGrafico > 0 ? Math.min(100, (valExibicao / maxGrafico) * 100) : 0;
+                        const alturaPct = maxGrafico > 0 ? Math.min(100, (d.total / maxGrafico) * 100) : 0;
                         const isPico = d.total === metricas.picoHomens && metricas.picoHomens > 0;
 
                         return (
@@ -799,7 +767,7 @@ export const HistogramaView = ({
                             onMouseLeave={() => setTooltipInfo(null)}
                           >
                             {/* Pin do Pico */}
-                            {isPico && tipoGrafico === "empilhado" && (
+                            {isPico && (
                               <div className="absolute -top-3.5 flex flex-col items-center z-10 animate-bounce">
                                 <span
                                   className="text-[9px] px-1 py-0.5 rounded font-black text-white shadow-xs"
@@ -816,23 +784,21 @@ export const HistogramaView = ({
                               style={{
                                 height: `${Math.max(2, alturaPct)}%`,
                                 minHeight: d.total > 0 ? 4 : 0,
-                                background: tipoGrafico === "acumulado" ? "linear-gradient(180deg, #10B981 0%, #065F46 100%)" : undefined,
                               }}
                             >
-                              {tipoGrafico === "empilhado" &&
-                                Object.entries(d.porCargo).map(([cNome, cQtd]) => {
-                                  const segPct = d.total > 0 ? (cQtd / d.total) * 100 : 0;
-                                  return (
-                                    <div
-                                      key={cNome}
-                                      style={{
-                                        height: `${segPct}%`,
-                                        background: getCargoCor(cNome),
-                                      }}
-                                      title={`${cNome}: ${cQtd} homens`}
-                                    />
-                                  );
-                                })}
+                              {Object.entries(d.porCargo).map(([cNome, cQtd]) => {
+                                const segPct = d.total > 0 ? (cQtd / d.total) * 100 : 0;
+                                return (
+                                  <div
+                                    key={cNome}
+                                    style={{
+                                      height: `${segPct}%`,
+                                      background: getCargoCor(cNome),
+                                    }}
+                                    title={`${cNome}: ${cQtd} homens`}
+                                  />
+                                );
+                              })}
                             </div>
 
                             {/* Label do Eixo X */}
@@ -948,7 +914,7 @@ export const HistogramaView = ({
                       Mão de Obra Alocada por Atividade
                     </h3>
                     <p className="text-xs" style={{ color: T.muted }}>
-                      Histórico acumulado de homens-dia aplicados em cada atividade da torre.
+                      Histórico acumulado de homens aplicados em cada atividade da torre.
                     </p>
                   </div>
                   <span className="text-xs font-semibold" style={{ color: T.dim }}>
@@ -970,7 +936,7 @@ export const HistogramaView = ({
                           % Avanço
                         </th>
                         <th className="py-2 px-2 font-bold uppercase tracking-wider text-center" style={{ color: T.dim }}>
-                          Homens-Dia
+                          Total Homens
                         </th>
                         <th className="py-2 px-2 font-bold uppercase tracking-wider" style={{ color: T.dim }}>
                           Cargos Envolvidos
@@ -1004,7 +970,7 @@ export const HistogramaView = ({
                           <td className="py-2.5 px-2 text-center font-bold" style={{ ...NUM, color: T.text }}>
                             {a.totalHomens > 0 ? (
                               <span className="px-2 py-0.5 rounded-md text-white font-black" style={{ background: ORANGE }}>
-                                {a.totalHomens} h-d
+                                {a.totalHomens} {a.totalHomens === 1 ? "homem" : "homens"}
                               </span>
                             ) : (
                               <span style={{ color: T.dim }}>—</span>
@@ -1073,7 +1039,7 @@ export const HistogramaView = ({
                               {c.nome}
                             </span>
                             <span className="font-bold" style={{ ...NUM, color: T.muted }}>
-                              {c.totalHomens} h-d ({pct}%)
+                              {c.totalHomens} {c.totalHomens === 1 ? "homem" : "homens"} ({pct}%)
                             </span>
                           </div>
                           <div className="w-full h-2 rounded-full overflow-hidden bg-black/10 dark:bg-white/10">

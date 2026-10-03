@@ -740,7 +740,7 @@ export const AvancoView = ({
                           </span>
                           {totalHomensDia > 0 && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white shadow-xs" style={{ background: ORANGE }}>
-                              {totalHomensDia} h-d acumulados
+                              {totalHomensDia} homens alocados
                             </span>
                           )}
                           {ultimo && (
