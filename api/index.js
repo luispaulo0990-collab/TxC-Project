@@ -12,6 +12,7 @@ import authRouter from '../server/routes/auth.js';
 import healthRouter from '../server/routes/health.js';
 import projetosRouter from '../server/routes/projetos.js';
 import gruposRouter from '../server/routes/grupos.js';
+import macrofluxosRouter from '../server/routes/macrofluxos.js';
 
 dotenv.config();
 assertRequiredEnv();
@@ -64,6 +65,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/grupos', jwtMiddleware, gruposRouter);
 app.use('/api/projetos', optionalJwtMiddleware, projetosRouter);
+app.use('/api/macrofluxos', optionalJwtMiddleware, macrofluxosRouter);
 app.use('/api/atividades', jwtMiddleware, atividadesRouter);
 
 app.use((err, _req, res, _next) => {

@@ -3,6 +3,7 @@ import React from "react";
 import {
   Layers,
   TrendingUp,
+  Users,
   Target,
   Zap,
   LayoutDashboard,
@@ -44,7 +45,8 @@ export const SidebarNav = ({
 }) => {
   const navItems = [
     { id: "grafico", label: "Gráfico TxC", icon: Layers },
-    { id: "avanco", label: "Avanço Físico", icon: TrendingUp, badge: "Novo" },
+    { id: "avanco", label: "Avanço Físico", icon: TrendingUp },
+    { id: "histograma", label: "Histograma", icon: Users, badge: "Novo" },
     { id: "metas", label: "Metas", icon: Target },
     { id: "macrofluxo", label: "Macrofluxos", icon: Zap },
     { id: "resumo", label: "Resumo", icon: LayoutDashboard },

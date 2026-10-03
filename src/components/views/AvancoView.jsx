@@ -12,10 +12,15 @@ import {
   Calendar,
   Building2,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   ArrowUpRight,
   FileSpreadsheet,
   RotateCcw,
   Zap,
+  Users,
+  HardHat,
+  Trash2,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ORANGE, ERRO, OK, FONT, NUM } from "../../constants/theme";
@@ -24,6 +29,8 @@ import { normalizar } from "../../utils/geometryUtils";
 import { baixar } from "../../utils/exportUtils";
 import { exportarModeloAvanco } from "../../utils/importUtils";
 import { calcularStatusAtividade } from "../../utils/statusUtils";
+import { getCargoCor } from "../../constants/cargos";
+import { apiClient } from "../../utils/apiClient";
 
 export const AvancoView = ({
   T,
@@ -34,13 +41,17 @@ export const AvancoView = ({
   onVoltarGrafico,
   onSelectAtividade,
   onAbrirImport,
+  onAbrirModalApontar,
+  onIrParaHistograma,
   flash,
+  user,
 }) => {
   const [filtroTorre, setFiltroTorre] = useState("TODAS");
   const [filtroStatus, setFiltroStatus] = useState("TODAS"); // TODAS | EM_ANDAMENTO | CONCLUIDAS | NAO_INICIADAS | ATRASADAS
   const [busca, setBusca] = useState("");
   const [dataCorteStr, setDataCorteStr] = useState(() => iso(hoje()));
   const [ordenacao, setOrdenacao] = useState("padrao"); // padrao | nome | avanco_asc | avanco_desc | inicio
+  const [historicoAberto, setHistoricoAberto] = useState({});
 
   // Lista de atividades com status enriquecido conforme o corte da linha Hoje
   const atividadesCalculadas = useMemo(() => {
@@ -206,7 +217,17 @@ export const AvancoView = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {onIrParaHistograma && (
+              <button
+                onClick={onIrParaHistograma}
+                className="text-xs px-3 py-1.5 rounded flex items-center gap-1.5 font-bold transition-all border shadow-xs hover:brightness-105 cursor-pointer"
+                style={{ background: `${ORANGE}18`, borderColor: `${ORANGE}50`, color: ORANGE }}
+                title="Visualizar o Histograma de Mão de Obra da Obra"
+              >
+                <Users size={13} /> Histograma de Mão de Obra
+              </button>
+            )}
             <button
               onClick={() => onAbrirImport("avanco")}
               className="text-xs px-3 py-1.5 rounded flex items-center gap-1.5 font-semibold transition-colors border shadow-xs hover:brightness-95"
@@ -539,6 +560,20 @@ export const AvancoView = ({
                       <ArrowUpRight size={12} /> +1 Pav
                     </button>
 
+                    {onAbrirModalApontar && (
+                      <button
+                        type="button"
+                        onClick={() => onAbrirModalApontar(a)}
+                        className="text-xs px-3 py-1 rounded font-bold text-white flex items-center gap-1.5 transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
+                        style={{
+                          background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
+                        }}
+                        title="Registrar avanço físico com detalhamento de homens e cargos para o Histograma"
+                      >
+                        <Users size={12} /> Apontar com Equipe
+                      </button>
+                    )}
+
                     {onSelectAtividade && (
                       <button
                         type="button"
@@ -687,6 +722,114 @@ export const AvancoView = ({
                     />
                   </div>
                 </div>
+
+                {/* ── Mão de Obra e Histórico de Apontamentos da Atividade ── */}
+                {(() => {
+                  const historico = Array.isArray(a.historicoAvanco) ? a.historicoAvanco : [];
+                  const totalHomensDia = historico.reduce((acc, h) => acc + (Number(h.homensTotal) || 0), 0);
+                  const ultimo = historico[historico.length - 1];
+                  const aberto = !!historicoAberto[a.id];
+
+                  return (
+                    <div className="mt-3 pt-3 border-t flex flex-col gap-2" style={{ borderColor: T.line }}>
+                      <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold flex items-center gap-1.5" style={{ color: T.text }}>
+                            <Users size={13} style={{ color: ORANGE }} />
+                            Mão de Obra & Histórico ({historico.length})
+                          </span>
+                          {totalHomensDia > 0 && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white shadow-xs" style={{ background: ORANGE }}>
+                              {totalHomensDia} h-d acumulados
+                            </span>
+                          )}
+                          {ultimo && (
+                            <span className="text-[11px] truncate max-w-[280px]" style={{ color: T.muted }}>
+                              Último: <strong className="text-white/90">{fmtBR(D(ultimo.data))}</strong> ({ultimo.homensTotal} homens: {(ultimo.cargos || []).map((c) => `${c.quantidade} ${c.cargo}`).join(", ")})
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {historico.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setHistoricoAberto((prev) => ({ ...prev, [a.id]: !prev[a.id] }))}
+                              className="text-[11px] flex items-center gap-1 font-semibold hover:underline cursor-pointer"
+                              style={{ color: ORANGE }}
+                            >
+                              {aberto ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                              {aberto ? "Ocultar histórico" : `Ver histórico (${historico.length})`}
+                            </button>
+                          )}
+
+                          {onAbrirModalApontar && (
+                            <button
+                              type="button"
+                              onClick={() => onAbrirModalApontar(a)}
+                              className="text-[11px] px-2 py-0.5 rounded border flex items-center gap-1 font-semibold hover:bg-white/5 cursor-pointer"
+                              style={{ borderColor: T.line, color: T.text }}
+                            >
+                              <Users size={11} style={{ color: ORANGE }} /> Apontar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Lista de Registros Expandida */}
+                      {aberto && historico.length > 0 && (
+                        <div className="p-3 rounded-xl border space-y-2 mt-1" style={{ background: T.raised, borderColor: T.line }}>
+                          <span className="text-[10px] uppercase font-bold tracking-wider block" style={{ color: T.dim }}>
+                            Registros de Mão de Obra Gravados no Supabase:
+                          </span>
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                            {historico.map((h, hIdx) => (
+                              <div
+                                key={h.id || hIdx}
+                                className="p-2 rounded-lg border flex items-center justify-between text-xs flex-wrap gap-2"
+                                style={{ background: T.panel, borderColor: T.line }}
+                              >
+                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                  <span className="font-bold" style={{ ...NUM, color: T.text }}>
+                                    {fmtBR(D(h.data))}
+                                  </span>
+                                  <span className="text-[10.5px] px-1.5 py-0.5 rounded font-bold text-emerald-400" style={{ background: `${OK}18` }}>
+                                    {h.avancoAnterior}% ➔ {h.avancoNovo}% (+{h.deltaAvanco}%)
+                                  </span>
+                                  {h.pavimentoNome && (
+                                    <span className="text-[10.5px]" style={{ color: T.muted }}>
+                                      • {h.pavimentoNome}
+                                    </span>
+                                  )}
+                                  <span className="text-[10.5px] font-semibold" style={{ color: T.dim }}>
+                                    • {h.homensTotal} operários:
+                                  </span>
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {(h.cargos || []).map((c, cIdx) => (
+                                      <span
+                                        key={cIdx}
+                                        className="text-[9.5px] px-1.5 py-0.5 rounded font-semibold"
+                                        style={{ background: `${getCargoCor(c.cargo)}20`, color: getCargoCor(c.cargo) }}
+                                      >
+                                        {c.quantidade} {c.cargo}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {h.observacao && (
+                                  <span className="text-[10px] text-white/70 italic max-w-[200px] truncate" title={h.observacao}>
+                                    "{h.observacao}"
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })

@@ -17,6 +17,8 @@ import { Resumo } from "./components/views/Resumo";
 import { MetasView } from "./components/views/MetasView";
 import { MacrofluxoView } from "./components/views/MacrofluxoView";
 import { AvancoView } from "./components/views/AvancoView";
+import { HistogramaView } from "./components/views/HistogramaView";
+import { ModalApontarAvanco } from "./components/modals/ModalApontarAvanco";
 
 import { ModalImportMenu } from "./components/modals/ModalImportMenu";
 import { ModalImportar } from "./components/modals/ModalImportar";
@@ -55,11 +57,12 @@ export default function App() {
   const [macrofluxos, setMacrofluxos] = useState([]);
   const [status, setStatus] = useState("");
   const [modal, setModal] = useState(null);
+  const [modalApontar, setModalApontar] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [showProps, setShowProps] = useState(true);
   const [showActivities, setShowActivities] = useState(true);
   const [tema, setTema] = useState("claro");
-  const [vista, setVista] = useState("grafico"); // grafico | avanco | resumo | metas | macrofluxo
+  const [vista, setVista] = useState("grafico"); // grafico | avanco | histograma | resumo | metas | macrofluxo
   const [exibirRealizado, setExibirRealizado] = useState(true);
   const [exibirCruzamentos, setExibirCruzamentos] = useState(true);
 
@@ -293,6 +296,66 @@ export default function App() {
     setTela("home");
     flash("Sessão encerrada com sucesso");
   };
+
+  const handleSalvarApontamentoAvanco = useCallback(
+    async (atividadeId, novoAvanco, apontamentoData) => {
+      if (!proj || !atividadeId) return;
+
+      const ativ = proj.atividades?.find((a) => a.id === atividadeId);
+      if (!ativ) return;
+
+      const patch = {
+        avanco: novoAvanco,
+      };
+
+      if (apontamentoData.pavimentoId) {
+        patch.pavimentoAtualId = apontamentoData.pavimentoId;
+      }
+
+      if (novoAvanco === 100 && !ativ.realFim) {
+        patch.realFim = apontamentoData.data || iso(hoje());
+      } else if (novoAvanco > 0 && !ativ.realIni) {
+        patch.realIni = apontamentoData.data || iso(hoje());
+      } else if (novoAvanco === 0) {
+        patch.realIni = null;
+        patch.realFim = null;
+      }
+
+      const historicoAntigo = Array.isArray(ativ.historicoAvanco) ? ativ.historicoAvanco : [];
+      const novoHistorico = [...historicoAntigo, apontamentoData];
+      patch.historicoAvanco = novoHistorico;
+
+      const projAtualizado = {
+        ...proj,
+        atividades: proj.atividades.map((a) => (a.id === atividadeId ? { ...a, ...patch } : a)),
+      };
+
+      setProj(projAtualizado);
+
+      try {
+        const torre = proj.torres?.find((t) => t.id === ativ.torreId);
+        await apiClient.salvarApontamentoAvanco(
+          {
+            ...apontamentoData,
+            projetoId: proj.id,
+            projetoNome: proj.nome,
+            atividadeId: ativ.id,
+            atividadeNome: ativ.nome,
+            torreId: ativ.torreId,
+            torreNome: torre?.nome || "",
+          },
+          user
+        );
+
+        await salvar(projAtualizado, true);
+        flash(`Avanço de "${ativ.nome}" (${novoAvanco}%) e mão de obra gravados no banco!`);
+      } catch (err) {
+        console.error("Erro ao sincronizar apontamento:", err);
+        flash("Apontamento registrado localmente.");
+      }
+    },
+    [proj, user, salvar, flash]
+  );
 
   const salvar = useCallback(
     async (p, silencioso = false) => {
@@ -1268,7 +1331,25 @@ export default function App() {
               setShowProps(true);
             }}
             onAbrirImport={abrirImport}
+            onAbrirModalApontar={(ativ) => setModalApontar(ativ)}
+            onIrParaHistograma={() => setVista("histograma")}
             flash={flash}
+            user={user}
+          />
+        ) : vista === "histograma" ? (
+          <HistogramaView
+            T={T}
+            proj={proj}
+            setProj={setProj}
+            filtroTorre={filtroTorre}
+            onAbrirModalApontar={(ativ) => setModalApontar(ativ || proj?.atividades?.[0] || null)}
+            onSelectAtividade={(id) => {
+              setSelId(id);
+              setVista("grafico");
+              setShowProps(true);
+            }}
+            flash={flash}
+            user={user}
           />
         ) : vista === "resumo" ? (
           <Resumo
@@ -1410,6 +1491,7 @@ export default function App() {
               ajustarDias={ajustarDias}
               onDuplicar={duplicar}
               onExcluir={pedirExcluirAtividade}
+              onAbrirModalApontar={(ativ) => setModalApontar(ativ)}
               user={user}
             />
           </div>
@@ -1515,6 +1597,18 @@ export default function App() {
           textoBotao={modalConfirmacao.textoBotao}
           onConfirmar={modalConfirmacao.onConfirmar}
           onCancelar={() => setModalConfirmacao(null)}
+        />
+      )}
+
+      {modalApontar && (
+        <ModalApontarAvanco
+          T={T}
+          isOpen={!!modalApontar}
+          onClose={() => setModalApontar(null)}
+          atividade={modalApontar}
+          proj={proj}
+          onSalvar={handleSalvarApontamentoAvanco}
+          user={user}
         />
       )}
     </div>

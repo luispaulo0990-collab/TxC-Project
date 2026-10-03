@@ -478,6 +478,89 @@ export const apiClient = {
       console.warn('Erro ao buscar perfis:', err);
     }
     return [];
+  },
+
+  /* ─── Histórico de Avanços & Histograma de Mão de Obra ─────────── */
+  async salvarApontamentoAvanco(apontamento, user = null) {
+    if (!apontamento || !apontamento.atividadeId || !apontamento.projetoId) return null;
+    const u = user || getCurrentUser();
+    const payload = {
+      id: apontamento.id || ('apont_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)),
+      projeto_id: String(apontamento.projetoId),
+      projeto_nome: apontamento.projetoNome || '',
+      obra_nome: apontamento.projetoNome || '',
+      atividade_id: String(apontamento.atividadeId),
+      atividade_nome: apontamento.atividadeNome || '',
+      torre_id: apontamento.torreId ? String(apontamento.torreId) : null,
+      torre_nome: apontamento.torreNome || '',
+      data: apontamento.data || new Date().toISOString().split('T')[0],
+      avanco_anterior: Number(apontamento.avancoAnterior) || 0,
+      avanco_novo: Number(apontamento.avancoNovo) || 0,
+      percentual_avancado: Number(apontamento.deltaAvanco != null ? apontamento.deltaAvanco : (Number(apontamento.avancoNovo) - Number(apontamento.avancoAnterior))) || 0,
+      pavimento_id: apontamento.pavimentoId ? String(apontamento.pavimentoId) : null,
+      pavimento_nome: apontamento.pavimentoNome || '',
+      homens_total: Number(apontamento.homensTotal) || 1,
+      cargos: Array.isArray(apontamento.cargos) ? apontamento.cargos : [],
+      observacao: apontamento.observacao || '',
+      user_id: u?.id || null,
+      user_nome: u?.user_metadata?.nome || u?.nome || u?.email?.split('@')[0] || 'Usuário',
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      const { data, error } = await supabasePublic
+        .from('historico_avanco')
+        .upsert(payload, { onConflict: 'id' })
+        .select()
+        .single();
+      if (!error && data) {
+        return data;
+      }
+      if (error) {
+        console.warn('salvarApontamentoAvanco Supabase aviso:', error.message);
+      }
+    } catch (err) {
+      console.warn('Exceção ao persistir em historico_avanco no Supabase:', err);
+    }
+
+    return payload;
+  },
+
+  async excluirApontamentoAvanco(apontamentoId) {
+    if (!apontamentoId) return false;
+    try {
+      const { error } = await supabasePublic
+        .from('historico_avanco')
+        .delete()
+        .eq('id', String(apontamentoId));
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
+  async getHistoricoAvanco(projetoId, torreId = null) {
+    if (!projetoId) return [];
+    try {
+      let query = supabasePublic
+        .from('historico_avanco')
+        .select('*')
+        .eq('projeto_id', String(projetoId))
+        .order('data', { ascending: false });
+
+      if (torreId && torreId !== 'TODAS') {
+        query = query.eq('torre_id', String(torreId));
+      }
+
+      const { data, error } = await query;
+      if (!error && Array.isArray(data)) {
+        return data;
+      }
+    } catch (err) {
+      console.warn('getHistoricoAvanco Supabase exception:', err);
+    }
+    return [];
   }
 };
+
 

@@ -8,6 +8,7 @@ import {
   Trash2,
   CheckCircle2,
   GitBranch,
+  Users,
 } from "lucide-react";
 import { Campo } from "../common/Campo";
 import { Sel } from "../common/Sel";
@@ -30,6 +31,7 @@ export const PropertiesPanel = ({
   ajustarDias,
   onDuplicar,
   onExcluir,
+  onAbrirModalApontar,
   user,
 }) => {
   if (!showProps) {
@@ -257,6 +259,21 @@ export const PropertiesPanel = ({
                     </div>
                   )}
 
+                  {/* Botão de Apontamento com Mão de Obra */}
+                  {onAbrirModalApontar && (
+                    <button
+                      type="button"
+                      onClick={() => onAbrirModalApontar(sel)}
+                      className="w-full text-xs py-1.5 px-2.5 rounded-xs font-bold text-white flex items-center justify-center gap-1.5 transition-all shadow-xs hover:brightness-110 mb-2.5 cursor-pointer"
+                      style={{
+                        background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
+                      }}
+                      title="Apontar avanço indicando quantidade de homens e cargos para o Histograma"
+                    >
+                      <Users size={12} /> Apontar com Mão de Obra
+                    </button>
+                  )}
+
                   {/* Botões rápidos */}
                   <div className="flex gap-1 mb-2">
                     {[0, 25, 50, 75, 100].map((v) => (
@@ -336,6 +353,37 @@ export const PropertiesPanel = ({
                       />
                     </div>
                   </div>
+
+                  {/* Resumo da Equipe de Mão de Obra */}
+                  {(() => {
+                    const historico = Array.isArray(sel.historicoAvanco) ? sel.historicoAvanco : [];
+                    const ultimo = historico[historico.length - 1];
+                    if (!ultimo) return null;
+                    return (
+                      <div className="mt-2.5 pt-2 border-t text-[10.5px]" style={{ borderColor: T.line }}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="font-bold flex items-center gap-1" style={{ color: T.text }}>
+                            <Users size={12} style={{ color: ORANGE }} />
+                            Última Equipe ({fmtBR(D(ultimo.data))}):
+                          </span>
+                          <span className="font-bold" style={{ ...NUM, color: ORANGE }}>
+                            {ultimo.homensTotal} homens
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {(ultimo.cargos || []).map((c, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[9.5px] px-1.5 py-0.2 rounded font-semibold"
+                              style={{ background: `${T.panel}`, border: `1px solid ${T.line}`, color: T.text }}
+                            >
+                              {c.quantidade} {c.cargo}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
