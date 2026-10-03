@@ -28,6 +28,61 @@ import { baixar } from "../../utils/exportUtils";
 import { CARGOS_PADRAO, getCargoCor, PALETA_CARGOS } from "../../constants/cargos";
 import { apiClient } from "../../utils/apiClient";
 
+// ── Helper: Escala Inteligente e Arredondada do Eixo Y ──
+export const calcularEscalaY = (maxValor) => {
+  const vMax = Number(maxValor) || 0;
+  if (vMax <= 0) {
+    return { maxEixoY: 5, passo: 1, ticks: [0, 1, 2, 3, 4, 5] };
+  }
+
+  // Valores baixos (1 a 4)
+  if (vMax <= 4) {
+    const maxEixoY = vMax + 1;
+    const ticks = [];
+    for (let i = 0; i <= maxEixoY; i++) ticks.push(i);
+    return { maxEixoY, passo: 1, ticks };
+  }
+
+  // Passos convenientes para mão de obra (número inteiro de homens)
+  const passos = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 500];
+
+  for (const passo of passos) {
+    const qtdDiv = Math.ceil(vMax / passo);
+    if (qtdDiv >= 3 && qtdDiv <= 5) {
+      let maxEixoY = qtdDiv * passo;
+      // Adiciona uma folga no topo se o pico bater exatamente no limite superior
+      if (maxEixoY === vMax) {
+        maxEixoY += passo;
+      }
+      const ticks = [];
+      for (let t = 0; t <= maxEixoY; t += passo) {
+        ticks.push(t);
+      }
+      return { maxEixoY, passo, ticks };
+    }
+  }
+
+  // Fallback caso ultrapasse os passos tabelados
+  const passoFallback = Math.max(1, Math.ceil(vMax / 4));
+  let maxEixoY = passoFallback * 4;
+  if (maxEixoY <= vMax) maxEixoY += passoFallback;
+  const ticks = [];
+  for (let t = 0; t <= maxEixoY; t += passoFallback) {
+    ticks.push(t);
+  }
+  return { maxEixoY, passo: passoFallback, ticks };
+};
+
+// ── Helper: Controle de Exibição de Rótulos do Eixo X ──
+export const calcularSeExibeLabelX = (idx, total, temEfetivo) => {
+  if (total <= 14) return true;
+  if (temEfetivo) return true; // Sempre exibe dias com medição de mão de obra
+  if (idx === 0 || idx === total - 1) return true; // Sempre exibe primeiro e último dia
+  if (total <= 25) return idx % 2 === 0;
+  if (total <= 45) return idx % 3 === 0;
+  return idx % 5 === 0;
+};
+
 export const HistogramaView = ({
   T,
   proj,
@@ -45,17 +100,14 @@ export const HistogramaView = ({
   const [cargosOcultos, setCargosOcultos] = useState(new Set());
   const [tooltipInfo, setTooltipInfo] = useState(null);
 
-  // Período de análise (por padrão, últimos 30 dias até +15 dias futuros ou período das atividades)
-  const [dataInicio, setDataInicio] = useState(() => {
+  // Período de análise com foco inteligente nos apontamentos
+  const [filtroPeriodo, setFiltroPeriodo] = useState("auto"); // "auto" | "15d" | "30d" | "mes" | "custom"
+  const [dataInicioCustom, setDataInicioCustom] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 25);
+    d.setDate(d.getDate() - 15);
     return iso(d);
   });
-  const [dataFim, setDataFim] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 15);
-    return iso(d);
-  });
+  const [dataFimCustom, setDataFimCustom] = useState(() => iso(new Date()));
 
   // ── Extração Unificada de Apontamentos de Avanço ──
   const todosApontamentos = useMemo(() => {
@@ -126,22 +178,89 @@ export const HistogramaView = ({
 
   // ── Agrupamento Temporal para o Gráfico de Histograma ──
   const dadosGrafico = useMemo(() => {
-    if (!apontamentosFiltrados.length) return [];
+    const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-    // Determinar range de datas
-    let minD = dataInicio ? D(dataInicio) : null;
-    let maxD = dataFim ? D(dataFim) : null;
+    const formatarDataCurta = (dataObj, gran) => {
+      if (gran === "mensal") {
+        return `${meses[dataObj.getMonth()]}/${String(dataObj.getFullYear()).slice(-2)}`;
+      }
+      if (gran === "semanal") {
+        const firstDayOfYear = new Date(dataObj.getFullYear(), 0, 1);
+        const pastDaysOfYear = (dataObj - firstDayOfYear) / 86400000;
+        const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        return `Sem ${weekNum}`;
+      }
+      const dia = String(dataObj.getDate()).padStart(2, "0");
+      const mes = String(dataObj.getMonth() + 1).padStart(2, "0");
+      return `${dia}/${mes}`;
+    };
 
-    apontamentosFiltrados.forEach((ap) => {
-      if (!ap.data) return;
-      const d = D(ap.data);
-      if (!minD || d < minD) minD = d;
-      if (!maxD || d > maxD) maxD = d;
-    });
+    const formatarDataCompleta = (dataObj, gran) => {
+      if (gran === "diario") {
+        return `${fmtBR(dataObj)} (${diasSemana[dataObj.getDay()]})`;
+      }
+      if (gran === "mensal") {
+        return `${meses[dataObj.getMonth()]}/${dataObj.getFullYear()}`;
+      }
+      return fmtBR(dataObj);
+    };
+
+    // Determinar range de datas inteligente
+    let minD = null;
+    let maxD = null;
+
+    if (filtroPeriodo === "auto") {
+      if (apontamentosFiltrados.length > 0) {
+        apontamentosFiltrados.forEach((ap) => {
+          if (!ap.data) return;
+          const d = D(ap.data);
+          if (!minD || d < minD) minD = new Date(d);
+          if (!maxD || d > maxD) maxD = new Date(d);
+        });
+      }
+
+      if (!minD || !maxD) {
+        const h = hoje();
+        minD = addDays(h, -3);
+        maxD = addDays(h, 3);
+      } else {
+        const diff = Math.max(0, diffDays(minD, maxD));
+        if (diff === 0) {
+          // Apenas 1 data com apontamento: janela elegante de ±3 dias (7 dias total)
+          minD = addDays(minD, -3);
+          maxD = addDays(maxD, 3);
+        } else if (diff < 7) {
+          // Menos de 7 dias: completa uma janela de cerca de 7 a 9 dias
+          const folga = Math.max(1, Math.floor((7 - diff) / 2));
+          minD = addDays(minD, -folga);
+          maxD = addDays(maxD, folga);
+        } else if (diff <= 30) {
+          // Até 30 dias: adiciona 1 dia de respiro em cada ponta
+          minD = addDays(minD, -1);
+          maxD = addDays(maxD, 1);
+        }
+      }
+    } else if (filtroPeriodo === "15d") {
+      const h = hoje();
+      minD = addDays(h, -14);
+      maxD = h;
+    } else if (filtroPeriodo === "30d") {
+      const h = hoje();
+      minD = addDays(h, -29);
+      maxD = h;
+    } else if (filtroPeriodo === "mes") {
+      const h = hoje();
+      minD = new Date(h.getFullYear(), h.getMonth(), 1);
+      maxD = new Date(h.getFullYear(), h.getMonth() + 1, 0);
+    } else if (filtroPeriodo === "custom") {
+      minD = dataInicioCustom ? D(dataInicioCustom) : addDays(hoje(), -15);
+      maxD = dataFimCustom ? D(dataFimCustom) : hoje();
+    }
 
     if (!minD || !maxD) {
-      minD = new Date();
-      maxD = addDays(minD, 14);
+      minD = addDays(hoje(), -3);
+      maxD = addDays(hoje(), 3);
     }
 
     // Criar mapa de buckets (chave de data => dados)
@@ -168,6 +287,9 @@ export const HistogramaView = ({
         const k = iso(cur);
         buckets.set(k, {
           chave: k,
+          dataCurta: formatarDataCurta(cur, "diario"),
+          dataCompleta: formatarDataCompleta(cur, "diario"),
+          diaSemana: diasSemana[cur.getDay()],
           dataLabel: fmtBR(cur),
           dataRaw: new Date(cur),
           total: 0,
@@ -182,14 +304,19 @@ export const HistogramaView = ({
     apontamentosFiltrados.forEach((ap) => {
       if (!ap.data) return;
       const d = D(ap.data);
+
+      // Se filtro não for auto, ignora dados fora do período selecionado
+      if (filtroPeriodo !== "auto" && (d < minD || d > maxD)) return;
+
       const chave = getChaveBucket(d);
 
       if (!buckets.has(chave)) {
-        let label = chave;
-        if (granularidade === "diario") label = fmtBR(d);
         buckets.set(chave, {
           chave,
-          dataLabel: label,
+          dataCurta: formatarDataCurta(d, granularidade),
+          dataCompleta: formatarDataCompleta(d, granularidade),
+          diaSemana: diasSemana[d.getDay()],
+          dataLabel: granularidade === "diario" ? fmtBR(d) : chave,
           dataRaw: d,
           total: 0,
           porCargo: {},
@@ -222,7 +349,7 @@ export const HistogramaView = ({
         atividadesLista: Array.from(item.atividades),
       };
     });
-  }, [apontamentosFiltrados, dataInicio, dataFim, granularidade, cargosOcultos]);
+  }, [apontamentosFiltrados, filtroPeriodo, dataInicioCustom, dataFimCustom, granularidade, cargosOcultos]);
 
   // ── Métricas Gerais (KPIs) ──
   const metricas = useMemo(() => {
@@ -416,10 +543,17 @@ export const HistogramaView = ({
     }
   };
 
-  // Cálculo de Escala do Gráfico
-  const maxGrafico = useMemo(() => {
-    const maxVal = Math.max(...dadosGrafico.map((d) => d.total), 5);
-    return Math.ceil(maxVal * 1.25);
+  // Cálculo de Escala do Gráfico (Eixo Y com passos limpos e base zero)
+  const escalaY = useMemo(() => {
+    const maxVal = Math.max(...dadosGrafico.map((d) => d.total), 0);
+    return calcularEscalaY(maxVal);
+  }, [dadosGrafico]);
+
+  const periodoLegivel = useMemo(() => {
+    if (!dadosGrafico.length) return "";
+    const prim = dadosGrafico[0];
+    const ult = dadosGrafico[dadosGrafico.length - 1];
+    return `${prim.dataCurta} a ${ult.dataCurta} (${dadosGrafico.length} ${dadosGrafico.length === 1 ? "dia" : "dias"})`;
   }, [dadosGrafico]);
 
   return (
@@ -634,6 +768,43 @@ export const HistogramaView = ({
             ))}
           </div>
 
+          {/* Filtro de Período Temporal */}
+          <div className="flex items-center gap-1.5">
+            <Calendar size={14} style={{ color: T.dim }} />
+            <select
+              value={filtroPeriodo}
+              onChange={(e) => setFiltroPeriodo(e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg outline-none border font-medium cursor-pointer"
+              style={{ background: T.input, borderColor: T.line, color: T.text }}
+            >
+              <option value="auto">Foco nos Registros (Auto)</option>
+              <option value="15d">Últimos 15 dias</option>
+              <option value="30d">Últimos 30 dias</option>
+              <option value="mes">Mês Atual</option>
+              <option value="custom">Personalizado...</option>
+            </select>
+
+            {filtroPeriodo === "custom" && (
+              <div className="flex items-center gap-1">
+                <input
+                  type="date"
+                  value={dataInicioCustom}
+                  onChange={(e) => setDataInicioCustom(e.target.value)}
+                  className="px-2 py-1 rounded-lg outline-none border text-[11px]"
+                  style={{ background: T.input, borderColor: T.line, color: T.text }}
+                />
+                <span style={{ color: T.dim }}>a</span>
+                <input
+                  type="date"
+                  value={dataFimCustom}
+                  onChange={(e) => setDataFimCustom(e.target.value)}
+                  className="px-2 py-1 rounded-lg outline-none border text-[11px]"
+                  style={{ background: T.input, borderColor: T.line, color: T.text }}
+                />
+              </div>
+            )}
+          </div>
+
           {/* Filtro de Cargo */}
           <select
             value={cargoFiltro}
@@ -712,105 +883,176 @@ export const HistogramaView = ({
                   </p>
                 </div>
 
-                {/* Tag de Pico */}
-                <div
-                  className="px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5"
-                  style={{ background: `${ORANGE}18`, color: ORANGE, border: `1px solid ${ORANGE}30` }}
-                >
-                  <TrendingUp size={13} />
-                  Pico Máximo: {metricas.picoHomens} homens ({metricas.picoData})
+                <div className="flex items-center gap-2 flex-wrap">
+                  {periodoLegivel && (
+                    <span
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border"
+                      style={{ background: T.raised, borderColor: T.line, color: T.muted }}
+                    >
+                      <Calendar size={13} style={{ color: ORANGE }} />
+                      {periodoLegivel}
+                    </span>
+                  )}
+
+                  {/* Tag de Pico */}
+                  <div
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5"
+                    style={{ background: `${ORANGE}18`, color: ORANGE, border: `1px solid ${ORANGE}30` }}
+                  >
+                    <TrendingUp size={13} />
+                    Pico Máximo: {metricas.picoHomens} homens ({metricas.picoData})
+                  </div>
                 </div>
               </div>
 
-              {/* Área do Gráfico SVG Interativo */}
-              <div className="relative w-full h-72 sm:h-80 select-none">
+              {/* Área do Gráfico Interativo com Eixos Calibrados */}
+              <div className="relative w-full select-none">
                 {dadosGrafico.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-xs" style={{ color: T.muted }}>
+                  <div className="h-64 flex items-center justify-center text-xs" style={{ color: T.muted }}>
                     Nenhum dado encontrado para o filtro aplicado.
                   </div>
                 ) : (
-                  <div className="w-full h-full flex flex-col justify-between">
-                    {/* Linhas de Grade e Barras */}
-                    <div className="flex-1 relative flex items-end gap-1.5 sm:gap-2 px-6 pt-4 pb-2 border-b border-l" style={{ borderColor: T.line }}>
-                      {/* Linhas horizontais de referência */}
-                      {[0.25, 0.5, 0.75, 1].map((pct) => {
-                        const val = Math.round(maxGrafico * pct);
-                        return (
-                          <div
-                            key={pct}
-                            className="absolute left-0 right-0 border-t border-dashed pointer-events-none flex items-center"
-                            style={{
-                              bottom: `${pct * 100}%`,
-                              borderColor: `${T.line}40`,
-                            }}
-                          >
-                            <span
-                              className="absolute -left-6 text-[9.5px] font-bold"
-                              style={{ color: T.dim, ...NUM }}
-                            >
-                              {val}
-                            </span>
-                          </div>
-                        );
-                      })}
-
-                      {/* Renderização de Barras */}
-                      {dadosGrafico.map((d, idx) => {
-                        const alturaPct = maxGrafico > 0 ? Math.min(100, (d.total / maxGrafico) * 100) : 0;
-                        const isPico = d.total === metricas.picoHomens && metricas.picoHomens > 0;
-
-                        return (
-                          <div
-                            key={d.chave || idx}
-                            className="flex-1 h-full flex flex-col justify-end items-center group relative cursor-pointer"
-                            onMouseEnter={() => setTooltipInfo(d)}
-                            onMouseLeave={() => setTooltipInfo(null)}
-                          >
-                            {/* Pin do Pico */}
-                            {isPico && (
-                              <div className="absolute -top-3.5 flex flex-col items-center z-10 animate-bounce">
-                                <span
-                                  className="text-[9px] px-1 py-0.5 rounded font-black text-white shadow-xs"
-                                  style={{ background: ORANGE }}
-                                >
-                                  {d.total}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Barra Empilhada */}
+                  <div className="w-full flex flex-col">
+                    {/* Linha Superior: Eixo Y (Gutter) + Área de Plotagem das Barras */}
+                    <div className="h-64 sm:h-72 w-full flex relative">
+                      {/* 1. Gutter do Eixo Y (fixo, à esquerda, nunca corta rótulos) */}
+                      <div className="w-9 sm:w-11 shrink-0 relative select-none">
+                        {escalaY.ticks.map((tick) => {
+                          const bottomPct = escalaY.maxEixoY > 0 ? (tick / escalaY.maxEixoY) * 100 : 0;
+                          return (
                             <div
-                              className="w-full rounded-t-sm overflow-hidden flex flex-col-reverse transition-all group-hover:brightness-125 shadow-xs"
+                              key={tick}
+                              className="absolute right-2 -translate-y-1/2 text-[10px] font-bold text-right"
                               style={{
-                                height: `${Math.max(2, alturaPct)}%`,
-                                minHeight: d.total > 0 ? 4 : 0,
+                                bottom: `${bottomPct}%`,
+                                color: T.dim,
+                                ...NUM,
                               }}
                             >
-                              {Object.entries(d.porCargo).map(([cNome, cQtd]) => {
-                                const segPct = d.total > 0 ? (cQtd / d.total) * 100 : 0;
-                                return (
-                                  <div
-                                    key={cNome}
-                                    style={{
-                                      height: `${segPct}%`,
-                                      background: getCargoCor(cNome),
-                                    }}
-                                    title={`${cNome}: ${cQtd} homens`}
-                                  />
-                                );
-                              })}
+                              {tick}
                             </div>
+                          );
+                        })}
+                      </div>
 
-                            {/* Label do Eixo X */}
+                      {/* 2. Área de Plotagem (Grades + Barras Empilhadas) */}
+                      <div
+                        className="flex-1 relative border-l border-b flex items-end overflow-hidden"
+                        style={{ borderColor: T.line }}
+                      >
+                        {/* Linhas de Grade Horizontais alinhadas aos ticks */}
+                        {escalaY.ticks.map((tick) => {
+                          if (tick === 0) return null; // Linha 0 é a border-b
+                          const bottomPct = escalaY.maxEixoY > 0 ? (tick / escalaY.maxEixoY) * 100 : 0;
+                          return (
                             <div
-                              className="text-[9.5px] truncate w-full text-center mt-2 group-hover:font-bold transition-all"
-                              style={{ color: T.dim }}
+                              key={tick}
+                              className="absolute left-0 right-0 border-t border-dashed pointer-events-none z-0"
+                              style={{
+                                bottom: `${bottomPct}%`,
+                                borderColor: `${T.line}35`,
+                              }}
+                            />
+                          );
+                        })}
+
+                        {/* Colunas do Histograma */}
+                        <div className="w-full h-full flex items-end gap-1 sm:gap-2 px-1 sm:px-2 z-10">
+                          {dadosGrafico.map((d, idx) => {
+                            const alturaPct = escalaY.maxEixoY > 0 ? Math.min(100, (d.total / escalaY.maxEixoY) * 100) : 0;
+                            const isPico = d.total === metricas.picoHomens && metricas.picoHomens > 0;
+
+                            return (
+                              <div
+                                key={d.chave || idx}
+                                className="flex-1 min-w-0 h-full flex flex-col justify-end items-center group relative cursor-pointer"
+                                onMouseEnter={() => setTooltipInfo(d)}
+                                onMouseLeave={() => setTooltipInfo(null)}
+                              >
+                                {/* Barra Empilhada */}
+                                <div
+                                  className="w-full max-w-[42px] relative flex flex-col-reverse transition-all group-hover:brightness-125"
+                                  style={{
+                                    height: `${Math.max(d.total > 0 ? 3 : 0, alturaPct)}%`,
+                                    minHeight: d.total > 0 ? 6 : 0,
+                                  }}
+                                >
+                                  {/* Pin do Pico logo acima da barra */}
+                                  {isPico && (
+                                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 flex flex-col items-center z-20 pointer-events-none animate-bounce">
+                                      <span
+                                        className="text-[9.5px] px-1.5 py-0.5 rounded-md font-black text-white shadow-md whitespace-nowrap"
+                                        style={{ background: ORANGE }}
+                                      >
+                                        {d.total}
+                                      </span>
+                                      <div
+                                        className="w-0 h-0 border-l-[3.5px] border-r-[3.5px] border-t-[4px] border-transparent"
+                                        style={{ borderTopColor: ORANGE }}
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Segmentos por Cargo */}
+                                  <div className="w-full h-full rounded-t-sm overflow-hidden flex flex-col-reverse shadow-xs">
+                                    {Object.entries(d.porCargo).map(([cNome, cQtd]) => {
+                                      const segPct = d.total > 0 ? (cQtd / d.total) * 100 : 0;
+                                      return (
+                                        <div
+                                          key={cNome}
+                                          style={{
+                                            height: `${segPct}%`,
+                                            background: getCargoCor(cNome),
+                                          }}
+                                          title={`${cNome}: ${cQtd} homens`}
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Linha Inferior: Rótulos do Eixo X */}
+                    <div className="w-full flex items-start pt-1.5">
+                      {/* Espaçador alinhado com o Eixo Y */}
+                      <div className="w-9 sm:w-11 shrink-0" />
+
+                      {/* Rótulos das Datas */}
+                      <div className="flex-1 flex items-start gap-1 sm:gap-2 px-1 sm:px-2">
+                        {dadosGrafico.map((d, idx) => {
+                          const deveMostrar = calcularSeExibeLabelX(idx, dadosGrafico.length, d.total > 0);
+                          return (
+                            <div
+                              key={d.chave || idx}
+                              className="flex-1 min-w-0 text-center flex flex-col items-center"
+                              title={`${d.dataCompleta} (${d.total} homens)`}
                             >
-                              {d.dataLabel}
+                              {deveMostrar ? (
+                                <span
+                                  className={`text-[9.5px] truncate w-full transition-all block ${d.total > 0 ? "font-bold" : "font-normal"}`}
+                                  style={{
+                                    color: d.total > 0 ? ORANGE : T.dim,
+                                    transform: dadosGrafico.length > 20 ? "rotate(-30deg)" : "none",
+                                    transformOrigin: "center top",
+                                  }}
+                                >
+                                  {d.dataCurta}
+                                </span>
+                              ) : (
+                                <span
+                                  className="w-1 h-1 rounded-full opacity-30 mt-1 inline-block"
+                                  style={{ background: T.dim }}
+                                />
+                              )}
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
