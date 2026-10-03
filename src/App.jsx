@@ -297,6 +297,46 @@ export default function App() {
     flash("Sessão encerrada com sucesso");
   };
 
+  const salvar = useCallback(
+    async (p, silencioso = false) => {
+      if (!p) return;
+      try {
+        const projetoComUser = {
+          ...p,
+          user_id: p.user_id || user?.id || null,
+        };
+
+        const savedProject = await apiClient.salvarProjeto(projetoComUser, user?.id);
+        if (!savedProject) {
+          throw new Error("Não foi possível sincronizar a obra com o servidor");
+        }
+
+        await storage.set(`lob:proj:${p.id}`, JSON.stringify(projetoComUser));
+        let idx = [];
+        try {
+          const r = await storage.get("lob:index");
+          idx = r ? JSON.parse(r.value) : [];
+        } catch {
+          idx = [];
+        }
+        const novo = [{ id: p.id, nome: p.nome, em: Date.now() }, ...idx.filter((e) => e.id !== p.id)];
+        await storage.set("lob:index", JSON.stringify(novo));
+        setSalvos((prev) =>
+          novo.map((item) => {
+            const ex = prev.find((x) => x.id === item.id);
+            return ex ? { ...item, nTorres: p.torres?.length ?? ex.nTorres, nAtividades: p.atividades?.length ?? ex.nAtividades } : { ...item, nTorres: p.torres?.length ?? 0, nAtividades: p.atividades?.length ?? 0 };
+          })
+        );
+
+        if (!silencioso) flash("Empreendimento salvo no Supabase");
+      } catch (err) {
+        console.error("Erro ao salvar obra:", err);
+        if (!silencioso) flash("Não foi possível salvar na nuvem");
+      }
+    },
+    [flash, user]
+  );
+
   const handleSalvarApontamentoAvanco = useCallback(
     async (atividadeId, novoAvanco, apontamentoData) => {
       if (!proj || !atividadeId) return;
@@ -355,46 +395,6 @@ export default function App() {
       }
     },
     [proj, user, salvar, flash]
-  );
-
-  const salvar = useCallback(
-    async (p, silencioso = false) => {
-      if (!p) return;
-      try {
-        const projetoComUser = {
-          ...p,
-          user_id: p.user_id || user?.id || null,
-        };
-
-        const savedProject = await apiClient.salvarProjeto(projetoComUser, user?.id);
-        if (!savedProject) {
-          throw new Error("Não foi possível sincronizar a obra com o servidor");
-        }
-
-        await storage.set(`lob:proj:${p.id}`, JSON.stringify(projetoComUser));
-        let idx = [];
-        try {
-          const r = await storage.get("lob:index");
-          idx = r ? JSON.parse(r.value) : [];
-        } catch {
-          idx = [];
-        }
-        const novo = [{ id: p.id, nome: p.nome, em: Date.now() }, ...idx.filter((e) => e.id !== p.id)];
-        await storage.set("lob:index", JSON.stringify(novo));
-        setSalvos((prev) =>
-          novo.map((item) => {
-            const ex = prev.find((x) => x.id === item.id);
-            return ex ? { ...item, nTorres: p.torres?.length ?? ex.nTorres, nAtividades: p.atividades?.length ?? ex.nAtividades } : { ...item, nTorres: p.torres?.length ?? 0, nAtividades: p.atividades?.length ?? 0 };
-          })
-        );
-
-        if (!silencioso) flash("Empreendimento salvo no Supabase");
-      } catch (err) {
-        console.error("Erro ao salvar obra:", err);
-        if (!silencioso) flash("Não foi possível salvar na nuvem");
-      }
-    },
-    [flash, user]
   );
 
   useEffect(() => {
