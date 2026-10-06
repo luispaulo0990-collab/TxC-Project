@@ -31,7 +31,6 @@ import { ModalNovaObra } from "./components/modals/ModalNovaObra";
 import { ModalAplicarMacrofluxo } from "./components/modals/ModalAplicarMacrofluxo";
 import { HomeScreen } from "./components/views/HomeScreen";
 import { AuthScreen } from "./components/views/AuthScreen";
-import { ModalGerenciarGrupo } from "./components/modals/ModalGerenciarGrupo";
 import { gerarAtividadesDoMacrofluxo, auditarIncoerenciasPredecessoras, getModelosPadraoMacrofluxo } from "./utils/macrofluxoUtils";
 import { apiClient } from "./utils/apiClient";
 import { obterSessao, logout, supabasePublic } from "./utils/supabaseClient";
@@ -42,8 +41,6 @@ import { Loader2 } from "lucide-react";
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [gruposUsuario, setGruposUsuario] = useState([]);
-  const [grupoAtivo, setGrupoAtivo] = useState(null);
   const [tela, setTela] = useState("home"); // "home" | "editor"
   const [proj, setProj] = useState(null);
   const [selId, setSelId] = useState(null);
@@ -67,26 +64,21 @@ export default function App() {
   const [exibirCruzamentos, setExibirCruzamentos] = useState(true);
 
   // ─── Perfil e Permissões do Usuário Logado ─────────────────
-  const grupoAtivoObj = useMemo(
-    () => gruposUsuario.find((g) => g.id === grupoAtivo),
-    [gruposUsuario, grupoAtivo]
-  );
+  const userRole = useMemo(() => {
+    const r = (
+      user?.role ||
+      user?.profile?.role ||
+      user?.perfil?.role ||
+      user?.app_metadata?.role ||
+      user?.user_metadata?.role ||
+      ""
+    ).toLowerCase();
 
-  const userRoleNoGrupo = useMemo(() => {
-    // 1. Cargo explícito no grupo ativo
-    if (grupoAtivoObj?.meu_role) return grupoAtivoObj.meu_role;
-    // 2. Cargo no primeiro grupo do usuário
-    if (gruposUsuario[0]?.meu_role) return gruposUsuario[0].meu_role;
-    // 3. Metadados do usuário/perfil
-    const metaRole = (user?.role || user?.app_metadata?.role || user?.user_metadata?.role || "").toLowerCase();
-    if (metaRole && metaRole !== "authenticated") return metaRole;
-    // 4. Se não há nenhum grupo cadastrado no sistema, liberar acesso para criar o primeiro grupo
-    if (!gruposUsuario || gruposUsuario.length === 0) return "dev";
-    // 5. Padrão restrito: member (somente visualização e exportação)
+    if (r === "dev" || r === "admin" || r === "member") return r;
     return "member";
-  }, [grupoAtivoObj, gruposUsuario, user]);
+  }, [user]);
 
-  const permissoes = usePermissao(userRoleNoGrupo);
+  const permissoes = usePermissao(userRole);
 
   const T = THEME[tema];
   const chartRef = useRef(null);
@@ -296,7 +288,7 @@ export default function App() {
     carregarMacrofluxos();
   }, [carregarMacrofluxos]);
 
-  const carregarGrupos = useCallback(async () => {
+  const sincronizarPerfil = useCallback(async () => {
     try {
       const token = sessionStorage.getItem("lob:auth_token") || localStorage.getItem("lob:auth_token");
       if (!token) return;
@@ -315,25 +307,14 @@ export default function App() {
       } catch (err) {
         console.warn("Erro ao sincronizar /api/auth/me:", err);
       }
-
-      const res = await fetch("/api/grupos", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setGruposUsuario(Array.isArray(data) ? data : []);
-        if (Array.isArray(data) && data.length === 1) {
-          setGrupoAtivo(data[0].id);
-        }
-      }
     } catch (e) {
-      console.warn("Erro ao carregar grupos:", e);
+      console.warn("Erro ao sincronizar perfil:", e);
     }
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    carregarGrupos();
+    sincronizarPerfil();
     carregarMacrofluxos();
     const params = new URLSearchParams(window.location.search);
     const obraId = params.get("obra") || params.get("p") || params.get("projeto");
@@ -342,14 +323,12 @@ export default function App() {
     } else {
       listar();
     }
-  }, [user, listar, carregarGrupos, carregarMacrofluxos]);
+  }, [user, listar, sincronizarPerfil, carregarMacrofluxos]);
 
   const handleLogout = async () => {
     await logout();
     setUser(null);
     setProj(null);
-    setGruposUsuario([]);
-    setGrupoAtivo(null);
     setTela("home");
     flash("Sessão encerrada com sucesso");
   };
@@ -1371,15 +1350,11 @@ export default function App() {
           projAtualId={proj?.id}
           tema={tema}
           user={user}
-          userRole={userRoleNoGrupo}
-          grupos={gruposUsuario}
-          grupoAtivo={grupoAtivo}
-          onGrupoChange={setGrupoAtivo}
+          userRole={userRole}
           onLogout={handleLogout}
           onSelecionarObra={selecionarObra}
           onNovaObra={() => setModal("novaObra")}
           onExcluirObra={pedirExcluirObra}
-          onGerenciarGrupos={() => setModal("gerenciarGrupo")}
         />
         {modal === "novaObra" && (
           <ModalNovaObra
@@ -1387,16 +1362,6 @@ export default function App() {
             tema={tema}
             onClose={() => setModal(null)}
             onCriar={criarNovaObra}
-          />
-        )}
-        {modal === "gerenciarGrupo" && (
-          <ModalGerenciarGrupo
-            tema={tema}
-            grupos={gruposUsuario}
-            userRole={userRoleNoGrupo}
-            userId={user?.id}
-            onClose={() => setModal(null)}
-            onRefresh={() => { carregarGrupos(); listar(); }}
           />
         )}
         {modalConfirmacao && (
@@ -1442,7 +1407,7 @@ export default function App() {
         onVoltarHome={voltarParaHome}
         onLogout={handleLogout}
         user={user}
-        userRole={userRoleNoGrupo}
+        userRole={userRole}
         permissoes={permissoes}
       />
 

@@ -10,67 +10,33 @@ router.use(optionalJwtMiddleware);
 /**
  * Obtém o cargo efetivo do usuário: 'dev' | 'admin' | 'member'
  */
-async function getUserRole(req, projetoId = null, grupoId = null) {
+async function getUserRole(req) {
   const userId = req.user?.sub || req.user?.id;
   if (!userId) {
     return 'member';
   }
 
-  // 1. Metadados do token JWT (auth)
-  const metaRole = (req.user?.app_metadata?.role || req.user?.user_metadata?.role || req.user?.role || '').toLowerCase();
-  if (metaRole === 'dev') return 'dev';
-  if (metaRole === 'admin') return 'admin';
-
-  // 2. Tabela public.profiles
+  // 1. Tabela public.profiles (fonte oficial)
   try {
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
     if (profile?.role) {
       const pRole = profile.role.toLowerCase();
       if (pRole === 'dev') return 'dev';
       if (pRole === 'admin') return 'admin';
+      if (pRole === 'member') return 'member';
     }
-  } catch {}
-
-  // 3. Papel em grupo específico associado ao projeto
-  let gId = grupoId;
-  if (!gId && projetoId) {
-    try {
-      const proj = await projetosRepository.getById(projetoId);
-      gId = proj?.grupo_id;
-    } catch {}
+  } catch (err) {
+    console.warn('Erro ao consultar profile em getUserRole:', err);
   }
 
-  if (gId) {
-    try {
-      const { data: membro } = await supabaseAdmin
-        .from('grupo_membros')
-        .select('role')
-        .eq('grupo_id', gId)
-        .eq('user_id', userId)
-        .single();
-      if (membro?.role) {
-        const mRole = membro.role.toLowerCase();
-        if (mRole === 'dev') return 'dev';
-        if (mRole === 'admin') return 'admin';
-      }
-    } catch {}
-  }
-
-  // 4. Se o usuário tiver cargo 'dev' ou 'admin' em qualquer grupo registrado
-  try {
-    const { data: membros } = await supabaseAdmin
-      .from('grupo_membros')
-      .select('role')
-      .eq('user_id', userId);
-    if (Array.isArray(membros) && membros.length > 0) {
-      if (membros.some((m) => m.role?.toLowerCase() === 'dev')) return 'dev';
-      if (membros.some((m) => m.role?.toLowerCase() === 'admin')) return 'admin';
-    }
-  } catch {}
+  // 2. Metadados do token JWT (auth)
+  const metaRole = (req.user?.app_metadata?.role || req.user?.user_metadata?.role || req.user?.role || '').toLowerCase();
+  if (metaRole === 'dev') return 'dev';
+  if (metaRole === 'admin') return 'admin';
 
   return 'member';
 }
@@ -102,7 +68,7 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const userId = req.user?.sub || req.user?.id || req.body.user_id || null;
-    const role = await getUserRole(req, req.params.id, req.body.grupo_id);
+    const role = await getUserRole(req);
     
     if (role === 'member') {
       return res.status(403).json({
@@ -122,7 +88,7 @@ router.put('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const userId = req.user?.sub || req.user?.id || req.body.user_id || null;
-    const role = await getUserRole(req, req.body.id, req.body.grupo_id);
+    const role = await getUserRole(req);
 
     if (role === 'member') {
       return res.status(403).json({

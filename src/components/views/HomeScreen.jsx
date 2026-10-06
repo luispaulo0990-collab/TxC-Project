@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   Plus, Building2, Trash2, Calendar, Layers, ChevronRight,
-  FolderOpen, LogOut, User, Users, Crown, Code2, Eye, Settings
+  FolderOpen, LogOut, User, Crown, Code2, Eye
 } from "lucide-react";
 import { ORANGE, BLACK, FONT } from "../../constants/theme";
 import { calcularPermissao } from "../../hooks/usePermissao";
@@ -45,7 +45,7 @@ function dataRelativa(ts) {
 }
 
 /* ─── Card de Obra ───────────────────────────────────────────── */
-function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir, grupoAtivo }) {
+function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir }) {
   const [hovered, setHovered] = useState(false);
 
   const isDark = tema === "escuro";
@@ -55,9 +55,6 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir, grupoA
   const border = isAtiva ? ORANGE : (isDark ? "#33352F" : "#E2E2DF");
   const textColor = isDark ? "#ECEDEB" : BLACK;
   const mutedColor = isDark ? "#9DA098" : "#6A6E69";
-
-  // Checar se a obra pertence ao grupo ativo (e não ao próprio usuário)
-  const eDoGrupo = obra.grupo_id && grupoAtivo && obra.grupo_id === grupoAtivo;
 
   const handleDelete = (e) => {
     e.stopPropagation();
@@ -97,19 +94,6 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir, grupoA
           textTransform: "uppercase",
         }}>
           Ativa
-        </div>
-      )}
-
-      {/* Badge "Grupo" */}
-      {eDoGrupo && !isAtiva && (
-        <div style={{
-          position: "absolute", top: 12, right: 12,
-          background: "rgba(59,130,246,0.12)", color: "#3B82F6",
-          fontSize: 10, fontWeight: 700,
-          padding: "2px 8px", borderRadius: 99,
-          display: "flex", alignItems: "center", gap: 4,
-        }}>
-          <Users size={10} /> Grupo
         </div>
       )}
 
@@ -245,10 +229,8 @@ function NovaObraCard({ onClick, tema }) {
 
 /* ─── Tela Principal ─────────────────────────────────────────── */
 export function HomeScreen({
-  salvos, projAtualId, tema, user, userRole, grupos,
-  grupoAtivo, onGrupoChange,
+  salvos, projAtualId, tema, user, userRole,
   onLogout, onSelecionarObra, onNovaObra, onExcluirObra,
-  onGerenciarGrupos,
 }) {
   const isDark = tema === "escuro";
   const bg = isDark ? "#111310" : "#ECEDEB";
@@ -303,24 +285,6 @@ export function HomeScreen({
               <span>{user.email || user.user_metadata?.email || "Usuário"}</span>
             </div>
 
-            {/* Gerenciar grupos e membros (disponível para Admin, Dev ou configuração inicial) */}
-            {(perm.podeGerenciar || userRole === "admin" || userRole === "dev" || !grupos || grupos.length === 0) && onGerenciarGrupos && (
-              <button
-                onClick={onGerenciarGrupos}
-                title="Gerenciar grupos e membros"
-                style={{
-                  background: "rgba(254,80,0,0.15)",
-                  border: "1px solid rgba(254,80,0,0.35)",
-                  color: "#FE5000", padding: "5px 12px", borderRadius: 8,
-                  fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center",
-                  gap: 6, cursor: "pointer", transition: "all 0.15s",
-                }}
-              >
-                <Settings size={14} />
-                <span>Grupos</span>
-              </button>
-            )}
-
             {onLogout && (
               <button
                 onClick={onLogout}
@@ -347,7 +311,7 @@ export function HomeScreen({
         margin: "0 auto", padding: "48px 32px",
       }}>
 
-        {/* Saudação + seletor de grupo */}
+        {/* Saudação */}
         <div style={{ marginBottom: 40, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
             <h1 style={{
@@ -362,27 +326,6 @@ export function HomeScreen({
                 : "Nenhuma obra criada ainda · comece criando sua primeira obra"}
             </p>
           </div>
-
-          {/* Seletor de grupo (se membro de mais de 1) */}
-          {grupos && grupos.length > 1 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Users size={14} color={mutedColor} />
-              <select
-                value={grupoAtivo ?? ""}
-                onChange={(e) => onGrupoChange?.(e.target.value || null)}
-                style={{
-                  padding: "6px 12px", borderRadius: 8,
-                  border: `1.5px solid ${border}`, background: subtleColor,
-                  color: textColor, fontSize: 12, fontFamily: FONT, cursor: "pointer",
-                }}
-              >
-                <option value="">Todos os grupos</option>
-                {grupos.map((g) => (
-                  <option key={g.id} value={g.id}>{g.nome}</option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
 
         {/* Grid de obras */}
@@ -404,7 +347,6 @@ export function HomeScreen({
               onExcluir={() => onExcluirObra(obra.id)}
               tema={tema}
               podeExcluir={podeExcluir}
-              grupoAtivo={grupoAtivo}
             />
           ))}
         </div>
