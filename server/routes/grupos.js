@@ -4,11 +4,11 @@ import { gruposRepository } from '../repositories/gruposRepository.js';
 
 const router = Router();
 
-/** Verifica se o usuário logado é admin do grupo especificado */
+/** Verifica se o usuário logado é admin ou dev do grupo especificado */
 async function assertAdmin(grupoId, userId, res) {
   const role = await gruposRepository.getRoleNoGrupo(grupoId, userId);
-  if (role !== 'admin') {
-    res.status(403).json({ error: 'Apenas admins podem realizar esta ação.' });
+  if (role !== 'admin' && role !== 'dev') {
+    res.status(403).json({ error: 'Apenas administradores ou desenvolvedores podem realizar esta ação.' });
     return false;
   }
   return true;

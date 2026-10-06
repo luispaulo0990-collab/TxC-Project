@@ -33,6 +33,7 @@ export const PropertiesPanel = ({
   onExcluir,
   onAbrirModalApontar,
   user,
+  podeEditar = true,
 }) => {
   if (!showProps) {
     return (
@@ -89,13 +90,22 @@ export const PropertiesPanel = ({
 
         return (
           <div className="p-4">
+            {!podeEditar && (
+              <div
+                className="mb-3 py-1 px-2.5 rounded-md text-[10.5px] font-bold text-center uppercase tracking-wider"
+                style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981", border: "1px solid rgba(16, 185, 129, 0.25)" }}
+              >
+                Modo Visualizador (Somente Leitura)
+              </div>
+            )}
             <div className="flex items-start gap-2 mb-4 pr-6">
               <div className="w-1 self-stretch rounded-xs" style={{ background: sel.cor }} />
               <input
                 value={sel.nome}
+                readOnly={!podeEditar}
                 onChange={(e) => upA(sel.id, { nome: e.target.value })}
                 className="flex-1 text-sm bg-transparent outline-none py-0.5 font-bold"
-                style={{ color: T.text }}
+                style={{ color: T.text, cursor: podeEditar ? "text" : "default" }}
               />
             </div>
 
@@ -260,7 +270,7 @@ export const PropertiesPanel = ({
                   )}
 
                   {/* Botão de Apontamento com Mão de Obra */}
-                  {onAbrirModalApontar && (
+                  {onAbrirModalApontar && podeEditar && (
                     <button
                       type="button"
                       onClick={() => onAbrirModalApontar(sel)}
@@ -275,30 +285,32 @@ export const PropertiesPanel = ({
                   )}
 
                   {/* Botões rápidos */}
-                  <div className="flex gap-1 mb-2">
-                    {[0, 25, 50, 75, 100].map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => {
-                          const patch = { avanco: v };
-                          if (v === 100 && !sel.realFim) patch.realFim = iso(hoje());
-                          if (v > 0 && !sel.realIni) patch.realIni = iso(hoje());
-                          if (v === 0) { patch.realIni = null; patch.realFim = null; }
-                          upA(sel.id, patch);
-                        }}
-                        className="flex-1 py-1 text-xs font-bold rounded-xs transition-colors"
-                        style={{
-                          ...NUM,
-                          background: avancoAtual === v ? corStatus : T.panel,
-                          color: avancoAtual === v ? "#ffffff" : T.text,
-                          border: `1px solid ${avancoAtual === v ? corStatus : T.line}`,
-                        }}
-                      >
-                        {v}%
-                      </button>
-                    ))}
-                  </div>
+                  {podeEditar && (
+                    <div className="flex gap-1 mb-2">
+                      {[0, 25, 50, 75, 100].map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => {
+                            const patch = { avanco: v };
+                            if (v === 100 && !sel.realFim) patch.realFim = iso(hoje());
+                            if (v > 0 && !sel.realIni) patch.realIni = iso(hoje());
+                            if (v === 0) { patch.realIni = null; patch.realFim = null; }
+                            upA(sel.id, patch);
+                          }}
+                          className="flex-1 py-1 text-xs font-bold rounded-xs transition-colors"
+                          style={{
+                            ...NUM,
+                            background: avancoAtual === v ? corStatus : T.panel,
+                            color: avancoAtual === v ? "#ffffff" : T.text,
+                            border: `1px solid ${avancoAtual === v ? corStatus : T.line}`,
+                          }}
+                        >
+                          {v}%
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Slider de Avanço */}
                   <input
@@ -307,6 +319,7 @@ export const PropertiesPanel = ({
                     max="100"
                     step="5"
                     value={avancoAtual}
+                    disabled={!podeEditar}
                     onChange={(e) => upA(sel.id, { avanco: Number(e.target.value) })}
                     className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-600 mb-2"
                   />
@@ -479,22 +492,24 @@ export const PropertiesPanel = ({
               user={user}
             />
 
-            <div className="flex gap-1.5 mt-4">
-              <button
-                onClick={() => onDuplicar(sel)}
-                className="flex-1 py-2 text-xs flex items-center justify-center gap-1.5 rounded transition-colors hover:brightness-95"
-                style={{ border: `1px solid ${T.line}`, color: T.text, background: T.raised }}
-              >
-                <Copy size={12} /> Duplicar
-              </button>
-              <button
-                onClick={() => onExcluir(sel.id)}
-                className="flex-1 py-2 text-xs flex items-center justify-center gap-1.5 rounded transition-colors hover:bg-red-50"
-                style={{ border: `1px solid ${T.line}`, color: ERRO, background: T.raised }}
-              >
-                <Trash2 size={12} /> Excluir
-              </button>
-            </div>
+            {podeEditar && (
+              <div className="flex gap-1.5 mt-4">
+                <button
+                  onClick={() => onDuplicar(sel)}
+                  className="flex-1 py-2 text-xs flex items-center justify-center gap-1.5 rounded transition-colors hover:brightness-95"
+                  style={{ border: `1px solid ${T.line}`, color: T.text, background: T.raised }}
+                >
+                  <Copy size={12} /> Duplicar
+                </button>
+                <button
+                  onClick={() => onExcluir(sel.id)}
+                  className="flex-1 py-2 text-xs flex items-center justify-center gap-1.5 rounded transition-colors hover:bg-red-50"
+                  style={{ border: `1px solid ${T.line}`, color: ERRO, background: T.raised }}
+                >
+                  <Trash2 size={12} /> Excluir
+                </button>
+              </div>
+            )}
           </div>
         );
       })()}

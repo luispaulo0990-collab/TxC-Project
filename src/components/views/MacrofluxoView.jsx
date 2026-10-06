@@ -40,6 +40,7 @@ export const MacrofluxoView = ({
   onExcluirMacrofluxo,
   onVoltar,
   onAplicarTorre,
+  podeEditar = true,
 }) => {
   // Lista local estável de macrofluxos para edição com resposta imediata (0ms lag, zero flicker)
   const [macros, setMacros] = useState(() => {
@@ -250,14 +251,16 @@ export const MacrofluxoView = ({
               <Database size={10} /> Biblioteca Global
             </span>
           </div>
-          <button
-            onClick={novoMacrofluxo}
-            className="p-1.5 rounded transition-all hover:brightness-110 active:scale-95 flex items-center justify-center text-white shadow-xs"
-            style={{ background: ORANGE }}
-            title="Criar novo macrofluxo global"
-          >
-            <Plus size={16} />
-          </button>
+          {podeEditar && (
+            <button
+              onClick={novoMacrofluxo}
+              className="p-1.5 rounded transition-all hover:brightness-110 active:scale-95 flex items-center justify-center text-white shadow-xs"
+              style={{ background: ORANGE }}
+              title="Criar novo macrofluxo global"
+            >
+              <Plus size={16} />
+            </button>
+          )}
         </div>
 
         {/* Botão de carregar modelo se estiver vazio */}
@@ -378,42 +381,48 @@ export const MacrofluxoView = ({
                 />
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <button
-                  onClick={handleSalvarManual}
-                  disabled={salvando}
-                  className="px-3.5 py-2 text-xs font-semibold rounded flex items-center gap-1.5 transition-all border hover:bg-black/5 active:scale-95"
-                  style={{ borderColor: T.line, color: T.text, background: T.raised }}
-                  title="Salvar alterações imediatamente no banco de dados"
-                >
-                  {salvando ? <RefreshCw size={13} className="animate-spin text-amber-500" /> : <Save size={13} className="text-emerald-500" />}
-                  <span>{salvando ? "Salvando..." : "Salvar no Banco"}</span>
-                </button>
-                <button
-                  onClick={async () => {
-                    if (selMacro && onSalvarMacrofluxo) {
-                      try {
-                        await onSalvarMacrofluxo(selMacro);
-                      } catch {}
-                    }
-                    if (onAplicarTorre && selMacro) {
-                      onAplicarTorre(selMacro.id);
-                    }
-                  }}
-                  className="px-4 py-2 text-xs font-bold rounded flex items-center gap-1.5 text-white shadow-sm transition-all hover:brightness-110 active:scale-95"
-                  style={{ background: ORANGE }}
-                  title="Gerar as atividades deste macrofluxo em uma torre da obra"
-                >
-                  <Zap size={14} /> Aplicar na Obra / Torre
-                </button>
-                <button
-                  onClick={novaAtividadePadrao}
-                  className="px-3 py-2 text-xs font-semibold rounded flex items-center gap-1.5 transition-colors border hover:bg-black/5"
-                  style={{ borderColor: T.line, color: T.text, background: T.raised }}
-                >
-                  <Plus size={14} /> Nova Atividade
-                </button>
-              </div>
+              {podeEditar ? (
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleSalvarManual}
+                    disabled={salvando}
+                    className="px-3.5 py-2 text-xs font-semibold rounded flex items-center gap-1.5 transition-all border hover:bg-black/5 active:scale-95"
+                    style={{ borderColor: T.line, color: T.text, background: T.raised }}
+                    title="Salvar alterações imediatamente no banco de dados"
+                  >
+                    {salvando ? <RefreshCw size={13} className="animate-spin text-amber-500" /> : <Save size={13} className="text-emerald-500" />}
+                    <span>{salvando ? "Salvando..." : "Salvar no Banco"}</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (selMacro && onSalvarMacrofluxo) {
+                        try {
+                          await onSalvarMacrofluxo(selMacro);
+                        } catch {}
+                      }
+                      if (onAplicarTorre && selMacro) {
+                        onAplicarTorre(selMacro.id);
+                      }
+                    }}
+                    className="px-4 py-2 text-xs font-bold rounded flex items-center gap-1.5 text-white shadow-sm transition-all hover:brightness-110 active:scale-95"
+                    style={{ background: ORANGE }}
+                    title="Gerar as atividades deste macrofluxo em uma torre da obra"
+                  >
+                    <Zap size={14} /> Aplicar na Obra / Torre
+                  </button>
+                  <button
+                    onClick={novaAtividadePadrao}
+                    className="px-3 py-2 text-xs font-semibold rounded flex items-center gap-1.5 transition-colors border hover:bg-black/5"
+                    style={{ borderColor: T.line, color: T.text, background: T.raised }}
+                  >
+                    <Plus size={14} /> Nova Atividade
+                  </button>
+                </div>
+              ) : (
+                <div className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+                  Modo Leitura
+                </div>
+              )}
             </div>
 
             {/* Auditoria de Incoerências de Predecessoras */}

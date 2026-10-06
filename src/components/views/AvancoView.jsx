@@ -45,6 +45,8 @@ export const AvancoView = ({
   onIrParaHistograma,
   flash,
   user,
+  podeEditar = true,
+  podeImportar = true,
 }) => {
   const [filtroTorre, setFiltroTorre] = useState("TODAS");
   const [filtroStatus, setFiltroStatus] = useState("TODAS"); // TODAS | EM_ANDAMENTO | CONCLUIDAS | NAO_INICIADAS | ATRASADAS
@@ -228,21 +230,25 @@ export const AvancoView = ({
                 <Users size={13} /> Histograma de Mão de Obra
               </button>
             )}
-            <button
-              onClick={() => onAbrirImport("avanco")}
-              className="text-xs px-3 py-1.5 rounded flex items-center gap-1.5 font-semibold transition-colors border shadow-xs hover:brightness-95"
-              style={{ background: T.raised, borderColor: T.line, color: T.text }}
-            >
-              <Upload size={13} style={{ color: OK }} /> Importar Avanço (.xlsx)
-            </button>
-            <button
-              onClick={() => exportarModeloAvanco({ proj, torreId: filtroTorre, flash })}
-              className="text-xs px-2.5 py-1.5 rounded flex items-center gap-1.5 transition-colors border hover:bg-black/5"
-              style={{ background: T.raised, borderColor: T.line, color: T.muted }}
-              title="Baixar modelo de planilha para preenchimento de avanço"
-            >
-              <FileSpreadsheet size={13} /> Modelo
-            </button>
+            {podeImportar && (
+              <>
+                <button
+                  onClick={() => onAbrirImport("avanco")}
+                  className="text-xs px-3 py-1.5 rounded flex items-center gap-1.5 font-semibold transition-colors border shadow-xs hover:brightness-95"
+                  style={{ background: T.raised, borderColor: T.line, color: T.text }}
+                >
+                  <Upload size={13} style={{ color: OK }} /> Importar Avanço (.xlsx)
+                </button>
+                <button
+                  onClick={() => exportarModeloAvanco({ proj, torreId: filtroTorre, flash })}
+                  className="text-xs px-2.5 py-1.5 rounded flex items-center gap-1.5 transition-colors border hover:bg-black/5"
+                  style={{ background: T.raised, borderColor: T.line, color: T.muted }}
+                  title="Baixar modelo de planilha para preenchimento de avanço"
+                >
+                  <FileSpreadsheet size={13} /> Modelo
+                </button>
+              </>
+            )}
             <button
               onClick={exportarRelatorioAvancoExcel}
               className="text-xs px-3 py-1.5 rounded flex items-center gap-1.5 font-bold transition-all hover:brightness-110 text-white shadow-xs"
@@ -528,50 +534,66 @@ export const AvancoView = ({
                     </div>
                   </div>
 
-                  {/* Ações Rápidas de Percentual */}
+                  {/* Ações Rápidas de Percentual ou Visualização */}
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {[0, 25, 50, 75, 100].map((pct) => (
-                      <button
-                        key={pct}
-                        type="button"
-                        onClick={() => atualizarAtividade(a.id, { avanco: pct })}
-                        className="text-xs px-2.5 py-1 rounded font-bold transition-all hover:scale-105"
+                    {podeEditar ? (
+                      <>
+                        {[0, 25, 50, 75, 100].map((pct) => (
+                          <button
+                            key={pct}
+                            type="button"
+                            onClick={() => atualizarAtividade(a.id, { avanco: pct })}
+                            className="text-xs px-2.5 py-1 rounded font-bold transition-all hover:scale-105"
+                            style={{
+                              ...NUM,
+                              background: a.avanco === pct ? (pct === 100 ? OK : ORANGE) : T.raised,
+                              color: a.avanco === pct ? "#ffffff" : T.text,
+                              border: `1px solid ${a.avanco === pct ? "transparent" : T.line}`,
+                            }}
+                          >
+                            {pct}%
+                          </button>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const prox = Math.min(100, Math.round(a.avanco + (100 / Math.max(1, a.totalPavs))));
+                            atualizarAtividade(a.id, { avanco: prox });
+                          }}
+                          className="text-xs px-2.5 py-1 rounded font-bold transition-all border flex items-center gap-1 hover:brightness-95"
+                          style={{ background: T.raised, borderColor: T.line, color: ORANGE }}
+                          title="Avançar 1 pavimento no progresso"
+                        >
+                          <ArrowUpRight size={12} /> +1 Pav
+                        </button>
+
+                        {onAbrirModalApontar && (
+                          <button
+                            type="button"
+                            onClick={() => onAbrirModalApontar(a)}
+                            className="text-xs px-3 py-1 rounded font-bold text-white flex items-center gap-1.5 transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
+                            style={{
+                              background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
+                            }}
+                            title="Registrar avanço físico com detalhamento de homens e cargos para o Histograma"
+                          >
+                            <Users size={12} /> Apontar com Equipe
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <span
+                        className="text-xs px-3 py-1 rounded-md font-bold"
                         style={{
                           ...NUM,
-                          background: a.avanco === pct ? (pct === 100 ? OK : ORANGE) : T.raised,
-                          color: a.avanco === pct ? "#ffffff" : T.text,
-                          border: `1px solid ${a.avanco === pct ? "transparent" : T.line}`,
+                          background: a.avanco === 100 ? `${OK}20` : `${ORANGE}20`,
+                          color: a.avanco === 100 ? OK : ORANGE,
+                          border: `1px solid ${a.avanco === 100 ? `${OK}40` : `${ORANGE}40`}`,
                         }}
                       >
-                        {pct}%
-                      </button>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const prox = Math.min(100, Math.round(a.avanco + (100 / Math.max(1, a.totalPavs))));
-                        atualizarAtividade(a.id, { avanco: prox });
-                      }}
-                      className="text-xs px-2.5 py-1 rounded font-bold transition-all border flex items-center gap-1 hover:brightness-95"
-                      style={{ background: T.raised, borderColor: T.line, color: ORANGE }}
-                      title="Avançar 1 pavimento no progresso"
-                    >
-                      <ArrowUpRight size={12} /> +1 Pav
-                    </button>
-
-                    {onAbrirModalApontar && (
-                      <button
-                        type="button"
-                        onClick={() => onAbrirModalApontar(a)}
-                        className="text-xs px-3 py-1 rounded font-bold text-white flex items-center gap-1.5 transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
-                        style={{
-                          background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
-                        }}
-                        title="Registrar avanço físico com detalhamento de homens e cargos para o Histograma"
-                      >
-                        <Users size={12} /> Apontar com Equipe
-                      </button>
+                        {a.avanco}% realizado
+                      </span>
                     )}
 
                     {onSelectAtividade && (

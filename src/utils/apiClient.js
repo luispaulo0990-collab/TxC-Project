@@ -115,6 +115,10 @@ export const apiClient = {
         headers: getAuthHeaders(),
         body: JSON.stringify(projetoComUser)
       });
+      if (res.status === 403 || res.status === 401) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error || 'Acesso negado: você não tem permissão para alterar esta obra.');
+      }
       if (res.ok) {
         const data = await res.json();
         if (data) return data;
@@ -123,6 +127,9 @@ export const apiClient = {
         proxyError = new Error(`Proxy error (${res.status}): ${errText}`);
       }
     } catch (err) {
+      if (err.message && err.message.includes('Acesso negado')) {
+        throw err;
+      }
       proxyError = err;
       console.warn('apiClient.salvarProjeto proxy error, tentando Supabase direto:', err);
     }
@@ -229,10 +236,17 @@ export const apiClient = {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
+      if (res.status === 403 || res.status === 401) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error || 'Acesso negado: apenas desenvolvedores (Dev) podem excluir obras.');
+      }
       if (res.ok) {
         return await res.json();
       }
     } catch (err) {
+      if (err.message && err.message.includes('Acesso negado')) {
+        throw err;
+      }
       console.warn('apiClient.excluirProjeto proxy error, tentando Supabase direto:', err);
     }
 

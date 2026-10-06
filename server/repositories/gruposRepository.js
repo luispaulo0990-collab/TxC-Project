@@ -95,15 +95,15 @@ export const gruposRepository = {
 
   /** Deleta grupo inteiro (apenas criador/admin) */
   async deletarGrupo(grupoId, userId) {
-    // Verificar se é admin
+    // Verificar se é admin ou dev
     const { data: membro } = await supabaseAdmin
       .from('grupo_membros')
       .select('role')
       .eq('grupo_id', grupoId)
       .eq('user_id', userId)
       .single();
-    if (!membro || membro.role !== 'admin') {
-      throw new Error('Apenas admins podem deletar grupos.');
+    if (!membro || (membro.role !== 'admin' && membro.role !== 'dev')) {
+      throw new Error('Apenas administradores e desenvolvedores podem deletar grupos.');
     }
     const { error } = await supabaseAdmin.from('grupos').delete().eq('id', grupoId);
     if (error) throw error;

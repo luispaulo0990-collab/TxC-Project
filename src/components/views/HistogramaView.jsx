@@ -92,6 +92,7 @@ export const HistogramaView = ({
   onSelectAtividade,
   flash,
   user,
+  podeEditar = true,
 }) => {
   const [filtroTorre, setFiltroTorre] = useState(filtroTorreInicial);
   const [buscaAtividade, setBuscaAtividade] = useState("");
@@ -596,7 +597,7 @@ export const HistogramaView = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {onAbrirModalApontar && (
+            {onAbrirModalApontar && podeEditar && (
               <button
                 onClick={() => onAbrirModalApontar()}
                 className="text-xs px-3.5 py-2 rounded-xl font-bold text-white flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"

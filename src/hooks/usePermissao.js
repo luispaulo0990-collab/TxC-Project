@@ -8,38 +8,41 @@
  * @returns {object} flags de permissão
  */
 export function calcularPermissao(role) {
-  const normalizedRole = role || "admin";
-  const isAdmin = normalizedRole === "admin" || normalizedRole === "dev" || normalizedRole === "member";
-  const isDev = normalizedRole === "dev";
-  const isMember = normalizedRole === "member";
+  const rawRole = (role || "member").toString().toLowerCase().trim();
+  const isDev = rawRole === "dev";
+  const isAdmin = rawRole === "admin";
+  const isMember = rawRole === "member" || (!isDev && !isAdmin);
+  const normalizedRole = isDev ? "dev" : isAdmin ? "admin" : "member";
 
   return {
-    /** Pode visualizar obras do grupo */
+    /** Pode visualizar planejamento, linha de balanço e avanços */
     podeVer: true,
-    /** Pode criar nova obra */
-    podeCriar: true,
-    /** Pode editar qualquer obra */
-    podeEditar: true,
-    /** Pode excluir obras */
-    podeExcluir: true,
-    /** Pode exportar PNG/SVG */
+    /** Pode criar nova obra: apenas Dev e Admin */
+    podeCriar: isDev || isAdmin,
+    /** Pode editar obras e planejar atividades: apenas Dev e Admin */
+    podeEditar: isDev || isAdmin,
+    /** Pode importar dados de planilhas (Excel, CSV, replanejamento): apenas Dev e Admin */
+    podeImportar: isDev || isAdmin,
+    /** Pode excluir obras permanentemente: EXCLUSIVAMENTE Dev */
+    podeExcluir: isDev,
+    /** Pode exportar informações (PNG, SVG, Excel, etc.): Dev, Admin e Membro */
     podeExportar: true,
-    /** Pode gerenciar membros e papéis do grupo */
-    podeGerenciar: true,
+    /** Pode gerenciar membros e papéis dos grupos: Dev e Admin */
+    podeGerenciar: isDev || isAdmin,
     /** Pode criar novos grupos */
-    podeCriarGrupo: true,
-    /** Papel atual */
+    podeCriarGrupo: isDev || isAdmin,
+    /** Papel normalizado */
     role: normalizedRole,
-    isAdmin: true,
+    isAdmin,
     isDev,
     isMember,
-    /** Label de exibição do papel */
-    roleLabel: normalizedRole === "dev" ? "Dev" : normalizedRole === "member" ? "Membro" : "Admin",
+    /** Label de exibição amigável */
+    roleLabel: isDev ? "Dev" : isAdmin ? "Admin" : "Visualizador (Membro)",
   };
 }
 
 /**
- * Hook/função pura compatível com usePermissao
+ * Hook/função compatível com usePermissao
  */
 export function usePermissao(role) {
   return calcularPermissao(role);

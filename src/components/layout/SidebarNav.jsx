@@ -42,6 +42,8 @@ export const SidebarNav = ({
   onVoltarHome,
   onLogout,
   user,
+  userRole,
+  permissoes,
 }) => {
   const navItems = [
     { id: "grafico", label: "Gráfico TxC", icon: Layers },
@@ -118,13 +120,15 @@ export const SidebarNav = ({
 
           <input
             value={proj?.nome || ""}
+            readOnly={permissoes && !permissoes.podeEditar}
             onChange={(e) => setProj((p) => ({ ...p, nome: e.target.value }))}
             className="text-[13px] outline-none py-1.5 px-2.5 rounded-xl font-semibold transition-all hover:bg-white/[0.08] focus:bg-white/[0.1] focus:ring-1 focus:ring-orange-500/50 border truncate text-white"
             style={{
               background: "rgba(255, 255, 255, 0.05)",
               borderColor: "rgba(255, 255, 255, 0.08)",
+              cursor: permissoes && !permissoes.podeEditar ? "default" : "text",
             }}
-            title="Clique para editar o nome da obra"
+            title={permissoes && !permissoes.podeEditar ? "Nome da Obra (somente leitura)" : "Clique para editar o nome da obra"}
             placeholder="Nome da Obra..."
           />
         </div>
@@ -248,10 +252,22 @@ export const SidebarNav = ({
                 <span className="text-xs font-semibold block truncate text-white">
                   {userNomeOuEmail}
                 </span>
-                <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                  Conectado
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span
+                    className="text-[9.5px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider"
+                    style={{
+                      background: userRole === "dev" ? "rgba(59,130,246,0.2)" : userRole === "admin" ? "rgba(254,80,0,0.2)" : "rgba(16,185,129,0.2)",
+                      color: userRole === "dev" ? "#60A5FA" : userRole === "admin" ? "#FE5000" : "#34D399",
+                    }}
+                  >
+                    {userRole === "dev" ? "Dev" : userRole === "admin" ? "Admin" : "Visualizador"}
+                  </span>
+                  {permissoes?.isMember && (
+                    <span className="text-[9.5px] text-white/40 font-medium">
+                      (Leitura)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             {onLogout && (

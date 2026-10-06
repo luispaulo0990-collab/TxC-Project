@@ -64,12 +64,15 @@ export const FlowlineChart = ({
   onMove,
   onUp,
   onDropActivity,
+  podeEditar = true,
+  podeImportar = true,
 }) => {
   const dataHoje = hoje();
   const xHoje = xOf(dataHoje);
 
   const handleDrop = (e) => {
     e.preventDefault();
+    if (!podeEditar) return;
     const actId = e.dataTransfer.getData("text/plain");
     if (!actId || !onDropActivity || !chartRef.current) return;
     const rect = chartRef.current.getBoundingClientRect();
@@ -221,7 +224,20 @@ export const FlowlineChart = ({
           <div className="h-5 w-px mx-0.5" style={{ background: T.line }} />
 
           {/* Ações no Canto Superior Direito: Importar, Exportar e Salvar Obra */}
-          {onAbrirModal && (
+          {!podeEditar && (
+            <span
+              className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+              style={{
+                background: "rgba(16, 185, 129, 0.12)",
+                color: "#10B981",
+                border: "1px solid rgba(16, 185, 129, 0.25)",
+              }}
+            >
+              Modo Visualizador
+            </span>
+          )}
+
+          {onAbrirModal && podeImportar && (
             <button
               onClick={() => onAbrirModal("importmenu")}
               className="px-2.5 py-1 text-[12.5px] flex items-center gap-1.5 rounded-lg font-semibold transition-all hover:bg-black/5 active:scale-95 cursor-pointer"
@@ -253,7 +269,7 @@ export const FlowlineChart = ({
             </button>
           )}
 
-          {onSalvar && (
+          {onSalvar && podeEditar && (
             <button
               onClick={() => onSalvar(proj)}
               className="px-3.5 py-1 text-[12.5px] flex items-center gap-1.5 rounded-lg font-bold transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer shadow-xs"
@@ -826,8 +842,8 @@ export const FlowlineChart = ({
                         </text>
                       )}
 
-                      {/* Controles e Pontas de Inclinação (quando selecionada) */}
-                      {on && (
+                      {/* Controles e Pontas de Inclinação (quando selecionada e com permissão) */}
+                      {on && podeEditar && (
                         <>
                           {/* Pílula Central de Inclinação / Velocidade */}
                           <g

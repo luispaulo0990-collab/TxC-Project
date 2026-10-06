@@ -66,6 +66,26 @@ export default function App() {
   const [exibirRealizado, setExibirRealizado] = useState(true);
   const [exibirCruzamentos, setExibirCruzamentos] = useState(true);
 
+  // ─── Perfil e Permissões do Usuário Logado ─────────────────
+  const grupoAtivoObj = useMemo(
+    () => gruposUsuario.find((g) => g.id === grupoAtivo),
+    [gruposUsuario, grupoAtivo]
+  );
+
+  const userRoleNoGrupo = useMemo(() => {
+    // 1. Cargo explícito no grupo ativo
+    if (grupoAtivoObj?.meu_role) return grupoAtivoObj.meu_role;
+    // 2. Cargo no primeiro grupo do usuário
+    if (gruposUsuario[0]?.meu_role) return gruposUsuario[0].meu_role;
+    // 3. Metadados do usuário/perfil
+    const metaRole = user?.app_metadata?.role || user?.user_metadata?.role || user?.role;
+    if (metaRole) return metaRole;
+    // 4. Padrão restrito: member (somente visualização e exportação)
+    return "member";
+  }, [grupoAtivoObj, gruposUsuario, user]);
+
+  const permissoes = usePermissao(userRoleNoGrupo);
+
   const T = THEME[tema];
   const chartRef = useRef(null);
   const axisRef = useRef(null);
@@ -180,6 +200,10 @@ export default function App() {
 
   const handleSalvarMacrofluxo = useCallback(async (macro) => {
     if (!macro || !macro.id) return null;
+    if (!permissoes.podeEditar) {
+      flash("Perfil de Membro possui acesso somente visualizador e não pode alterar macrofluxos.");
+      return null;
+    }
     try {
       const saved = await apiClient.salvarMacrofluxo(macro, user?.id);
       const resultado = saved || macro;
@@ -207,10 +231,14 @@ export default function App() {
       flash("Erro ao salvar macrofluxo no banco de dados.");
       throw err;
     }
-  }, [user?.id, flash]);
+  }, [user?.id, flash, permissoes.podeEditar]);
 
   const handleExcluirMacrofluxo = useCallback(async (id) => {
     if (!id) return;
+    if (!permissoes.podeEditar) {
+      flash("Perfil de Membro possui acesso somente visualizador e não pode excluir macrofluxos.");
+      return;
+    }
     try {
       await apiClient.excluirMacrofluxo(id);
       setMacrofluxos((prev) => prev.filter((m) => m.id !== id));
@@ -226,7 +254,7 @@ export default function App() {
       console.error("Erro ao excluir macrofluxo:", err);
       flash("Erro ao excluir macrofluxo do banco.");
     }
-  }, [flash]);
+  }, [flash, permissoes.podeEditar]);
 
   useEffect(() => {
     async function initAuth() {
@@ -300,6 +328,10 @@ export default function App() {
   const salvar = useCallback(
     async (p, silencioso = false) => {
       if (!p) return;
+      if (!permissoes.podeEditar) {
+        if (!silencioso) flash("Acesso somente visualizador: alterações não podem ser salvas.");
+        return;
+      }
       try {
         const projetoComUser = {
           ...p,
@@ -331,15 +363,19 @@ export default function App() {
         if (!silencioso) flash("Empreendimento salvo no Supabase");
       } catch (err) {
         console.error("Erro ao salvar obra:", err);
-        if (!silencioso) flash("Não foi possível salvar na nuvem");
+        if (!silencioso) flash(err.message || "Não foi possível salvar na nuvem");
       }
     },
-    [flash, user]
+    [flash, user, permissoes.podeEditar]
   );
 
   const handleSalvarApontamentoAvanco = useCallback(
     async (atividadeId, novoAvanco, apontamentoData) => {
       if (!proj || !atividadeId) return;
+      if (!permissoes.podeEditar) {
+        flash("Acesso somente visualizador: você não pode registrar apontamentos.");
+        return;
+      }
 
       const ativ = proj.atividades?.find((a) => a.id === atividadeId);
       if (!ativ) return;
@@ -394,7 +430,7 @@ export default function App() {
         flash("Apontamento registrado localmente.");
       }
     },
-    [proj, user, salvar, flash]
+    [proj, user, salvar, flash, permissoes.podeEditar]
   );
 
   useEffect(() => {
@@ -457,6 +493,10 @@ export default function App() {
   };
 
   const criarNovaObra = async (novoProjeto) => {
+    if (!permissoes.podeCriar) {
+      flash("Acesso negado: apenas administradores e desenvolvedores podem criar obras.");
+      return;
+    }
     const projetoComUser = {
       ...novoProjeto,
       user_id: user?.id || null,
@@ -473,6 +513,10 @@ export default function App() {
   };
 
   const excluirObra = async (id) => {
+    if (!permissoes.podeExcluir) {
+      flash("Acesso negado: apenas desenvolvedores (Dev) podem apagar obras.");
+      return;
+    }
     try {
       await storage.remove(`lob:proj:${id}`);
       const r = await storage.get("lob:index");
@@ -488,12 +532,16 @@ export default function App() {
         setTela("home");
       }
       flash("Obra excluída com sucesso");
-    } catch {
-      flash("Não foi possível excluir");
+    } catch (err) {
+      flash(err.message || "Não foi possível excluir");
     }
   };
 
   const pedirExcluirObra = (id) => {
+    if (!permissoes.podeExcluir) {
+      flash("Acesso negado: apenas desenvolvedores (Dev) podem apagar obras.");
+      return;
+    }
     const obra = salvos.find((s) => s.id === id) || (proj?.id === id ? proj : null);
     setModalConfirmacao({
       titulo: "Excluir Obra",
@@ -731,7 +779,8 @@ export default function App() {
   }, [proj]);
 
   /* ─── Ações de Atividades ───────────────────────────────────── */
-  const upA = (id, patch) =>
+  const upA = (id, patch) => {
+    if (!permissoes.podeEditar) return;
     setProj((p) => ({
       ...p,
       atividades: p.atividades.map((a) => {
@@ -744,11 +793,16 @@ export default function App() {
         return updated;
       }),
     }));
+  };
 
   const sel = proj ? (proj.atividades.find((a) => a.id === selId) || null) : null;
   const torreAtiva = () => proj ? (proj.torres.find((x) => x.id === filtroTorre) || proj.torres[0]) : null;
 
   const novaAtividade = () => {
+    if (!permissoes.podeEditar) {
+      flash("Acesso somente visualizador: não é possível criar atividades.");
+      return;
+    }
     const t = torreAtiva();
     const ls = proj.locais.filter((l) => l.torreId === t.id).sort((a, b) => a.ordem - b.ordem);
     if (!ls.length) return flash("Crie pavimentos antes de criar atividades");
@@ -778,17 +832,29 @@ export default function App() {
   };
 
   const duplicar = (a) => {
+    if (!permissoes.podeEditar) {
+      flash("Acesso somente visualizador: não é possível duplicar atividades.");
+      return;
+    }
     const n = { ...a, id: uid(), nome: a.nome + " (cópia)" };
     setProj((p) => ({ ...p, atividades: [...p.atividades, n] }));
     setSelId(n.id);
   };
 
   const excluir = (id) => {
+    if (!permissoes.podeEditar) {
+      flash("Acesso somente visualizador: não é possível excluir atividades.");
+      return;
+    }
     setProj((p) => ({ ...p, atividades: p.atividades.filter((a) => a.id !== id) }));
     if (selId === id) setSelId(null);
   };
 
   const pedirExcluirAtividade = (id) => {
+    if (!permissoes.podeEditar) {
+      flash("Acesso somente visualizador: não é possível excluir atividades.");
+      return;
+    }
     const ativ = proj?.atividades?.find((a) => a.id === id);
     if (!ativ) return;
     setModalConfirmacao({
@@ -807,6 +873,10 @@ export default function App() {
 
   /* ─── Importação de Planilha Excel / CSV ─────────────────────── */
   const abrirImport = (tipo) => {
+    if (!permissoes.podeImportar) {
+      flash("Perfil de Membro possui acesso somente visualizador e não pode importar dados.");
+      return;
+    }
     importTipo.current = tipo;
     if (tipo === "replanejamento") {
       setModal("replanejamento");
@@ -817,6 +887,10 @@ export default function App() {
 
   const importarArquivo = async (file) => {
     if (!file) return;
+    if (!permissoes.podeImportar) {
+      flash("Perfil de Membro possui acesso somente visualizador e não pode importar dados.");
+      return;
+    }
     const t = torreAtiva();
     const tipo = importTipo.current;
     try {
@@ -858,6 +932,7 @@ export default function App() {
   /* ─── Ajustes Diretos de Velocidade e Inclinação ────────────── */
   const ajustarVelocidade = useCallback(
     (id, novaVelocidade) => {
+      if (!permissoes.podeEditar) return;
       const a = proj ? proj.atividades.find((x) => x.id === id) : null;
       if (!a) return;
       const m = metrica(a);
@@ -867,18 +942,19 @@ export default function App() {
       const novaDataFim = iso(ajustarFimDeSemanaParaSegunda(addDays(D(a.dataIni), dias)));
       upA(id, { dataFim: novaDataFim });
     },
-    [proj?.atividades, metrica, upA]
+    [proj?.atividades, metrica, upA, permissoes.podeEditar]
   );
 
   const ajustarDias = useCallback(
     (id, novosDias) => {
+      if (!permissoes.podeEditar) return;
       const a = proj ? proj.atividades.find((x) => x.id === id) : null;
       if (!a) return;
       const d = Math.max(1, Number(novosDias) || 1);
       const novaDataFim = iso(ajustarFimDeSemanaParaSegunda(addDays(D(a.dataIni), d)));
       upA(id, { dataFim: novaDataFim });
     },
-    [proj?.atividades, upA]
+    [proj?.atividades, upA, permissoes.podeEditar]
   );
 
   /* ─── Arraste Interativo no Gráfico ─────────────────────────── */
@@ -888,6 +964,10 @@ export default function App() {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {}
     setSelId(a.id);
+    if (!permissoes.podeEditar) {
+      // Perfil de membro: apenas seleciona a atividade para inspeção
+      return;
+    }
     const m = metrica(a);
     drag.current = {
       id: a.id,
@@ -995,6 +1075,7 @@ export default function App() {
 
   /* ─── Arraste da Barra Lateral para o Gráfico ─────────────── */
   const handleDropActivityFromSidebar = (actId, offsetX, offsetY) => {
+    if (!permissoes.podeEditar) return;
     if (!proj || !proj.atividades) return;
     const a = proj.atividades.find((x) => x.id === actId);
     if (!a) return;
@@ -1061,6 +1142,10 @@ export default function App() {
 
   /* ─── Estrutura e Pavimentos ────────────────────────────────── */
   const gerarPavimentos = (torreId, { fundacao = true, subsolos = 0, tipo = 25, cobertura = true, tampa = true }) => {
+    if (!permissoes.podeEditar) {
+      flash("Acesso somente visualizador: não é possível alterar pavimentos.");
+      return;
+    }
     const ls = [];
     let o = 0;
     if (fundacao) ls.push({ id: uid(), torreId, nome: "Fundação", tipo: "FUNDACAO", ordem: o++ });
@@ -1080,6 +1165,10 @@ export default function App() {
   };
 
   const replicarTorre = (origemId, offset) => {
+    if (!permissoes.podeEditar) {
+      flash("Acesso somente visualizador: não é possível replicar torres.");
+      return;
+    }
     const orig = proj.torres.find((t) => t.id === origemId);
     const novaId = uid();
     const mapa = {};
@@ -1117,6 +1206,10 @@ export default function App() {
   };
 
   const aplicarMacrofluxo = ({ macrofluxoId, torreId, dataInicio, substituirExistentes }) => {
+    if (!permissoes.podeEditar) {
+      flash("Acesso somente visualizador: não é possível aplicar macrofluxos.");
+      return;
+    }
     try {
       const res = gerarAtividadesDoMacrofluxo({
         proj,
@@ -1138,6 +1231,10 @@ export default function App() {
   };
 
   const excluirTorre = (id) => {
+    if (!permissoes.podeEditar) {
+      flash("Acesso somente visualizador: não é possível excluir torres.");
+      return;
+    }
     if (proj.torres.length <= 1) return flash("O empreendimento precisa de ao menos uma torre");
     setProj((p) => ({
       ...p,
@@ -1149,6 +1246,10 @@ export default function App() {
   };
 
   const pedirExcluirTorre = (id) => {
+    if (!permissoes.podeEditar) {
+      flash("Acesso somente visualizador: não é possível excluir torres.");
+      return;
+    }
     if (proj.torres.length <= 1) return flash("O empreendimento precisa de ao menos uma torre");
     const t = proj.torres.find((x) => x.id === id);
     setModalConfirmacao({
@@ -1171,6 +1272,10 @@ export default function App() {
   };
 
   const addTorreVazia = () => {
+    if (!permissoes.podeEditar) {
+      flash("Acesso somente visualizador: não é possível adicionar torres.");
+      return;
+    }
     setProj((p) => ({
       ...p,
       torres: [...p.torres, { id: uid(), nome: `Torre ${p.torres.length + 1}`, offsetDias: 0, origem: null }],
@@ -1229,11 +1334,6 @@ export default function App() {
     );
   }
 
-  const grupoAtivoObj = gruposUsuario.find((g) => g.id === grupoAtivo);
-  const userRoleNoGrupo = grupoAtivoObj?.meu_role
-    ?? gruposUsuario[0]?.meu_role
-    ?? "admin";
-
   if (tela === "home" || !proj) {
     return (
       <>
@@ -1248,11 +1348,11 @@ export default function App() {
           onGrupoChange={setGrupoAtivo}
           onLogout={handleLogout}
           onSelecionarObra={selecionarObra}
-          onNovaObra={() => setModal("novaObra")}
+          onNovaObra={() => permissoes.podeCriar && setModal("novaObra")}
           onExcluirObra={pedirExcluirObra}
-          onGerenciarGrupos={() => setModal("gerenciarGrupo")}
+          onGerenciarGrupos={() => permissoes.podeGerenciar && setModal("gerenciarGrupo")}
         />
-        {modal === "novaObra" && (
+        {modal === "novaObra" && permissoes.podeCriar && (
           <ModalNovaObra
             T={T}
             tema={tema}
@@ -1260,7 +1360,7 @@ export default function App() {
             onCriar={criarNovaObra}
           />
         )}
-        {modal === "gerenciarGrupo" && (
+        {modal === "gerenciarGrupo" && permissoes.podeGerenciar && (
           <ModalGerenciarGrupo
             tema={tema}
             grupos={gruposUsuario}
@@ -1313,6 +1413,8 @@ export default function App() {
         onVoltarHome={voltarParaHome}
         onLogout={handleLogout}
         user={user}
+        userRole={userRoleNoGrupo}
+        permissoes={permissoes}
       />
 
       {/* ── Área de Conteúdo Central da Aplicação ── */}
@@ -1335,6 +1437,8 @@ export default function App() {
             onIrParaHistograma={() => setVista("histograma")}
             flash={flash}
             user={user}
+            podeEditar={permissoes.podeEditar}
+            podeImportar={permissoes.podeImportar}
           />
         ) : vista === "histograma" ? (
           <HistogramaView
@@ -1350,6 +1454,7 @@ export default function App() {
             }}
             flash={flash}
             user={user}
+            podeEditar={permissoes.podeEditar}
           />
         ) : vista === "resumo" ? (
           <Resumo
@@ -1394,6 +1499,7 @@ export default function App() {
                 torreId: filtroTorre !== "TODAS" ? filtroTorre : proj.torres[0]?.id,
               })
             }
+            podeEditar={permissoes.podeEditar}
           />
         ) : (
           <div className="flex-1 flex min-h-0 relative">
@@ -1419,6 +1525,8 @@ export default function App() {
               onAbrirModal={setModal}
               onExcluirTorre={pedirExcluirTorre}
               onAddTorreVazia={addTorreVazia}
+              podeEditar={permissoes.podeEditar}
+              podeImportar={permissoes.podeImportar}
             />
 
             {/* Gráfico Central de Linha de Balanço */}
@@ -1461,6 +1569,8 @@ export default function App() {
                 onMove={onMove}
                 onUp={onUp}
                 onDropActivity={handleDropActivityFromSidebar}
+                podeEditar={permissoes.podeEditar}
+                podeImportar={permissoes.podeImportar}
               />
 
               {/* Barra de Status e Alertas */}
@@ -1493,13 +1603,14 @@ export default function App() {
               onExcluir={pedirExcluirAtividade}
               onAbrirModalApontar={(ativ) => setModalApontar(ativ)}
               user={user}
+              podeEditar={permissoes.podeEditar}
             />
           </div>
         )}
       </div>
 
       {/* ── Modais ── */}
-      {modal === "importmenu" && (
+      {modal === "importmenu" && permissoes.podeImportar && (
         <ModalImportMenu
           T={T}
           torreNome={torreAtiva()?.nome}
@@ -1509,7 +1620,7 @@ export default function App() {
         />
       )}
 
-      {modal === "importar" && (
+      {modal === "importar" && permissoes.podeImportar && (
         <ModalImportar
           T={T}
           tipo={importTipo.current}
@@ -1538,7 +1649,7 @@ export default function App() {
         />
       )}
 
-      {modal === "replicar" && (
+      {modal === "replicar" && permissoes.podeEditar && (
         <ModalReplicar
           T={T}
           proj={proj}
@@ -1547,7 +1658,7 @@ export default function App() {
         />
       )}
 
-      {modal === "replanejamento" && (
+      {modal === "replanejamento" && permissoes.podeImportar && (
         <ModalReplanejamento
           T={T}
           torreNome={torreAtiva()?.nome}
@@ -1563,7 +1674,7 @@ export default function App() {
         />
       )}
 
-      {modal?.tipo === "gerar" && (
+      {modal?.tipo === "gerar" && permissoes.podeEditar && (
         <ModalGerar
           T={T}
           onClose={() => setModal(null)}
@@ -1571,7 +1682,7 @@ export default function App() {
         />
       )}
 
-      {modal?.tipo === "aplicarMacrofluxo" && (
+      {modal?.tipo === "aplicarMacrofluxo" && permissoes.podeEditar && (
         <ModalAplicarMacrofluxo
           T={T}
           proj={proj}

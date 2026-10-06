@@ -37,6 +37,8 @@ export const Sidebar = ({
   onAbrirModal,
   onExcluirTorre,
   onAddTorreVazia,
+  podeEditar = true,
+  podeImportar = true,
 }) => {
   // ── Se a coluna estiver oculta, exibe a barra fina colapsada ──
   if (!showActivities) {
@@ -122,37 +124,55 @@ export const Sidebar = ({
 
       {tab === "atividades" ? (
         <>
+          {/* Badge de visualizador quando somente leitura */}
+          {!podeEditar && (
+            <div
+              className="mx-2.5 mt-2.5 py-1 px-2 rounded-md text-[10.5px] font-bold text-center uppercase tracking-wider"
+              style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981", border: "1px solid rgba(16, 185, 129, 0.25)" }}
+            >
+              Modo Visualizador (Somente Leitura)
+            </div>
+          )}
+
           {/* Barra de Ações Rápidas no topo da lista */}
-          <div className="px-3 pt-3 pb-1 flex gap-1.5">
-            <button
-              onClick={onNovaAtividade}
-              className="flex-1 py-2 text-xs flex items-center justify-center gap-1.5 font-bold rounded-lg transition-all hover:brightness-110 shadow-xs cursor-pointer"
-              style={{ background: ORANGE, color: "#fff" }}
-            >
-              <Plus size={13} /> Nova atividade
-            </button>
-            <button
-              onClick={() =>
-                onAbrirModal({
-                  tipo: "aplicarMacrofluxo",
-                  torreId: filtroTorre !== "TODAS" ? filtroTorre : proj?.torres?.[0]?.id,
-                })
-              }
-              title="Gerar atividades via Macrofluxo"
-              className="px-2.5 rounded-lg flex items-center justify-center transition-colors hover:brightness-95 cursor-pointer"
-              style={{ border: `1px solid ${T.line}`, background: T.raised, color: ORANGE }}
-            >
-              <Zap size={14} />
-            </button>
-            <button
-              onClick={() => onAbrirModal("importmenu")}
-              title="Importar planilha de atividades ou avanços"
-              className="px-2.5 rounded-lg flex items-center justify-center transition-colors hover:brightness-95 cursor-pointer"
-              style={{ border: `1px solid ${T.line}`, background: T.raised, color: T.muted }}
-            >
-              <FileSpreadsheet size={14} />
-            </button>
-          </div>
+          {(podeEditar || podeImportar) && (
+            <div className="px-3 pt-3 pb-1 flex gap-1.5">
+              {podeEditar && (
+                <button
+                  onClick={onNovaAtividade}
+                  className="flex-1 py-2 text-xs flex items-center justify-center gap-1.5 font-bold rounded-lg transition-all hover:brightness-110 shadow-xs cursor-pointer"
+                  style={{ background: ORANGE, color: "#fff" }}
+                >
+                  <Plus size={13} /> Nova atividade
+                </button>
+              )}
+              {podeEditar && (
+                <button
+                  onClick={() =>
+                    onAbrirModal({
+                      tipo: "aplicarMacrofluxo",
+                      torreId: filtroTorre !== "TODAS" ? filtroTorre : proj?.torres?.[0]?.id,
+                    })
+                  }
+                  title="Gerar atividades via Macrofluxo"
+                  className="px-2.5 rounded-lg flex items-center justify-center transition-colors hover:brightness-95 cursor-pointer"
+                  style={{ border: `1px solid ${T.line}`, background: T.raised, color: ORANGE }}
+                >
+                  <Zap size={14} />
+                </button>
+              )}
+              {podeImportar && (
+                <button
+                  onClick={() => onAbrirModal("importmenu")}
+                  title="Importar planilha de atividades ou avanços"
+                  className="px-2.5 rounded-lg flex items-center justify-center transition-colors hover:brightness-95 cursor-pointer"
+                  style={{ border: `1px solid ${T.line}`, background: T.raised, color: T.muted }}
+                >
+                  <FileSpreadsheet size={14} />
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Lista de Atividades por Torre */}
           <div className="flex-1 overflow-y-auto px-2 py-2 custom-scrollbar">
@@ -271,6 +291,7 @@ export const Sidebar = ({
                   </button>
                   <input
                     value={t.nome}
+                    readOnly={!podeEditar}
                     onChange={(e) =>
                       setProj((p) => ({
                         ...p,
@@ -278,47 +299,53 @@ export const Sidebar = ({
                       }))
                     }
                     className="flex-1 text-xs bg-transparent outline-none font-bold"
-                    style={{ color: T.text }}
+                    style={{ color: T.text, cursor: podeEditar ? "text" : "default" }}
                   />
-                  <button
-                    onClick={() => onExcluirTorre(t.id)}
-                    title="Excluir torre"
-                    className="p-1 hover:opacity-75 cursor-pointer"
-                  >
-                    <Trash2 size={12} style={{ color: T.dim }} />
-                  </button>
+                  {podeEditar && (
+                    <button
+                      onClick={() => onExcluirTorre(t.id)}
+                      title="Excluir torre"
+                      className="p-1 hover:opacity-75 cursor-pointer"
+                    >
+                      <Trash2 size={12} style={{ color: T.dim }} />
+                    </button>
+                  )}
                 </div>
                 <div className="mt-1.5 flex items-center justify-between" style={{ ...NUM, fontSize: 10, color: T.dim }}>
                   <span>{n} pavimentos</span>
                   {t.origem && <span style={{ color: ORANGE, fontWeight: 700 }}>+{t.offsetDias}d</span>}
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 mt-2">
-                  <button
-                    onClick={() => onAbrirModal({ tipo: "gerar", torreId: t.id })}
-                    className="py-1.5 text-[11px] flex items-center justify-center gap-1 transition-colors hover:brightness-95 rounded-lg cursor-pointer"
-                    style={{ border: `1px solid ${T.line}`, background: T.panel, color: T.text }}
-                  >
-                    <Wand2 size={11} /> Pavimentos
-                  </button>
-                  <button
-                    onClick={() => onAbrirModal({ tipo: "aplicarMacrofluxo", torreId: t.id })}
-                    className="py-1.5 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors hover:brightness-95 rounded-lg cursor-pointer"
-                    style={{ border: `1px solid ${T.line}`, background: T.panel, color: ORANGE }}
-                  >
-                    <Zap size={11} /> Macrofluxo
-                  </button>
-                </div>
+                {podeEditar && (
+                  <div className="grid grid-cols-2 gap-1.5 mt-2">
+                    <button
+                      onClick={() => onAbrirModal({ tipo: "gerar", torreId: t.id })}
+                      className="py-1.5 text-[11px] flex items-center justify-center gap-1 transition-colors hover:brightness-95 rounded-lg cursor-pointer"
+                      style={{ border: `1px solid ${T.line}`, background: T.panel, color: T.text }}
+                    >
+                      <Wand2 size={11} /> Pavimentos
+                    </button>
+                    <button
+                      onClick={() => onAbrirModal({ tipo: "aplicarMacrofluxo", torreId: t.id })}
+                      className="py-1.5 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors hover:brightness-95 rounded-lg cursor-pointer"
+                      style={{ border: `1px solid ${T.line}`, background: T.panel, color: ORANGE }}
+                    >
+                      <Zap size={11} /> Macrofluxo
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
 
-          <button
-            onClick={onAddTorreVazia}
-            className="w-full py-2 text-xs flex items-center justify-center gap-1.5 transition-colors hover:bg-black/5 rounded-lg cursor-pointer"
-            style={{ border: `1px dashed ${T.line}`, color: T.muted }}
-          >
-            <Plus size={13} /> Adicionar torre vazia
-          </button>
+          {podeEditar && (
+            <button
+              onClick={onAddTorreVazia}
+              className="w-full py-2 text-xs flex items-center justify-center gap-1.5 transition-colors hover:bg-black/5 rounded-lg cursor-pointer"
+              style={{ border: `1px dashed ${T.line}`, color: T.muted }}
+            >
+              <Plus size={13} /> Adicionar torre vazia
+            </button>
+          )}
         </div>
       )}
     </aside>

@@ -4,6 +4,7 @@ import {
   FolderOpen, LogOut, User, Users, Crown, Code2, Eye, Settings
 } from "lucide-react";
 import { ORANGE, BLACK, FONT } from "../../constants/theme";
+import { calcularPermissao } from "../../hooks/usePermissao";
 
 const ROLE_CONFIG = {
   admin:  { label: "Admin",  icon: Crown, color: "#FE5000", bg: "rgba(254,80,0,0.12)" },
@@ -256,8 +257,9 @@ export function HomeScreen({
   const subtleColor = isDark ? "#1A1C19" : "#FFFFFF";
   const border = isDark ? "#33352F" : "#E2E2DF";
 
-  const podeExcluir = true;
-  const podeCriar   = true;
+  const perm = calcularPermissao(userRole);
+  const podeExcluir = perm.podeExcluir; // Apenas Dev pode apagar obras
+  const podeCriar   = perm.podeCriar;   // Dev e Admin podem criar obras
 
   // Exibir todas as obras cadastradas no sistema
   const obrasFiltradas = Array.isArray(salvos) ? salvos : [];
@@ -301,11 +303,11 @@ export function HomeScreen({
               <span>{user.email || user.user_metadata?.email || "Usuário"}</span>
             </div>
 
-            {/* Gerenciar/criar grupos (temporariamente desativado conforme solicitado) */}
-            {false && userRole === "admin" && onGerenciarGrupos && (
+            {/* Gerenciar grupos e membros (disponível para Admin e Dev) */}
+            {perm.podeGerenciar && onGerenciarGrupos && (
               <button
                 onClick={onGerenciarGrupos}
-                title="Gerenciar grupos"
+                title="Gerenciar grupos e membros"
                 style={{
                   background: "rgba(255,255,255,0.08)",
                   border: "1px solid rgba(255,255,255,0.15)",

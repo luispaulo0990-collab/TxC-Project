@@ -70,8 +70,8 @@ export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClo
   const [msg, setMsg] = useState({ text: "", tipo: "" });
   const [perfis, setPerfis] = useState([]);
 
-  // Administrador tem permissão para criar grupos (ou primeiro usuário da base)
-  const isGlobalAdmin = userRole === "admin" || grupos.length === 0;
+  // Administrador ou Dev tem permissão para gerenciar/criar grupos (ou primeiro usuário da base)
+  const isGlobalAdmin = userRole === "admin" || userRole === "dev" || grupos.length === 0;
 
   useEffect(() => {
     apiClient.getPerfisDisponiveis().then((dados) => {
@@ -80,7 +80,7 @@ export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClo
   }, []);
 
   const grupoAtivo = grupos.find((g) => g.id === abaAtiva);
-  const isAdminDoGrupo = grupoAtivo?.meu_role === "admin" || isGlobalAdmin;
+  const isAdminDoGrupo = grupoAtivo?.meu_role === "admin" || grupoAtivo?.meu_role === "dev" || isGlobalAdmin;
 
   function flash(text, tipo = "ok") {
     setMsg({ text, tipo });
@@ -89,7 +89,7 @@ export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClo
 
   async function criarGrupo() {
     if (!isGlobalAdmin) {
-      flash("Apenas administradores podem criar novos grupos.", "erro");
+      flash("Apenas administradores ou desenvolvedores podem criar novos grupos.", "erro");
       return;
     }
     if (!novoGrupoNome.trim()) return;
