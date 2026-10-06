@@ -80,6 +80,13 @@ export default function App() {
 
   const permissoes = usePermissao(userRole);
 
+  // Garantir que perfis "member" não acessem abas restritas (avanço, histograma, macrofluxo)
+  useEffect(() => {
+    if (userRole === "member" && (vista === "avanco" || vista === "histograma" || vista === "macrofluxo")) {
+      setVista("grafico");
+    }
+  }, [userRole, vista]);
+
   const T = THEME[tema];
   const chartRef = useRef(null);
   const axisRef = useRef(null);
@@ -1413,7 +1420,7 @@ export default function App() {
 
       {/* ── Área de Conteúdo Central da Aplicação ── */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
-        {vista === "avanco" ? (
+        {vista === "avanco" && userRole !== "member" ? (
           <AvancoView
             T={T}
             proj={proj}
@@ -1434,7 +1441,7 @@ export default function App() {
             podeEditar={permissoes.podeEditar}
             podeImportar={permissoes.podeImportar}
           />
-        ) : vista === "histograma" ? (
+        ) : vista === "histograma" && userRole !== "member" ? (
           <HistogramaView
             T={T}
             proj={proj}
@@ -1477,7 +1484,7 @@ export default function App() {
               setShowProps(true);
             }}
           />
-        ) : vista === "macrofluxo" ? (
+        ) : vista === "macrofluxo" && userRole !== "member" ? (
           <MacrofluxoView
             T={T}
             proj={proj}

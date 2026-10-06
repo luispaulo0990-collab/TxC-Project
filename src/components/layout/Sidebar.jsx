@@ -190,7 +190,7 @@ export const Sidebar = ({
                       <span>·</span>
                       <span className="text-[11px] opacity-80">{as.length}</span>
                     </div>
-                    {as.length === 0 && (
+                    {as.length === 0 && podeEditar && (
                       <button
                         onClick={() => onAbrirModal({ tipo: "aplicarMacrofluxo", torreId: t.id })}
                         className="text-[10px] font-bold hover:underline flex items-center gap-0.5 text-orange-600 cursor-pointer"

@@ -45,7 +45,9 @@ export const SidebarNav = ({
   userRole,
   permissoes,
 }) => {
-  const navItems = [
+  const isMember = userRole === "member" || permissoes?.isMember || (permissoes && !permissoes.podeEditar);
+
+  const allNavItems = [
     { id: "grafico", label: "Gráfico TxC", icon: Layers },
     { id: "avanco", label: "Avanço Físico", icon: TrendingUp },
     { id: "histograma", label: "Histograma", icon: Users, badge: "Novo" },
@@ -53,6 +55,10 @@ export const SidebarNav = ({
     { id: "macrofluxo", label: "Macrofluxos", icon: Zap },
     { id: "resumo", label: "Resumo", icon: LayoutDashboard },
   ];
+
+  const navItems = isMember
+    ? allNavItems.filter((item) => item.id !== "avanco" && item.id !== "macrofluxo" && item.id !== "histograma")
+    : allNavItems;
 
   // Iniciais do usuário para o avatar suave
   const userNomeOuEmail = user?.email || user?.nome || "Usuário";

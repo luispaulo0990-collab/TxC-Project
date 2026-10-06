@@ -249,9 +249,9 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
         }
       }
 
-      // Locais da torre alvo
+      // Locais da torre alvo (suporta locais da torre ou locais compartilhados sem torreId)
       const ls = novosLocais
-        .filter((l) => l.torreId === targetTorre.id)
+        .filter((l) => !l.torreId || l.torreId === targetTorre.id)
         .sort((a, b) => a.ordem - b.ordem);
 
       if (!ls.length) return;
@@ -345,7 +345,7 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
         if (r.avanco != null) patch.avanco = r.avanco;
 
         if (r.pavAtualNome) {
-          const ls = proj.locais.filter((l) => l.torreId === match.torreId);
+          const ls = proj.locais.filter((l) => !l.torreId || l.torreId === match.torreId);
           const pMatch = ls.find((l) => normalizar(l.nome) === normalizar(r.pavAtualNome));
           if (pMatch) {
             patch.pavimentoAtualId = pMatch.id;
