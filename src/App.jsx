@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { THEME, FONT, BLACK, DIAS_MES } from "./constants/theme";
+import { THEME, FONT, BLACK, DIAS_MES, LABEL_W, HEADER_H } from "./constants/theme";
 import { D, iso, addDays, diffDays, uid, hoje, fmtBR, calcularDiasProdutivos, ajustarFimDeSemanaParaSegunda } from "./utils/dateUtils";
 import { segIntersect } from "./utils/geometryUtils";
 import { storage } from "./utils/storageUtils";
@@ -1141,6 +1141,11 @@ export default function App() {
         flash("Abra a aba Gráfico para gerar a imagem em PNG");
         return;
       }
+      const PAD = 24;
+      const TOP = 52;
+      const exportW = LABEL_W + chartW + PAD * 2;
+      const exportH = TOP + HEADER_H + chartH + PAD * 2;
+
       const svgString = buildSVG({
         proj,
         rows,
@@ -1150,8 +1155,9 @@ export default function App() {
         axisSvgContent: axisRef.current?.innerHTML,
         chartSvgContent: chartRef.current?.innerHTML,
         T,
+        rowH,
       });
-      exportarPNG({ svgString, surfaceColor: T.surface, nomeBase, flash });
+      exportarPNG({ svgString, width: exportW, height: exportH, surfaceColor: T.surface, nomeBase, flash });
     }
   };
 

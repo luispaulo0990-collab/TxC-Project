@@ -38,7 +38,7 @@ export const baixar = (nome, conteudo, tipo, flash) => {
   }
 };
 
-export const buildSVG = ({ proj, rows, grupos, chartW, chartH, axisSvgContent, chartSvgContent, T }) => {
+export const buildSVG = ({ proj, rows = [], grupos = [], chartW, chartH, axisSvgContent, chartSvgContent, T = {}, rowH }) => {
   const PAD = 24;
   const TOP = 52;
   const contentW = LABEL_W + chartW;
@@ -46,18 +46,27 @@ export const buildSVG = ({ proj, rows, grupos, chartW, chartH, axisSvgContent, c
   const W = contentW + PAD * 2;
   const H = contentH + PAD * 2;
 
+  // Altura real e proporcional de cada pavimento no gráfico
+  const actualRowH = Number(rowH) || (rows.length > 0 ? chartH / rows.length : 30);
+
   let labels = "";
   grupos.forEach((g) => {
-    const y = g.ini * 23;
-    const h = (g.fim - g.ini + 1) * 23;
-    labels += `<rect x="0" y="${y}" width="${TOWER_STRIP}" height="${h}" fill="${T.strip}"/>`;
-    labels += `<text x="${TOWER_STRIP / 2}" y="${y + h / 2}" fill="${T.stripText}" font-family="${FONT}" font-size="11" font-weight="700" text-anchor="middle" transform="rotate(-90 ${TOWER_STRIP / 2} ${y + h / 2})">${g.nome}</text>`;
+    const y = g.ini * actualRowH;
+    const h = (g.fim - g.ini + 1) * actualRowH;
+    labels += `<rect x="0" y="${y}" width="${TOWER_STRIP}" height="${h}" fill="${T.strip || '#373A36'}"/>`;
+    labels += `<text x="${TOWER_STRIP / 2}" y="${y + h / 2}" fill="${T.stripText || '#FFFFFF'}" font-family="${FONT}" font-size="11" font-weight="700" text-anchor="middle" dominant-baseline="central" transform="rotate(-90 ${TOWER_STRIP / 2} ${y + h / 2})">${g.nome}</text>`;
   });
 
   rows.forEach((r, i) => {
-    const rowH = 23;
-    labels += `<rect x="${TOWER_STRIP}" y="${i * rowH}" width="${LABEL_W - TOWER_STRIP}" height="${rowH}" fill="${r.tipo === "TIPO" ? T.labelBg : T.labelBgAlt}" stroke="${T.row}" stroke-width="0.5"/>`;
-    labels += `<text x="${LABEL_W - 8}" y="${i * rowH + rowH / 2 + 3.5}" fill="${r.tipo === "TIPO" ? T.label : T.labelAlt}" font-family="${FONT}" font-size="9.5" text-anchor="end">${r.nome}</text>`;
+    const y = i * actualRowH;
+    const isTipo = r.tipo === "TIPO";
+    const bgFill = isTipo ? (T.labelBg || '#FFFFFF') : (T.labelBgAlt || '#F6F6F4');
+    const strokeColor = T.row || '#EDEDEA';
+    const textColor = isTipo ? (T.label || BLACK) : (T.labelAlt || '#6A6E69');
+    const fontSize = Math.min(13.5, Math.max(10, actualRowH * 0.44));
+
+    labels += `<rect x="${TOWER_STRIP}" y="${y}" width="${LABEL_W - TOWER_STRIP}" height="${actualRowH}" fill="${bgFill}" stroke="${strokeColor}" stroke-width="0.5"/>`;
+    labels += `<text x="${LABEL_W - 8}" y="${y + actualRowH / 2}" fill="${textColor}" font-family="${FONT}" font-size="${fontSize}" font-weight="600" text-anchor="end" dominant-baseline="central">${r.nome}</text>`;
   });
 
   const projNome = (proj?.nome || "EMPREENDIMENTO").toUpperCase();
@@ -135,21 +144,23 @@ export const exportarCSV = ({ proj, rows, rowIdx, metrica, nomeBase, flash }) =>
   if (flash) flash("CSV exportado");
 };
 
-export const exportarPNG = ({ svgString, surfaceColor, nomeBase, flash }) => {
+export const exportarPNG = ({ svgString, width, height, surfaceColor, nomeBase, flash }) => {
   const nome = (nomeBase || "tempo-x-caminho").replace(/[\/\\:*?"<>|]/g, "-");
   const img = new Image();
   img.onload = () => {
     const s = 2;
+    const finalW = width || img.naturalWidth || img.width || 1400;
+    const finalH = height || img.naturalHeight || img.height || 900;
     const cv = document.createElement("canvas");
-    cv.width = img.width * s;
-    cv.height = img.height * s;
+    cv.width = finalW * s;
+    cv.height = finalH * s;
     const ctx = cv.getContext("2d");
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
     ctx.fillStyle = surfaceColor || "#FFFFFF";
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.scale(s, s);
-    ctx.drawImage(img, 0, 0);
+    ctx.drawImage(img, 0, 0, finalW, finalH);
     cv.toBlob(
       (b) => {
         if (b) {
