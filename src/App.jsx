@@ -34,7 +34,7 @@ import { AuthScreen } from "./components/views/AuthScreen";
 import { ModalGerenciarGrupo } from "./components/modals/ModalGerenciarGrupo";
 import { gerarAtividadesDoMacrofluxo, auditarIncoerenciasPredecessoras, getModelosPadraoMacrofluxo } from "./utils/macrofluxoUtils";
 import { apiClient } from "./utils/apiClient";
-import { obterSessao, logout } from "./utils/supabaseClient";
+import { obterSessao, logout, supabasePublic } from "./utils/supabaseClient";
 import { usePermissao } from "./hooks/usePermissao";
 import { ModalConfirmarExclusao } from "./components/modals/ModalConfirmarExclusao";
 import { Loader2 } from "lucide-react";
@@ -261,10 +261,21 @@ export default function App() {
       try {
         const sessao = await obterSessao();
         if (sessao?.user) {
-          setUser(sessao.user);
+          let u = sessao.user;
+          try {
+            const { data: profile } = await supabasePublic
+              .from("profiles")
+              .select("role, nome")
+              .eq("id", sessao.user.id)
+              .single();
+            if (profile?.role) {
+              u = { ...u, role: profile.role, perfil: profile };
+            }
+          } catch {}
+          setUser(u);
           if (sessao.access_token) {
             sessionStorage.setItem("lob:auth_token", sessao.access_token);
-            sessionStorage.setItem("lob:user", JSON.stringify(sessao.user));
+            sessionStorage.setItem("lob:user", JSON.stringify(u));
           }
         } else {
           const storedUser = sessionStorage.getItem("lob:user");
