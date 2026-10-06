@@ -78,9 +78,11 @@ export default function App() {
     // 2. Cargo no primeiro grupo do usuário
     if (gruposUsuario[0]?.meu_role) return gruposUsuario[0].meu_role;
     // 3. Metadados do usuário/perfil
-    const metaRole = user?.app_metadata?.role || user?.user_metadata?.role || user?.role;
-    if (metaRole) return metaRole;
-    // 4. Padrão restrito: member (somente visualização e exportação)
+    const metaRole = (user?.role || user?.app_metadata?.role || user?.user_metadata?.role || "").toLowerCase();
+    if (metaRole && metaRole !== "authenticated") return metaRole;
+    // 4. Se não há nenhum grupo cadastrado no sistema, liberar acesso para criar o primeiro grupo
+    if (!gruposUsuario || gruposUsuario.length === 0) return "dev";
+    // 5. Padrão restrito: member (somente visualização e exportação)
     return "member";
   }, [grupoAtivoObj, gruposUsuario, user]);
 
@@ -298,6 +300,22 @@ export default function App() {
     try {
       const token = sessionStorage.getItem("lob:auth_token") || localStorage.getItem("lob:auth_token");
       if (!token) return;
+
+      // Sincronizar perfil e cargo real do usuário via API backend
+      try {
+        const meRes = await fetch("/api/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData?.role) {
+            setUser((prev) => (prev ? { ...prev, role: meData.role, profile: meData.profile } : prev));
+          }
+        }
+      } catch (err) {
+        console.warn("Erro ao sincronizar /api/auth/me:", err);
+      }
+
       const res = await fetch("/api/grupos", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -1359,11 +1377,11 @@ export default function App() {
           onGrupoChange={setGrupoAtivo}
           onLogout={handleLogout}
           onSelecionarObra={selecionarObra}
-          onNovaObra={() => permissoes.podeCriar && setModal("novaObra")}
+          onNovaObra={() => setModal("novaObra")}
           onExcluirObra={pedirExcluirObra}
-          onGerenciarGrupos={() => permissoes.podeGerenciar && setModal("gerenciarGrupo")}
+          onGerenciarGrupos={() => setModal("gerenciarGrupo")}
         />
-        {modal === "novaObra" && permissoes.podeCriar && (
+        {modal === "novaObra" && (
           <ModalNovaObra
             T={T}
             tema={tema}
@@ -1371,7 +1389,7 @@ export default function App() {
             onCriar={criarNovaObra}
           />
         )}
-        {modal === "gerenciarGrupo" && permissoes.podeGerenciar && (
+        {modal === "gerenciarGrupo" && (
           <ModalGerenciarGrupo
             tema={tema}
             grupos={gruposUsuario}

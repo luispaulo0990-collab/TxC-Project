@@ -303,20 +303,20 @@ export function HomeScreen({
               <span>{user.email || user.user_metadata?.email || "Usuário"}</span>
             </div>
 
-            {/* Gerenciar grupos e membros (disponível para Admin e Dev) */}
-            {perm.podeGerenciar && onGerenciarGrupos && (
+            {/* Gerenciar grupos e membros (disponível para Admin, Dev ou configuração inicial) */}
+            {(perm.podeGerenciar || userRole === "admin" || userRole === "dev" || !grupos || grupos.length === 0) && onGerenciarGrupos && (
               <button
                 onClick={onGerenciarGrupos}
                 title="Gerenciar grupos e membros"
                 style={{
-                  background: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  color: "#fff", padding: "4px 10px", borderRadius: 6,
-                  fontSize: 11, display: "flex", alignItems: "center",
-                  gap: 6, cursor: "pointer", transition: "background 0.15s",
+                  background: "rgba(254,80,0,0.15)",
+                  border: "1px solid rgba(254,80,0,0.35)",
+                  color: "#FE5000", padding: "5px 12px", borderRadius: 8,
+                  fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center",
+                  gap: 6, cursor: "pointer", transition: "all 0.15s",
                 }}
               >
-                <Settings size={13} />
+                <Settings size={14} />
                 <span>Grupos</span>
               </button>
             )}

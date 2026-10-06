@@ -58,10 +58,33 @@ begin
 end;
 $$;
 
--- 4. Habilitar RLS em tabelas operacionais
+-- 4. Habilitar RLS em profiles, grupos e tabelas operacionais
+alter table if exists public.profiles enable row level security;
+alter table if exists public.grupos enable row level security;
+alter table if exists public.grupo_membros enable row level security;
 alter table if exists public.projetos enable row level security;
 alter table if exists public.atividades enable row level security;
 alter table if exists public.historico_avanco enable row level security;
+
+-- Leitura pública para perfis de usuário cadastrados
+drop policy if exists "profiles_select_all" on public.profiles;
+create policy "profiles_select_all" on public.profiles for select using (true);
+
+drop policy if exists "profiles_update_own" on public.profiles;
+create policy "profiles_update_own" on public.profiles for update using (auth.uid() = id);
+
+-- Políticas para grupos e membros
+drop policy if exists "grupos_select_all" on public.grupos;
+create policy "grupos_select_all" on public.grupos for select using (true);
+
+drop policy if exists "grupos_all" on public.grupos;
+create policy "grupos_all" on public.grupos for all using (true);
+
+drop policy if exists "grupo_membros_select_all" on public.grupo_membros;
+create policy "grupo_membros_select_all" on public.grupo_membros for select using (true);
+
+drop policy if exists "grupo_membros_all" on public.grupo_membros;
+create policy "grupo_membros_all" on public.grupo_membros for all using (true);
 
 -- ============================================================
 -- RLS: public.projetos

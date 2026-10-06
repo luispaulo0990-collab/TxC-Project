@@ -27,7 +27,7 @@ export const gruposRepository = {
     return data?.map((gm) => ({ ...gm.grupo, meu_role: gm.role })) ?? [];
   },
 
-  /** Cria novo grupo e adiciona o criador como admin */
+  /** Cria novo grupo e adiciona o criador como admin/dev */
   async criarGrupo(nome, userId) {
     const { data: grupo, error: gErr } = await supabaseAdmin
       .from('grupos')
@@ -36,9 +36,20 @@ export const gruposRepository = {
       .single();
     if (gErr) throw gErr;
 
+    // Verificar se o criador possui papel 'dev' no perfil
+    let papelCriador = 'admin';
+    try {
+      const { data: p } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+      if (p?.role === 'dev') papelCriador = 'dev';
+    } catch {}
+
     const { error: mErr } = await supabaseAdmin
       .from('grupo_membros')
-      .insert({ grupo_id: grupo.id, user_id: userId, role: 'admin' });
+      .insert({ grupo_id: grupo.id, user_id: userId, role: papelCriador });
     if (mErr) throw mErr;
 
     return grupo;
