@@ -46,6 +46,7 @@ export const SidebarNav = ({
   permissoes,
 }) => {
   const isMember = userRole === "member" || permissoes?.isMember || (permissoes && !permissoes.podeEditar);
+  const podeVerAbaAvanco = permissoes ? !!permissoes.podeVerAbaAvanco : userRole === "dev";
 
   const allNavItems = [
     { id: "grafico", label: "Gráfico TxC", icon: Layers },
@@ -56,9 +57,16 @@ export const SidebarNav = ({
     { id: "resumo", label: "Resumo", icon: LayoutDashboard },
   ];
 
-  const navItems = isMember
-    ? allNavItems.filter((item) => item.id !== "avanco" && item.id !== "macrofluxo" && item.id !== "histograma")
-    : allNavItems;
+  const navItems = allNavItems.filter((item) => {
+    if (item.id === "avanco") {
+      // Aba "Avanço Físico" ocultada para Admin e Membro; visível exclusivamente para Dev
+      return podeVerAbaAvanco;
+    }
+    if (item.id === "macrofluxo" || item.id === "histograma") {
+      return !isMember;
+    }
+    return true;
+  });
 
   // Iniciais do usuário para o avatar suave
   const userNomeOuEmail = user?.email || user?.nome || "Usuário";

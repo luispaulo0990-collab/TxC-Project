@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Layers, Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
-import { loginComEmail } from "../../utils/supabaseClient";
+import { loginComEmail, obterPerfilUsuario } from "../../utils/supabaseClient";
 import { ORANGE, BLACK, FONT, NUM } from "../../constants/theme";
 
 export function AuthScreen({ onLoginSuccess, tema = "escuro" }) {
@@ -31,14 +31,17 @@ export function AuthScreen({ onLoginSuccess, tema = "escuro" }) {
     try {
       const data = await loginComEmail(email.trim(), password);
       if (data?.user) {
+        // Enriquecer com o perfil e cargo real salvo no public.profiles
+        const enrichedUser = await obterPerfilUsuario(data.user);
+
         if (typeof window !== "undefined") {
-          sessionStorage.setItem("lob:user", JSON.stringify(data.user));
+          sessionStorage.setItem("lob:user", JSON.stringify(enrichedUser));
           if (data.session?.access_token) {
             sessionStorage.setItem("lob:auth_token", data.session.access_token);
           }
         }
         if (onLoginSuccess) {
-          onLoginSuccess(data.user, data.session);
+          onLoginSuccess(enrichedUser, data.session);
         }
       } else {
         setErro("Não foi possível autenticar. Verifique seus dados.");

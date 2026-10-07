@@ -63,6 +63,68 @@ export const obterUsuarioAtual = async () => {
   return data?.user || null;
 };
 
+/**
+ * Busca e sincroniza o perfil do usuário na tabela public.profiles do Supabase.
+ * Retorna o objeto de usuário enriquecido com o papel correto ('dev' | 'admin' | 'member').
+ */
+export const obterPerfilUsuario = async (authUser) => {
+  if (!authUser || !authUser.id) return authUser;
+  try {
+    // 1. Buscar na tabela public.profiles pelo ID (UUID)
+    let { data: profile } = await supabasePublic
+      .from("profiles")
+      .select("id, email, nome, role")
+      .eq("id", authUser.id)
+      .maybeSingle();
+
+    // 2. Fallback: buscar por email caso o ID no auth não bata diretamente
+    if (!profile && authUser.email) {
+      const { data: profileEmail } = await supabasePublic
+        .from("profiles")
+        .select("id, email, nome, role")
+        .ilike("email", authUser.email.trim())
+        .maybeSingle();
+      profile = profileEmail;
+    }
+
+    // 3. Normalizar o papel (role)
+    const rawRole = (
+      profile?.role ||
+      authUser.app_metadata?.role ||
+      authUser.user_metadata?.role ||
+      (authUser.role !== "authenticated" ? authUser.role : "") ||
+      ""
+    ).toString().trim().toLowerCase();
+
+    const normalizedRole =
+      rawRole === "dev" || rawRole === "admin" || rawRole === "member"
+        ? rawRole
+        : "member";
+
+    const enriched = {
+      ...authUser,
+      role: normalizedRole,
+      perfil: profile || {
+        role: normalizedRole,
+        nome: authUser.user_metadata?.nome || authUser.email?.split("@")[0],
+      },
+      profile: profile || {
+        role: normalizedRole,
+        nome: authUser.user_metadata?.nome || authUser.email?.split("@")[0],
+      },
+    };
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("lob:user", JSON.stringify(enriched));
+    }
+
+    return enriched;
+  } catch (err) {
+    console.warn("Erro ao buscar perfil do usuário no Supabase:", err);
+    return authUser;
+  }
+};
+
 // Cliente administrativo para backend / serverless (se configurado no ambiente)
 const supabaseServiceRoleKey =
   typeof process !== "undefined"

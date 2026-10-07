@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   Plus, Building2, Trash2, Calendar, Layers, ChevronRight,
-  FolderOpen, LogOut, User, Crown, Code2, Eye
+  FolderOpen, LogOut, User, Crown, Code2, Eye, Archive, ArchiveRestore
 } from "lucide-react";
 import { ORANGE, BLACK, FONT } from "../../constants/theme";
 import { calcularPermissao } from "../../hooks/usePermissao";
@@ -45,7 +45,7 @@ function dataRelativa(ts) {
 }
 
 /* ─── Card de Obra ───────────────────────────────────────────── */
-function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir }) {
+function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExcluir }) {
   const [hovered, setHovered] = useState(false);
 
   const isDark = tema === "escuro";
@@ -55,11 +55,6 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir }) {
   const border = isAtiva ? ORANGE : (isDark ? "#33352F" : "#E2E2DF");
   const textColor = isDark ? "#ECEDEB" : BLACK;
   const mutedColor = isDark ? "#9DA098" : "#6A6E69";
-
-  const handleDelete = (e) => {
-    e.stopPropagation();
-    onExcluir();
-  };
 
   return (
     <div
@@ -82,20 +77,36 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir }) {
         minHeight: 160,
         display: "flex",
         flexDirection: "column",
+        opacity: obra.arquivado ? 0.85 : 1,
       }}
     >
-      {/* Badge "Ativa" */}
-      {isAtiva && (
-        <div style={{
-          position: "absolute", top: 12, right: 12,
-          background: ORANGE, color: "#fff",
-          fontSize: 10, fontWeight: 700, letterSpacing: 1,
-          padding: "2px 8px", borderRadius: 99,
-          textTransform: "uppercase",
-        }}>
-          Ativa
-        </div>
-      )}
+      {/* Badges superiores: Ativa e/ou Arquivada */}
+      <div style={{ position: "absolute", top: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
+        {obra.arquivado && (
+          <span style={{
+            background: "rgba(100, 116, 139, 0.2)",
+            border: "1px solid rgba(100, 116, 139, 0.35)",
+            color: isDark ? "#94A3B8" : "#475569",
+            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6,
+            padding: "2px 7px", borderRadius: 99,
+            display: "inline-flex", alignItems: "center", gap: 3.5,
+            textTransform: "uppercase",
+          }}>
+            <Archive size={9.5} />
+            Arquivada
+          </span>
+        )}
+        {isAtiva && (
+          <span style={{
+            background: ORANGE, color: "#fff",
+            fontSize: 10, fontWeight: 700, letterSpacing: 1,
+            padding: "2px 8px", borderRadius: 99,
+            textTransform: "uppercase",
+          }}>
+            Ativa
+          </span>
+        )}
+      </div>
 
       {/* Ícone + Nome */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
@@ -145,39 +156,77 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, tema, podeExcluir }) {
         )}
       </div>
 
-      {/* Botão excluir — só para quem pode */}
+      {/* Ações de gerenciamento (Exclusivo Dev: Arquivar e Excluir) */}
       {podeExcluir && (
-        <button
-          onClick={handleDelete}
-          title="Excluir obra"
+        <div
+          onClick={(e) => e.stopPropagation()}
           style={{
-            position: "absolute", bottom: 14, right: 14,
-            background: "rgba(214, 69, 69, 0.1)",
-            border: "1px solid rgba(214, 69, 69, 0.3)", cursor: "pointer",
-            padding: "5px 10px", borderRadius: 6,
-            display: "flex", alignItems: "center", gap: 5,
+            position: "absolute", bottom: 12, right: 12,
+            display: "flex", alignItems: "center", gap: 6,
             opacity: hovered ? 1 : 0,
-            transition: "opacity 0.15s, background 0.15s",
-            color: "#D64545",
-            fontSize: 11, fontWeight: 700,
+            transition: "opacity 0.15s ease",
+            zIndex: 3,
           }}
         >
-          <Trash2 size={13} />
-          Excluir
-        </button>
+          {onArquivar && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onArquivar(obra.id, !obra.arquivado);
+              }}
+              title={obra.arquivado ? "Reativar obra (desarquivar)" : "Arquivar obra"}
+              style={{
+                background: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
+                border: `1px solid ${border}`,
+                cursor: "pointer",
+                padding: "4px 8px", borderRadius: 6,
+                display: "flex", alignItems: "center", gap: 4,
+                color: isDark ? "#CBD5E1" : "#475569",
+                fontSize: 10.5, fontWeight: 600,
+                transition: "all 0.15s",
+              }}
+            >
+              {obra.arquivado ? <ArchiveRestore size={11} /> : <Archive size={11} />}
+              <span>{obra.arquivado ? "Reativar" : "Arquivar"}</span>
+            </button>
+          )}
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onExcluir();
+            }}
+            title="Excluir obra permanentemente"
+            style={{
+              background: "rgba(214, 69, 69, 0.12)",
+              border: "1px solid rgba(214, 69, 69, 0.35)",
+              cursor: "pointer",
+              padding: "4px 8px", borderRadius: 6,
+              display: "flex", alignItems: "center", gap: 4,
+              color: "#EF4444",
+              fontSize: 10.5, fontWeight: 700,
+              transition: "all 0.15s",
+            }}
+          >
+            <Trash2 size={11} />
+            <span>Excluir</span>
+          </button>
+        </div>
       )}
 
-      {/* Seta hover */}
-      <ChevronRight
-        size={18}
-        style={{
-          position: "absolute", right: 18, top: "50%", marginTop: -9,
-          color: isAtiva ? ORANGE : mutedColor,
-          opacity: hovered ? 1 : 0,
-          transition: "opacity 0.15s, transform 0.15s",
-          transform: hovered ? "translateX(3px)" : "translateX(0)",
-        }}
-      />
+      {/* Seta hover quando não há botões ou para visualizadores */}
+      {!podeExcluir && (
+        <ChevronRight
+          size={18}
+          style={{
+            position: "absolute", right: 18, top: "50%", marginTop: -9,
+            color: isAtiva ? ORANGE : mutedColor,
+            opacity: hovered ? 1 : 0,
+            transition: "opacity 0.15s, transform 0.15s",
+            transform: hovered ? "translateX(3px)" : "translateX(0)",
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -230,8 +279,10 @@ function NovaObraCard({ onClick, tema }) {
 /* ─── Tela Principal ─────────────────────────────────────────── */
 export function HomeScreen({
   salvos, projAtualId, tema, user, userRole,
-  onLogout, onSelecionarObra, onNovaObra, onExcluirObra,
+  onLogout, onSelecionarObra, onNovaObra, onExcluirObra, onArquivarObra,
 }) {
+  const [filtroAba, setFiltroAba] = useState("ativas"); // "ativas" | "arquivadas" | "todas"
+
   const isDark = tema === "escuro";
   const bg = isDark ? "#111310" : "#ECEDEB";
   const textColor = isDark ? "#ECEDEB" : BLACK;
@@ -240,12 +291,22 @@ export function HomeScreen({
   const border = isDark ? "#33352F" : "#E2E2DF";
 
   const perm = calcularPermissao(userRole);
-  const podeExcluir = perm.podeExcluir; // Apenas Dev pode apagar obras
+  const podeExcluir = perm.podeExcluir; // Apenas Dev pode apagar obras e arquivar
   const podeCriar   = perm.podeCriar;   // Dev e Admin podem criar obras
 
-  // Exibir todas as obras cadastradas no sistema
-  const obrasFiltradas = Array.isArray(salvos) ? salvos : [];
-  const temObras = obrasFiltradas.length > 0;
+  // Separação de obras por status de arquivamento
+  const todasObras = Array.isArray(salvos) ? salvos : [];
+  const obrasAtivas = todasObras.filter((o) => !o.arquivado);
+  const obrasArquivadas = todasObras.filter((o) => !!o.arquivado);
+
+  const obrasExibidas =
+    filtroAba === "ativas"
+      ? obrasAtivas
+      : filtroAba === "arquivadas"
+      ? obrasArquivadas
+      : todasObras;
+
+  const temObras = obrasExibidas.length > 0;
 
   return (
     <div style={{
@@ -311,8 +372,8 @@ export function HomeScreen({
         margin: "0 auto", padding: "48px 32px",
       }}>
 
-        {/* Saudação */}
-        <div style={{ marginBottom: 40, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        {/* Saudação e Abas de Filtro */}
+        <div style={{ marginBottom: 32, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
             <h1 style={{
               fontSize: 28, fontWeight: 800, color: textColor,
@@ -320,11 +381,68 @@ export function HomeScreen({
             }}>
               Suas Obras
             </h1>
-            <p style={{ fontSize: 14, color: mutedColor, marginTop: 6 }}>
-              {temObras
-                ? `${obrasFiltradas.length} ${obrasFiltradas.length === 1 ? "empreendimento" : "empreendimentos"} · selecione para abrir`
-                : "Nenhuma obra criada ainda · comece criando sua primeira obra"}
+            <p style={{ fontSize: 13, color: mutedColor, marginTop: 6 }}>
+              {todasObras.length > 0
+                ? `${obrasAtivas.length} obras ativas · ${obrasArquivadas.length} arquivadas`
+                : "Nenhuma obra cadastrada ainda · comece criando sua primeira obra"}
             </p>
+          </div>
+
+          {/* Abas Ativas / Arquivadas / Todas */}
+          <div style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+            padding: "4px",
+            borderRadius: 12,
+            border: `1px solid ${border}`,
+          }}>
+            {[
+              { id: "ativas", label: "Ativas", count: obrasAtivas.length },
+              { id: "arquivadas", label: "Arquivadas", count: obrasArquivadas.length, icon: Archive },
+              { id: "todas", label: "Todas", count: todasObras.length },
+            ].map((tab) => {
+              const ativo = filtroAba === tab.id;
+              const TabIcon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setFiltroAba(tab.id)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: ativo ? 700 : 500,
+                    cursor: "pointer",
+                    border: "none",
+                    background: ativo
+                      ? (isDark ? "rgba(254,80,0,0.2)" : "rgba(254,80,0,0.12)")
+                      : "transparent",
+                    color: ativo ? (isDark ? "#FFA273" : ORANGE) : mutedColor,
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {TabIcon && <TabIcon size={12} />}
+                  <span>{tab.label}</span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      borderRadius: 99,
+                      background: ativo ? ORANGE : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
+                      color: ativo ? "#fff" : mutedColor,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -334,17 +452,18 @@ export function HomeScreen({
           gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
           gap: 16,
         }}>
-          {/* Card nova obra — só para quem pode criar */}
-          {podeCriar && <NovaObraCard onClick={onNovaObra} tema={tema} />}
+          {/* Card nova obra — só para quem pode criar e se não estiver na aba arquivadas */}
+          {podeCriar && filtroAba !== "arquivadas" && <NovaObraCard onClick={onNovaObra} tema={tema} />}
 
           {/* Cards das obras existentes */}
-          {obrasFiltradas.map((obra) => (
+          {obrasExibidas.map((obra) => (
             <ObraCard
               key={obra.id}
               obra={obra}
               isAtiva={obra.id === projAtualId}
               onClick={() => onSelecionarObra(obra.id)}
               onExcluir={() => onExcluirObra(obra.id)}
+              onArquivar={onArquivarObra}
               tema={tema}
               podeExcluir={podeExcluir}
             />
@@ -367,7 +486,16 @@ export function HomeScreen({
               <FolderOpen size={22} color={ORANGE} />
             </div>
             <div>
-              {podeCriar ? (
+              {filtroAba === "arquivadas" ? (
+                <>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: textColor }}>
+                    Nenhuma obra arquivada
+                  </p>
+                  <p style={{ margin: "4px 0 0", fontSize: 13, color: mutedColor }}>
+                    Obras arquivadas por desenvolvedores (Dev) aparecem nesta aba para consulta ou reativação a qualquer momento.
+                  </p>
+                </>
+              ) : podeCriar ? (
                 <>
                   <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: textColor }}>
                     Comece criando sua primeira obra

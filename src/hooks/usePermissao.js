@@ -31,6 +31,8 @@ export function calcularPermissao(role) {
     podeGerenciar: isDev || isAdmin,
     /** Pode criar novos grupos */
     podeCriarGrupo: isDev || isAdmin,
+    /** Aba de Avanço Físico no menu: visível exclusivamente para perfil Dev (ocultada para Admin e Membro) */
+    podeVerAbaAvanco: isDev,
     /** Papel normalizado */
     role: normalizedRole,
     isAdmin,

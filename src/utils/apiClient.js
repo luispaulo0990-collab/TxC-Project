@@ -231,6 +231,8 @@ export const apiClient = {
   },
 
   async excluirProjeto(id) {
+    if (!id) return null;
+    let backendExcluido = false;
     try {
       const res = await fetch(apiUrl(`/api/projetos/${encodeURIComponent(id)}`), {
         method: 'DELETE',
@@ -241,33 +243,65 @@ export const apiClient = {
         throw new Error(errJson?.error || 'Acesso negado: apenas desenvolvedores (Dev) podem excluir obras.');
       }
       if (res.ok) {
-        return await res.json();
+        backendExcluido = true;
       }
     } catch (err) {
       if (err.message && err.message.includes('Acesso negado')) {
         throw err;
       }
-      console.warn('apiClient.excluirProjeto proxy error, tentando Supabase direto:', err);
+      console.warn('apiClient.excluirProjeto proxy error, procedendo via Supabase direto:', err);
     }
 
-    // Fallback direto via Supabase
+    // Exclusão completa e cascateada no Supabase
     try {
+      // Tentar executar via RPC segura excluir_obra_definitiva (se instalada no Supabase)
       try {
-        await supabasePublic.from('atividades').delete().eq('projeto_id', id);
+        const { data: rpcData, error: rpcError } = await supabasePublic.rpc('excluir_obra_definitiva', {
+          p_projeto_id: String(id)
+        });
+        if (!rpcError && rpcData) {
+          return { success: true, deletedId: id };
+        }
       } catch {}
 
+      // 1. Limpar comentários da obra
+      try {
+        await supabasePublic.from('atividade_comentarios').delete().eq('projeto_id', String(id));
+      } catch (e) {
+        console.warn('Erro ao remover atividade_comentarios da obra:', e);
+      }
+
+      // 2. Limpar histórico de apontamentos de avanço da obra
+      try {
+        await supabasePublic.from('historico_avanco').delete().eq('projeto_id', String(id));
+      } catch (e) {
+        console.warn('Erro ao remover historico_avanco da obra:', e);
+      }
+
+      // 3. Limpar atividades da obra
+      try {
+        await supabasePublic.from('atividades').delete().eq('projeto_id', String(id));
+      } catch (e) {
+        console.warn('Erro ao remover atividades da obra:', e);
+      }
+
+      // 4. Remover da tabela public.projetos
       const { data, error } = await supabasePublic
         .from('projetos')
         .delete()
-        .eq('id', id)
+        .eq('id', String(id))
         .select();
-      if (!error) {
-        return { success: true, deleted: data?.[0] };
+
+      if (error) {
+        console.error('supabasePublic excluirProjeto error:', error);
+        throw new Error(error.message || 'Erro ao excluir obra no Supabase');
       }
+
+      return { success: true, deleted: data?.[0] || backendExcluido };
     } catch (err) {
-      console.warn('supabasePublic excluirProjeto error:', err);
+      console.error('Falha crítica ao excluir obra no Supabase:', err);
+      throw err;
     }
-    return null;
   },
 
   /* ─── Comentários por Atividade (Persistidos no Supabase) ──── */

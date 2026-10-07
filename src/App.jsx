@@ -33,7 +33,7 @@ import { HomeScreen } from "./components/views/HomeScreen";
 import { AuthScreen } from "./components/views/AuthScreen";
 import { gerarAtividadesDoMacrofluxo, auditarIncoerenciasPredecessoras, getModelosPadraoMacrofluxo } from "./utils/macrofluxoUtils";
 import { apiClient } from "./utils/apiClient";
-import { obterSessao, logout, supabasePublic } from "./utils/supabaseClient";
+import { obterSessao, logout, supabasePublic, obterPerfilUsuario } from "./utils/supabaseClient";
 import { usePermissao } from "./hooks/usePermissao";
 import { ModalConfirmarExclusao } from "./components/modals/ModalConfirmarExclusao";
 import { Loader2 } from "lucide-react";
@@ -65,24 +65,38 @@ export default function App() {
 
   // ─── Perfil e Permissões do Usuário Logado ─────────────────
   const userRole = useMemo(() => {
-    const r = (
-      user?.role ||
-      user?.profile?.role ||
-      user?.perfil?.role ||
-      user?.app_metadata?.role ||
-      user?.user_metadata?.role ||
-      ""
-    ).toLowerCase();
+    // Ordem de prioridade para capturar o papel real (dev, admin, member):
+    // 1. perfil.role do banco public.profiles
+    // 2. profile.role
+    // 3. app_metadata.role do auth
+    // 4. user_metadata.role do auth
+    // 5. user.role (apenas se for dev, admin ou member, ignorando 'authenticated' do Supabase)
+    const candidates = [
+      user?.perfil?.role,
+      user?.profile?.role,
+      user?.app_metadata?.role,
+      user?.user_metadata?.role,
+      user?.role !== "authenticated" ? user?.role : null,
+    ];
 
-    if (r === "dev" || r === "admin" || r === "member") return r;
+    for (const cand of candidates) {
+      if (!cand || typeof cand !== "string") continue;
+      const clean = cand.trim().toLowerCase();
+      if (clean === "dev" || clean === "admin" || clean === "member") {
+        return clean;
+      }
+    }
+
     return "member";
   }, [user]);
 
   const permissoes = usePermissao(userRole);
 
-  // Garantir que perfis "member" não acessem abas restritas (avanço, histograma, macrofluxo)
+  // Garantir que perfis sem acesso não acessem abas restritas (avanço ocultado para admin e member)
   useEffect(() => {
     if (userRole === "member" && (vista === "avanco" || vista === "histograma" || vista === "macrofluxo")) {
+      setVista("grafico");
+    } else if (userRole === "admin" && vista === "avanco") {
       setVista("grafico");
     }
   }, [userRole, vista]);
@@ -122,58 +136,45 @@ export default function App() {
               nAtividades: p.atividades?.length ?? 0,
               user_id: item.user_id ?? null,
               grupo_id: item.grupo_id ?? null,
+              arquivado: !!(p.arquivado || item.arquivado),
+              arquivado_em: p.arquivado_em || null,
             };
           })
         : [];
 
-      const isUUID = (val) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-      const serverIds = new Set(serverLista.map((x) => x.id));
+      // Obter lista de obras permanentemente excluídas para evitar qualquer ressuscitação
+      let deletedList = [];
+      try {
+        const rDel = await storage.get("lob:deleted_projs");
+        deletedList = rDel ? JSON.parse(rDel.value) : [];
+      } catch {}
+      const deletedSet = new Set(deletedList);
+
+      // Filtrar obras excluídas da lista do servidor
+      const listaFinal = serverLista.filter((x) => !deletedSet.has(x.id));
+      const serverIds = new Set(listaFinal.map((x) => x.id));
+
+      // Limpar cache local de obras que foram excluídas ou não constam mais no servidor
       for (const locItem of localIdx) {
-        if (!serverIds.has(locItem.id)) {
+        if (!serverIds.has(locItem.id) || deletedSet.has(locItem.id)) {
           try {
-            const rp = await storage.get(`lob:proj:${locItem.id}`);
-            if (rp) {
-              let p = JSON.parse(rp.value);
-              const oldId = p.id;
-              if (!isUUID(p.id)) {
-                const newId = uid();
-                p = { ...p, id: newId };
-                await storage.set(`lob:proj:${newId}`, JSON.stringify(p));
-                await storage.remove(`lob:proj:${oldId}`);
-              }
-              p.user_id = user?.id || p.user_id || null;
-              const saved = await apiClient.salvarProjeto(p, user?.id);
-              if (saved) {
-                serverLista.unshift({
-                  id: p.id,
-                  nome: p.nome || locItem.nome || "Sem nome",
-                  em: locItem.em || Date.now(),
-                  nTorres: p.torres?.length ?? 0,
-                  nAtividades: p.atividades?.length ?? 0,
-                  user_id: user?.id,
-                  grupo_id: p.grupo_id || null,
-                });
-                serverIds.add(p.id);
-              }
-            }
-          } catch (e) {
-            console.warn("Erro ao enviar obra local para o Supabase:", e);
-          }
+            await storage.remove(`lob:proj:${locItem.id}`);
+          } catch {}
         }
       }
 
-      if (serverLista.length > 0) {
-        setSalvos(serverLista);
+      if (listaFinal.length > 0) {
+        setSalvos(listaFinal);
         await storage.set(
           "lob:index",
-          JSON.stringify(serverLista.map((x) => ({ id: x.id, nome: x.nome, em: x.em })))
+          JSON.stringify(listaFinal.map((x) => ({ id: x.id, nome: x.nome, em: x.em, arquivado: x.arquivado })))
         );
         for (const item of serverProjetos || []) {
-          if (item.dados) {
+          if (item.dados && !deletedSet.has(item.id)) {
             await storage.set(`lob:proj:${item.id}`, JSON.stringify(item.dados));
           }
         }
-        return serverLista;
+        return listaFinal;
       }
 
       setSalvos([]);
@@ -262,27 +263,23 @@ export default function App() {
       try {
         const sessao = await obterSessao();
         if (sessao?.user) {
-          let u = sessao.user;
-          try {
-            const { data: profile } = await supabasePublic
-              .from("profiles")
-              .select("role, nome")
-              .eq("id", sessao.user.id)
-              .single();
-            if (profile?.role) {
-              u = { ...u, role: profile.role, perfil: profile };
-            }
-          } catch {}
-          setUser(u);
+          const enriched = await obterPerfilUsuario(sessao.user);
+          setUser(enriched);
           if (sessao.access_token) {
             sessionStorage.setItem("lob:auth_token", sessao.access_token);
-            sessionStorage.setItem("lob:user", JSON.stringify(u));
+            sessionStorage.setItem("lob:user", JSON.stringify(enriched));
           }
         } else {
           const storedUser = sessionStorage.getItem("lob:user");
           const storedToken = sessionStorage.getItem("lob:auth_token");
           if (storedUser && storedToken) {
-            setUser(JSON.parse(storedUser));
+            try {
+              const parsed = JSON.parse(storedUser);
+              setUser(parsed);
+              obterPerfilUsuario(parsed).then((fresh) => {
+                if (fresh) setUser(fresh);
+              });
+            } catch {}
           }
         }
       } catch (e) {
@@ -296,28 +293,22 @@ export default function App() {
   }, [carregarMacrofluxos]);
 
   const sincronizarPerfil = useCallback(async () => {
+    if (!user) return;
     try {
-      const token = sessionStorage.getItem("lob:auth_token") || localStorage.getItem("lob:auth_token");
-      if (!token) return;
-
-      // Sincronizar perfil e cargo real do usuário via API backend
-      try {
-        const meRes = await fetch("/api/auth/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          if (meData?.role) {
-            setUser((prev) => (prev ? { ...prev, role: meData.role, profile: meData.profile } : prev));
+      const freshUser = await obterPerfilUsuario(user);
+      if (freshUser) {
+        setUser((prev) => {
+          if (!prev) return freshUser;
+          if (prev.role !== freshUser.role || prev.perfil?.nome !== freshUser.perfil?.nome) {
+            return freshUser;
           }
-        }
-      } catch (err) {
-        console.warn("Erro ao sincronizar /api/auth/me:", err);
+          return prev;
+        });
       }
     } catch (e) {
-      console.warn("Erro ao sincronizar perfil:", e);
+      console.warn("Erro ao sincronizar perfil do Supabase:", e);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -533,22 +524,94 @@ export default function App() {
       return;
     }
     try {
+      // 1. Gravar tombstone para garantir que a obra nunca seja recriada por caches residuais
+      try {
+        const rDel = await storage.get("lob:deleted_projs");
+        const delList = rDel ? JSON.parse(rDel.value) : [];
+        if (!delList.includes(id)) {
+          delList.push(id);
+          await storage.set("lob:deleted_projs", JSON.stringify(delList));
+        }
+      } catch {}
+
+      // 2. Limpar todas as chaves de storage locais
       await storage.remove(`lob:proj:${id}`);
+      try {
+        localStorage.removeItem(`lob:proj:${id}`);
+        sessionStorage.removeItem(`lob:proj:${id}`);
+      } catch {}
+
       const r = await storage.get("lob:index");
       const idx = r ? JSON.parse(r.value) : [];
       const novoIdx = idx.filter((e) => e.id !== id);
       await storage.set("lob:index", JSON.stringify(novoIdx));
       setSalvos((prev) => prev.filter((e) => e.id !== id));
 
+      // 3. Exclusão permanente do banco Supabase com cascateamento
       await apiClient.excluirProjeto(id);
 
       if (proj?.id === id) {
         setProj(null);
         setTela("home");
       }
-      flash("Obra excluída com sucesso");
+      flash("Obra excluída permanentemente com sucesso!");
     } catch (err) {
-      flash(err.message || "Não foi possível excluir");
+      console.error("Erro ao excluir obra:", err);
+      flash(err.message || "Não foi possível excluir permanentemente a obra.");
+    }
+  };
+
+  const alternarArquivamentoObra = async (id, arquivar = true) => {
+    if (!permissoes.podeExcluir) {
+      flash("Acesso restrito: apenas desenvolvedores (Dev) podem arquivar ou desarquivar obras.");
+      return;
+    }
+    try {
+      let p = null;
+      if (proj?.id === id) {
+        p = proj;
+      } else {
+        const serverP = await apiClient.getProjeto(id);
+        p = serverP?.dados || serverP;
+      }
+
+      if (!p) {
+        const r = await storage.get(`lob:proj:${id}`);
+        p = r ? JSON.parse(r.value) : null;
+      }
+
+      if (!p) {
+        flash("Obra não encontrada para alterar arquivamento.");
+        return;
+      }
+
+      const atualizado = {
+        ...p,
+        arquivado: !!arquivar,
+        arquivado_em: arquivar ? new Date().toISOString() : null,
+        arquivado_por: arquivar ? (user?.email || user?.nome || "Dev") : null,
+      };
+
+      await storage.set(`lob:proj:${id}`, JSON.stringify(atualizado));
+      if (proj?.id === id) {
+        setProj(atualizado);
+      }
+
+      setSalvos((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, arquivado: !!arquivar, arquivado_em: atualizado.arquivado_em } : s))
+      );
+
+      await apiClient.salvarProjeto(atualizado, user?.id);
+      await listar();
+
+      flash(
+        arquivar
+          ? `Obra "${p.nome || "Obra"}" arquivada com sucesso!`
+          : `Obra "${p.nome || "Obra"}" desarquivada com sucesso!`
+      );
+    } catch (err) {
+      console.error("Erro ao alterar arquivamento da obra:", err);
+      flash("Erro ao salvar status de arquivamento da obra.");
     }
   };
 
@@ -1368,6 +1431,7 @@ export default function App() {
           onSelecionarObra={selecionarObra}
           onNovaObra={() => setModal("novaObra")}
           onExcluirObra={pedirExcluirObra}
+          onArquivarObra={alternarArquivamentoObra}
         />
         {modal === "novaObra" && (
           <ModalNovaObra
@@ -1426,7 +1490,7 @@ export default function App() {
 
       {/* ── Área de Conteúdo Central da Aplicação ── */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
-        {vista === "avanco" && userRole !== "member" ? (
+        {vista === "avanco" && permissoes.podeVerAbaAvanco ? (
           <AvancoView
             T={T}
             proj={proj}

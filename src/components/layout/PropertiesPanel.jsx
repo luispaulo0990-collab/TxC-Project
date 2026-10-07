@@ -238,21 +238,50 @@ export const PropertiesPanel = ({
               const statusInfo = calcularStatusAtividade(sel, proj, {}, hoje());
               const corStatus = statusInfo.emAtraso ? ERRO : OK;
 
+              const handleAtualizarAvanco = (novoValor) => {
+                if (!podeEditar) return;
+                const v = Math.max(0, Math.min(100, Math.round(Number(novoValor) || 0)));
+                const patch = { avanco: v };
+                if (v === 100 && !sel.realFim) patch.realFim = iso(hoje());
+                if (v > 0 && !sel.realIni) patch.realIni = iso(hoje());
+                if (v === 0) {
+                  patch.realIni = null;
+                  patch.realFim = null;
+                }
+                upA(sel.id, patch);
+              };
+
               return (
                 <div className="mt-3 p-3 rounded-sm border" style={{ background: T.raised, borderColor: T.line }}>
                   <div className="flex items-center justify-between mb-2">
                     <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: corStatus, fontWeight: 700 }} className="flex items-center gap-1">
                       <TrendingUp size={12} /> AVANÇO FÍSICO (% REALIZADO)
                     </div>
-                    <span className="text-xs font-bold" style={{ ...NUM, color: corStatus }}>
-                      {avancoAtual}%
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={avancoAtual}
+                        disabled={!podeEditar}
+                        onChange={(e) => handleAtualizarAvanco(e.target.value)}
+                        className="w-14 text-right text-xs font-bold py-0.5 px-1 rounded outline-none border transition-all focus:ring-1 focus:ring-orange-500"
+                        style={{
+                          ...NUM,
+                          background: T.input,
+                          borderColor: T.line,
+                          color: corStatus,
+                        }}
+                        title="Digitar percentual de avanço diretamente"
+                      />
+                      <span className="text-xs font-bold" style={{ color: corStatus }}>%</span>
+                    </div>
                   </div>
 
                   {/* Banner de Status com a Linha de Corte Hoje */}
                   {statusInfo.corteHojeAtivo && (
                     <div
-                      className="px-2 py-1 mb-2 rounded text-[11px] font-semibold flex items-center justify-between gap-1"
+                      className="px-2 py-1 mb-2.5 rounded text-[11px] font-semibold flex items-center justify-between gap-1"
                       style={{
                         background: statusInfo.emAtraso ? `${ERRO}18` : `${OK}18`,
                         color: statusInfo.emAtraso ? ERRO : OK,
@@ -274,13 +303,13 @@ export const PropertiesPanel = ({
                     <button
                       type="button"
                       onClick={() => onAbrirModalApontar(sel)}
-                      className="w-full text-xs py-1.5 px-2.5 rounded-xs font-bold text-white flex items-center justify-center gap-1.5 transition-all shadow-xs hover:brightness-110 mb-2.5 cursor-pointer"
+                      className="w-full text-xs py-2 px-3 rounded-md font-bold text-white flex items-center justify-center gap-1.5 transition-all shadow-sm hover:brightness-110 active:scale-[0.99] mb-2.5 cursor-pointer"
                       style={{
                         background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
                       }}
                       title="Apontar avanço indicando quantidade de homens e cargos para o Histograma"
                     >
-                      <Users size={12} /> Apontar com Mão de Obra
+                      <Users size={13} /> Apontar com Mão de Obra
                     </button>
                   )}
 
@@ -291,14 +320,8 @@ export const PropertiesPanel = ({
                         <button
                           key={v}
                           type="button"
-                          onClick={() => {
-                            const patch = { avanco: v };
-                            if (v === 100 && !sel.realFim) patch.realFim = iso(hoje());
-                            if (v > 0 && !sel.realIni) patch.realIni = iso(hoje());
-                            if (v === 0) { patch.realIni = null; patch.realFim = null; }
-                            upA(sel.id, patch);
-                          }}
-                          className="flex-1 py-1 text-xs font-bold rounded-xs transition-colors"
+                          onClick={() => handleAtualizarAvanco(v)}
+                          className="flex-1 py-1 text-xs font-bold rounded-xs transition-colors cursor-pointer"
                           style={{
                             ...NUM,
                             background: avancoAtual === v ? corStatus : T.panel,
@@ -312,16 +335,19 @@ export const PropertiesPanel = ({
                     </div>
                   )}
 
-                  {/* Slider de Avanço */}
+                  {/* Slider de Avanço com step 1 e preenchimento visual */}
                   <input
                     type="range"
                     min="0"
                     max="100"
-                    step="5"
+                    step="1"
                     value={avancoAtual}
                     disabled={!podeEditar}
-                    onChange={(e) => upA(sel.id, { avanco: Number(e.target.value) })}
-                    className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-600 mb-2"
+                    onChange={(e) => handleAtualizarAvanco(e.target.value)}
+                    className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-orange-500 mb-2.5"
+                    style={{
+                      background: `linear-gradient(to right, ${corStatus} 0%, ${corStatus} ${avancoAtual}%, rgba(128,128,128,0.2) ${avancoAtual}%, rgba(128,128,128,0.2) 100%)`,
+                    }}
                   />
                   {/* Pavimento Atual da Frente */}
                   <div className="mt-2">
@@ -330,8 +356,9 @@ export const PropertiesPanel = ({
                     </label>
                     <select
                       value={sel.pavimentoAtualId || ""}
+                      disabled={!podeEditar}
                       onChange={(e) => upA(sel.id, { pavimentoAtualId: e.target.value || null })}
-                      className="w-full text-xs px-2 py-1 rounded outline-none border"
+                      className="w-full text-xs px-2 py-1 rounded outline-none border transition-colors focus:ring-1 focus:ring-orange-500"
                       style={{ background: T.input, borderColor: T.line, color: T.text }}
                     >
                       <option value="">Automático pelo %</option>
