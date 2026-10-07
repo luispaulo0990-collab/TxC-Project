@@ -65,7 +65,7 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExc
         background: bg,
         border: `1.5px solid ${border}`,
         borderRadius: 14,
-        padding: "22px 22px 18px",
+        padding: "20px 20px 14px",
         cursor: "pointer",
         transition: "all 0.18s ease",
         position: "relative",
@@ -74,7 +74,7 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExc
           ? isDark ? "0 12px 32px rgba(0,0,0,0.5)" : "0 12px 32px rgba(0,0,0,0.12)"
           : isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.06)",
         fontFamily: FONT,
-        minHeight: 160,
+        minHeight: 170,
         display: "flex",
         flexDirection: "column",
         opacity: obra.arquivado ? 0.85 : 1,
@@ -137,7 +137,7 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExc
       </div>
 
       {/* Stats */}
-      <div style={{ display: "flex", gap: 16, marginTop: "auto" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: "auto", flexWrap: "wrap" }}>
         {obra.nTorres != null && (
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <Layers size={12} color={mutedColor} />
@@ -161,11 +161,16 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExc
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
-            position: "absolute", bottom: 12, right: 12,
-            display: "flex", alignItems: "center", gap: 6,
+            marginTop: 10,
+            paddingTop: 8,
+            borderTop: `1px solid ${isDark ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.06)"}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 6,
             opacity: hovered ? 1 : 0,
+            pointerEvents: hovered ? "auto" : "none",
             transition: "opacity 0.15s ease",
-            zIndex: 3,
           }}
         >
           {onArquivar && (
@@ -184,6 +189,12 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExc
                 color: isDark ? "#CBD5E1" : "#475569",
                 fontSize: 10.5, fontWeight: 600,
                 transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)";
               }}
             >
               {obra.arquivado ? <ArchiveRestore size={11} /> : <Archive size={11} />}
@@ -206,6 +217,12 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExc
               color: "#EF4444",
               fontSize: 10.5, fontWeight: 700,
               transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(214, 69, 69, 0.22)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(214, 69, 69, 0.12)";
             }}
           >
             <Trash2 size={11} />
@@ -244,12 +261,12 @@ function NovaObraCard({ onClick, tema }) {
       style={{
         border: `1.5px dashed ${hovered ? ORANGE : (isDark ? "#3E4138" : "#CCCCC9")}`,
         borderRadius: 14,
-        padding: "22px 22px 18px",
+        padding: "20px 20px 14px",
         cursor: "pointer",
         transition: "all 0.18s ease",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        minHeight: 160, gap: 12,
+        minHeight: 170, gap: 12,
         background: hovered
           ? isDark ? "rgba(254,80,0,0.06)" : "rgba(254,80,0,0.04)"
           : "transparent",
