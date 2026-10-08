@@ -593,9 +593,12 @@ export const FlowlineChart = ({
                         strokeWidth={0.5}
                       />
 
-                      {/* Preenchimento de Avanço no Bloco (Sempre positivo em verde) */}
+                      {/* Preenchimento de Avanço no Bloco */}
                       {avancoPct > 0 && exibirRealizado && (() => {
-                        const corBlocoAvanco = OK;
+                        const cortaHojeBloco = xHoje >= x;
+                        const corteRatioBloco = cortaHojeBloco ? Math.min(1, (xHoje - x) / Math.max(1, w)) : 0;
+                        const emAtrasoBloco = cortaHojeBloco && (avancoPct / 100 < corteRatioBloco) && !a.realFim && avancoPct !== 100;
+                        const corBlocoAvanco = emAtrasoBloco ? ERRO : OK;
 
                         return (
                           <rect
@@ -703,8 +706,8 @@ export const FlowlineChart = ({
                   // Interseção com a Linha de Corte de Hoje
                   const cortaHoje = xHoje >= x1;
                   const corteRatio = cortaHoje ? Math.min(1, (xHoje - x1) / Math.max(1, x2 - x1)) : 0;
-                  // Avanço realizado sempre em verde (OK), sem criar linhas vermelhas de atraso no gráfico
-                  const corAvanco = OK;
+                  const emAtraso = cortaHoje && (avancoRatio < corteRatio) && !a.realFim && a.avanco !== 100;
+                  const corAvanco = emAtraso ? ERRO : OK;
                   const corteX = x1 + corteRatio * (x2 - x1);
                   const corteY = y1 + corteRatio * (y2 - y1);
 
@@ -793,7 +796,7 @@ export const FlowlineChart = ({
                               fontWeight="700"
                               style={{ ...NUM }}
                             >
-                              {Math.round(avancoRatio * 100)}%
+                              {Math.round(avancoRatio * 100)}%{emAtraso ? " (atraso)" : ""}
                             </text>
                           )}
                         </g>
