@@ -29,6 +29,11 @@ import {
   Save,
 } from "lucide-react";
 
+// ── Flags de Exibição de Linhas Temporais ──
+// Linha de Hoje mantida aparente; Linhas de Marcos ocultadas a pedido do usuário
+const EXIBIR_LINHA_HOJE = true;
+const EXIBIR_MARCOS = false;
+
 export const FlowlineChart = ({
   T,
   proj,
@@ -361,7 +366,7 @@ export const FlowlineChart = ({
               <line x1={0} y1={24} x2={chartW} y2={24} stroke="rgba(255,255,255,0.22)" strokeWidth={0.6} />
               
               {/* Indicador de Data de Hoje no Eixo */}
-              {xHoje >= 0 && xHoje <= chartW && (
+              {EXIBIR_LINHA_HOJE && xHoje >= 0 && xHoje <= chartW && (
                 <g>
                   <line x1={xHoje} y1={0} x2={xHoje} y2={HEADER_H} stroke={ORANGE} strokeWidth={1.5} />
                   <rect x={xHoje - 20} y={30} width={40} height={15} rx={2} fill={ORANGE} />
@@ -371,7 +376,7 @@ export const FlowlineChart = ({
                 </g>
               )}
 
-              {proj.marcos.map((mk) => (
+              {EXIBIR_MARCOS && proj.marcos.map((mk) => (
                 <rect key={mk.id} x={xOf(D(mk.data)) - 2} y={26} width={4} height={20} fill={mk.cor} />
               ))}
             </svg>
@@ -508,7 +513,7 @@ export const FlowlineChart = ({
               ))}
 
               {/* Linha Vertical de Hoje no Gráfico */}
-              {xHoje >= 0 && xHoje <= chartW && (
+              {EXIBIR_LINHA_HOJE && xHoje >= 0 && xHoje <= chartW && (
                 <line
                   x1={xHoje}
                   y1={0}
@@ -522,7 +527,8 @@ export const FlowlineChart = ({
                 />
               )}
 
-              {proj.marcos.map((mk) => (
+              {/* Linhas de Marcos (Ocultadas conforme solicitação) */}
+              {EXIBIR_MARCOS && proj.marcos.map((mk) => (
                 <line
                   key={mk.id}
                   x1={xOf(D(mk.data))}
@@ -795,7 +801,7 @@ export const FlowlineChart = ({
                       )}
 
                       {/* Ponto de corte da Linha Hoje quando a atividade está selecionada */}
-                      {on && cortaHoje && xHoje <= x2 && (
+                      {EXIBIR_LINHA_HOJE && on && cortaHoje && xHoje <= x2 && (
                         <g pointerEvents="none">
                           <circle cx={corteX} cy={corteY} r={4} fill={ORANGE} stroke="#FFFFFF" strokeWidth={1.2} />
                         </g>

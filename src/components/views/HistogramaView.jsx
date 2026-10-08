@@ -19,6 +19,7 @@ import {
   FileSpreadsheet,
   AlertCircle,
   HelpCircle,
+  Construction,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ORANGE, OK, ERRO, NUM, FONT } from "../../constants/theme";
@@ -92,8 +93,15 @@ export const HistogramaView = ({
   onSelectAtividade,
   flash,
   user,
+  userRole,
+  permissoes,
+  onVoltarAoGrafico,
   podeEditar = true,
 }) => {
+  // Desativa o uso e ativa o borrado para usuários de nível Admin
+  const bloqueadoAdmin =
+    userRole === "admin" ||
+    (permissoes && permissoes.isAdmin && !permissoes.isDev);
   const [filtroTorre, setFiltroTorre] = useState(filtroTorreInicial);
   const [buscaAtividade, setBuscaAtividade] = useState("");
   const [cargoFiltro, setCargoFiltro] = useState("TODOS");
@@ -559,14 +567,19 @@ export const HistogramaView = ({
 
   return (
     <div
-      className="flex-1 flex flex-col h-full overflow-hidden"
+      className="flex-1 flex flex-col h-full overflow-hidden relative"
       style={{ background: T.bg, fontFamily: FONT, color: T.text }}
     >
-      {/* ── Topo do Painel de Histograma ── */}
+      {/* Conteúdo do Histograma (com blur e bloqueio de cliques caso seja Admin) */}
       <div
-        className="p-4 shrink-0 border-b flex flex-col gap-4"
-        style={{ background: T.panel, borderColor: T.line }}
+        className="flex-1 flex flex-col h-full overflow-hidden transition-all duration-300"
+        style={bloqueadoAdmin ? { filter: "blur(7px)", pointerEvents: "none", userSelect: "none" } : {}}
       >
+        {/* ── Topo do Painel de Histograma ── */}
+        <div
+          className="p-4 shrink-0 border-b flex flex-col gap-4"
+          style={{ background: T.panel, borderColor: T.line }}
+        >
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div
@@ -1437,6 +1450,73 @@ export const HistogramaView = ({
           </>
         )}
       </div>
+      </div>
+
+      {/* ── Overlay Central: Em Desenvolvimento para nível Admin ── */}
+      {bloqueadoAdmin && (
+        <div
+          className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 text-center select-none"
+          style={{
+            background: T.scheme === "dark" ? "rgba(17, 19, 16, 0.65)" : "rgba(236, 237, 235, 0.65)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+          }}
+        >
+          <div
+            className="p-8 sm:p-10 rounded-3xl max-w-md w-full flex flex-col items-center gap-4 shadow-2xl transition-all"
+            style={{
+              background: T.panel,
+              border: `1px solid ${T.line}`,
+              boxShadow:
+                T.scheme === "dark"
+                  ? "0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 40px rgba(254, 80, 0, 0.12)"
+                  : "0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 40px rgba(254, 80, 0, 0.08)",
+            }}
+          >
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-md relative"
+              style={{
+                background: "linear-gradient(135deg, rgba(254, 80, 0, 0.15) 0%, rgba(254, 80, 0, 0.05) 100%)",
+                border: "1px solid rgba(254, 80, 0, 0.3)",
+              }}
+            >
+              <Construction size={32} style={{ color: "#FE5000" }} />
+            </div>
+
+            <div className="flex flex-col items-center gap-1.5">
+              <span
+                className="text-[10px] font-black uppercase tracking-widest px-3 py-0.5 rounded-full"
+                style={{
+                  background: "rgba(245, 158, 11, 0.18)",
+                  color: "#D97706",
+                  border: "1px solid rgba(245, 158, 11, 0.35)",
+                }}
+              >
+                Em Breve
+              </span>
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight mt-1" style={{ color: T.text }}>
+                Em Desenvolvimento
+              </h2>
+              <p className="text-xs sm:text-sm text-center leading-relaxed mt-1" style={{ color: T.muted }}>
+                O módulo de <strong>Histograma de Mão de Obra</strong> está em desenvolvimento para o perfil Administrador e será liberado em breve.
+              </p>
+            </div>
+
+            {onVoltarAoGrafico && (
+              <button
+                onClick={onVoltarAoGrafico}
+                className="mt-2 w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white flex items-center justify-center gap-2 transition-all shadow-md hover:brightness-110 active:scale-[0.99] cursor-pointer"
+                style={{
+                  background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
+                  boxShadow: "0 4px 14px rgba(254, 80, 0, 0.28)",
+                }}
+              >
+                Voltar ao Gráfico TxC
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

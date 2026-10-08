@@ -33,8 +33,14 @@ export const PropertiesPanel = ({
   onExcluir,
   onAbrirModalApontar,
   user,
+  userRole,
+  permissoes,
   podeEditar = true,
 }) => {
+  // Permissão para apontamento com mão de obra: exclusivo para Dev (ocultado para Admin e Membro)
+  const podeApontarMaoDeObra = permissoes
+    ? !!permissoes.podeApontarMaoDeObra
+    : (userRole === "dev");
   if (!showProps) {
     return (
       <button
@@ -298,8 +304,8 @@ export const PropertiesPanel = ({
                     </div>
                   )}
 
-                  {/* Botão de Apontamento com Mão de Obra */}
-                  {onAbrirModalApontar && podeEditar && (
+                  {/* Botão de Apontamento com Mão de Obra (Apenas Dev - Ocultado para Admin e Membro) */}
+                  {onAbrirModalApontar && podeEditar && podeApontarMaoDeObra && (
                     <button
                       type="button"
                       onClick={() => onAbrirModalApontar(sel)}

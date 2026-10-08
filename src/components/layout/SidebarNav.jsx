@@ -51,7 +51,7 @@ export const SidebarNav = ({
   const allNavItems = [
     { id: "grafico", label: "Gráfico TxC", icon: Layers },
     { id: "avanco", label: "Avanço Físico", icon: TrendingUp },
-    { id: "histograma", label: "Histograma", icon: Users, badge: "Novo" },
+    { id: "histograma", label: "Histograma", icon: Users, badge: "Em Breve" },
     { id: "metas", label: "Metas", icon: Target },
     { id: "macrofluxo", label: "Macrofluxos", icon: Zap },
     { id: "resumo", label: "Resumo", icon: LayoutDashboard },
@@ -215,7 +215,11 @@ export const SidebarNav = ({
                 {item.badge && !active && (
                   <span
                     className="text-[9.5px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide"
-                    style={{ background: `${OK}30`, color: OK }}
+                    style={{
+                      background: item.badge === "Em Breve" ? "rgba(245, 158, 11, 0.18)" : `${OK}30`,
+                      color: item.badge === "Em Breve" ? "#FBBF24" : OK,
+                      border: item.badge === "Em Breve" ? "1px solid rgba(245, 158, 11, 0.35)" : "none",
+                    }}
                   >
                     {item.badge}
                   </span>

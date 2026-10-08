@@ -1525,7 +1525,10 @@ export default function App() {
             }}
             flash={flash}
             user={user}
+            userRole={userRole}
+            permissoes={permissoes}
             podeEditar={permissoes.podeEditar}
+            onVoltarAoGrafico={() => setVista("grafico")}
           />
         ) : vista === "resumo" ? (
           <Resumo
@@ -1674,6 +1677,8 @@ export default function App() {
               onExcluir={pedirExcluirAtividade}
               onAbrirModalApontar={(ativ) => setModalApontar(ativ)}
               user={user}
+              userRole={userRole}
+              permissoes={permissoes}
               podeEditar={permissoes.podeEditar}
             />
           </div>

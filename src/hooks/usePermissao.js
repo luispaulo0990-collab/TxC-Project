@@ -33,6 +33,10 @@ export function calcularPermissao(role) {
     podeCriarGrupo: isDev || isAdmin,
     /** Aba de Avanço Físico no menu: visível exclusivamente para perfil Dev (ocultada para Admin e Membro) */
     podeVerAbaAvanco: isDev,
+    /** Histograma de mão de obra ativo: exclusivamente Dev (Admin vê tela de Em Desenvolvimento) */
+    podeUsarHistograma: isDev,
+    /** Apontar avanço com detalhamento de mão de obra: exclusivamente Dev (ocultado para Admin e Membro) */
+    podeApontarMaoDeObra: isDev,
     /** Papel normalizado */
     role: normalizedRole,
     isAdmin,

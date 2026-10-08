@@ -59,9 +59,6 @@ export function seedProject() {
     locais,
     atividades,
     macrofluxos: getModelosPadraoMacrofluxo(),
-    marcos: [
-      { id: uid(), nome: "Liberação de recurso", data: "2026-06-15", cor: ORANGE, dinamico: false },
-      { id: uid(), nome: "Data de status", data: "2026-07-06", cor: P447, dinamico: false },
-    ],
+    marcos: [],
   };
 }
