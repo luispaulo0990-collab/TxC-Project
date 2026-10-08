@@ -55,7 +55,7 @@ export const StatusBar = ({
 
       <span className="ml-auto text-xs shrink-0 flex items-center gap-3">
         <span className="flex items-center gap-1" style={{ color: T.dim, fontSize: 10.5 }}>
-          <span style={{ width: 14, height: 0, borderTop: `2px dashed ${ERRO}`, display: "inline-block" }} /> realizado
+          <span style={{ width: 14, height: 0, borderTop: `2.5px solid ${OK}`, display: "inline-block" }} /> avanço realizado
         </span>
         {status && <span style={{ color: ORANGE, fontWeight: 500 }}>{status}</span>}
       </span>

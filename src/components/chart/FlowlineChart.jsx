@@ -30,9 +30,11 @@ import {
 } from "lucide-react";
 
 // ── Flags de Exibição de Linhas Temporais ──
-// Linha de Hoje mantida aparente; Linhas de Marcos ocultadas a pedido do usuário
+// Linha de Hoje mantida aparente; Linhas de Marcos e Realizado tracejado ocultadas
 const EXIBIR_LINHA_HOJE = true;
 const EXIBIR_MARCOS = false;
+const EXIBIR_LINHAS_REALIZADO = false;
+const EXIBIR_PONTO_CORTE_HOJE = false;
 
 export const FlowlineChart = ({
   T,
@@ -591,12 +593,9 @@ export const FlowlineChart = ({
                         strokeWidth={0.5}
                       />
 
-                      {/* Preenchimento de Avanço no Bloco */}
+                      {/* Preenchimento de Avanço no Bloco (Sempre positivo em verde) */}
                       {avancoPct > 0 && exibirRealizado && (() => {
-                        const cortaHojeBloco = xHoje >= x;
-                        const corteRatioBloco = cortaHojeBloco ? Math.min(1, (xHoje - x) / Math.max(1, w)) : 0;
-                        const emAtrasoBloco = cortaHojeBloco && (avancoPct / 100 < corteRatioBloco) && !a.realFim && avancoPct !== 100;
-                        const corBlocoAvanco = emAtrasoBloco ? ERRO : OK;
+                        const corBlocoAvanco = OK;
 
                         return (
                           <rect
@@ -642,8 +641,8 @@ export const FlowlineChart = ({
                   );
                 })}
 
-              {/* Linhas Realizadas (tracejadas em vermelho/laranja) */}
-              {ativVisiveis
+              {/* Linhas Realizadas (tracejadas em vermelho - Ocultadas conforme solicitação) */}
+              {EXIBIR_LINHAS_REALIZADO && ativVisiveis
                 .filter((a) => a.modo === "LINHA" && a.realIni && a.realFim)
                 .map((a) => {
                   const x1 = xOf(D(a.realIni));
@@ -704,8 +703,8 @@ export const FlowlineChart = ({
                   // Interseção com a Linha de Corte de Hoje
                   const cortaHoje = xHoje >= x1;
                   const corteRatio = cortaHoje ? Math.min(1, (xHoje - x1) / Math.max(1, x2 - x1)) : 0;
-                  const emAtraso = cortaHoje && (avancoRatio < corteRatio) && !a.realFim && a.avanco !== 100;
-                  const corAvanco = emAtraso ? ERRO : OK;
+                  // Avanço realizado sempre em verde (OK), sem criar linhas vermelhas de atraso no gráfico
+                  const corAvanco = OK;
                   const corteX = x1 + corteRatio * (x2 - x1);
                   const corteY = y1 + corteRatio * (y2 - y1);
 
@@ -794,14 +793,14 @@ export const FlowlineChart = ({
                               fontWeight="700"
                               style={{ ...NUM }}
                             >
-                              {Math.round(avancoRatio * 100)}%{emAtraso ? " (atraso)" : ""}
+                              {Math.round(avancoRatio * 100)}%
                             </text>
                           )}
                         </g>
                       )}
 
-                      {/* Ponto de corte da Linha Hoje quando a atividade está selecionada */}
-                      {EXIBIR_LINHA_HOJE && on && cortaHoje && xHoje <= x2 && (
+                      {/* Ponto de corte da Linha Hoje quando a atividade está selecionada (ocultado) */}
+                      {EXIBIR_PONTO_CORTE_HOJE && on && cortaHoje && xHoje <= x2 && (
                         <g pointerEvents="none">
                           <circle cx={corteX} cy={corteY} r={4} fill={ORANGE} stroke="#FFFFFF" strokeWidth={1.2} />
                         </g>
