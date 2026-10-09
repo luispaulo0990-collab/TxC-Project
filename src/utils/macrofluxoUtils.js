@@ -1,5 +1,5 @@
-import { uid, iso, addDays, diffDays, D, parseData, ajustarFimDeSemanaParaSegunda } from "./dateUtils";
-import { BLACK, ORANGE, DIAS_MES } from "../constants/theme";
+import { uid, iso, addDays, diffDays, D, parseData, ajustarFimDeSemanaParaSegunda } from "./dateUtils.js";
+import { BLACK, ORANGE, DIAS_MES } from "../constants/theme.js";
 
 /* ─── Modelos Padrão de Macrofluxo ──────────────────────────── */
 export function getModelosPadraoMacrofluxo() {

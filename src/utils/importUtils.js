@@ -1,8 +1,8 @@
 import * as XLSX from "xlsx";
-import { D, iso, addDays, uid, parseData, fmtBR, hoje, ajustarFimDeSemanaParaSegunda } from "./dateUtils";
-import { normalizar } from "./geometryUtils";
-import { BLACK } from "../constants/theme";
-import { baixar } from "./exportUtils";
+import { D, iso, addDays, uid, parseData, fmtBR, hoje, ajustarFimDeSemanaParaSegunda } from "./dateUtils.js";
+import { normalizar } from "./geometryUtils.js";
+import { BLACK } from "../constants/theme.js";
+import { baixar } from "./exportUtils.js";
 
 /* Paleta de cores vibrantes e contrastantes para atividades importadas (sem preto) */
 export const CORES_ALEATORIAS = [
@@ -41,50 +41,187 @@ export function gerarCorAleatoria() {
  */
 export function mapearColunas(headerRow) {
   const cols = (headerRow || []).map((c) => normalizar(String(c || "")));
+
+  const idxId = cols.findIndex(
+    (c) =>
+      c === "id" ||
+      c.startsWith("id ") ||
+      c.startsWith("id_") ||
+      c === "codigo" ||
+      c === "cod" ||
+      c.startsWith("codigo ") ||
+      c === "id da atividade" ||
+      c === "codigo da atividade"
+  );
   
-  const idxTorre = cols.findIndex((c) => c === "torre" || c.startsWith("torre") || c === "edificio" || c === "bloco");
-  const idxAtiv = cols.findIndex((c) => 
-    c === "atividade" || c.startsWith("atividade") || 
-    c === "servico" || c === "serviço" || c.startsWith("servico") || 
-    c === "nome" || c === "tarefa" || c === "descricao" || c === "item"
+  const idxTorre = cols.findIndex(
+    (c) =>
+      c === "torre" ||
+      c.startsWith("torre") ||
+      c === "edificio" ||
+      c === "bloco" ||
+      c === "tower" ||
+      c === "predio"
   );
-  const idxIni = cols.findIndex((c) => 
-    c === "inicio" || c.startsWith("inicio") || c.startsWith("data inicio") || 
-    c.startsWith("inicio previsto") || c.startsWith("data ini") || c === "de_data"
+
+  const idxAtiv = cols.findIndex(
+    (c) =>
+      c === "atividade" ||
+      c.startsWith("atividade") ||
+      c === "servico" ||
+      c === "serviço" ||
+      c.startsWith("servico") ||
+      c === "nome" ||
+      c.startsWith("nome") ||
+      c === "tarefa" ||
+      c.startsWith("tarefa") ||
+      c === "descricao" ||
+      c.startsWith("descricao") ||
+      c === "item" ||
+      c === "disciplina" ||
+      c === "task" ||
+      c.startsWith("task") ||
+      c === "activity" ||
+      c.startsWith("activity")
   );
-  const idxFim = cols.findIndex((c) => 
-    c === "fim" || c.startsWith("fim") || c.startsWith("termino") || 
-    c.startsWith("data fim") || c.startsWith("fim previsto") || c.startsWith("data termino") || c === "ate_data"
+
+  const idxIni = cols.findIndex(
+    (c) =>
+      c === "inicio" ||
+      c.startsWith("inicio") ||
+      c === "inicial" ||
+      c.startsWith("inicial") ||
+      c.startsWith("data inicio") ||
+      c.startsWith("data inicial") ||
+      c.startsWith("dt inicio") ||
+      c.startsWith("dt. inicio") ||
+      c.startsWith("dt inicial") ||
+      c.startsWith("dt. inicial") ||
+      c.startsWith("inicio previsto") ||
+      c.startsWith("data ini") ||
+      c.startsWith("dt ini") ||
+      c.startsWith("dt. ini") ||
+      c.startsWith("novo inicio") ||
+      c.startsWith("inicio replanejado") ||
+      c.startsWith("replanejado inicio") ||
+      c === "de_data" ||
+      c === "start" ||
+      c.startsWith("start date")
   );
-  const idxLocIni = cols.findIndex((c) => 
-    c.startsWith("pavimento inicial") || c.startsWith("locini") || c.startsWith("pav inicial") || 
-    c.startsWith("de_pavimento") || c.startsWith("local inicial") || c === "pavimento de"
+
+  const idxFim = cols.findIndex(
+    (c) =>
+      c === "fim" ||
+      c.startsWith("fim") ||
+      c === "final" ||
+      c.startsWith("final") ||
+      c === "termino" ||
+      c.startsWith("termino") ||
+      c.startsWith("data fim") ||
+      c.startsWith("data final") ||
+      c.startsWith("data termino") ||
+      c.startsWith("dt fim") ||
+      c.startsWith("dt. fim") ||
+      c.startsWith("dt final") ||
+      c.startsWith("dt. final") ||
+      c.startsWith("dt termino") ||
+      c.startsWith("dt. termino") ||
+      c.startsWith("fim previsto") ||
+      c.startsWith("termino previsto") ||
+      c.startsWith("novo fim") ||
+      c.startsWith("novo termino") ||
+      c.startsWith("fim replanejado") ||
+      c.startsWith("termino replanejado") ||
+      c.startsWith("replanejado fim") ||
+      c.startsWith("replanejado termino") ||
+      c === "ate_data" ||
+      c === "finish" ||
+      c === "end" ||
+      c.startsWith("finish date") ||
+      c.startsWith("end date")
   );
-  const idxLocFim = cols.findIndex((c) => 
-    c.startsWith("pavimento final") || c.startsWith("locfim") || c.startsWith("pav final") || 
-    c.startsWith("ate_pavimento") || c.startsWith("local final") || c === "pavimento ate"
+
+  const idxLocIni = cols.findIndex(
+    (c) =>
+      c.startsWith("pavimento inicial") ||
+      c.startsWith("locini") ||
+      c.startsWith("pav inicial") ||
+      c.startsWith("de_pavimento") ||
+      c.startsWith("local inicial") ||
+      c === "pavimento de"
   );
-  const idxRealIni = cols.findIndex((c) => 
-    c.startsWith("realizado inicio") || c.startsWith("inicio real") || c.startsWith("data real ini") || 
-    c.startsWith("real ini") || c.startsWith("avanco inicio") || c.startsWith("data inicio real")
+
+  const idxLocFim = cols.findIndex(
+    (c) =>
+      c.startsWith("pavimento final") ||
+      c.startsWith("locfim") ||
+      c.startsWith("pav final") ||
+      c.startsWith("ate_pavimento") ||
+      c.startsWith("local final") ||
+      c === "pavimento ate"
   );
-  const idxRealFim = cols.findIndex((c) => 
-    c.startsWith("realizado fim") || c.startsWith("fim real") || c.startsWith("data real fim") || 
-    c.startsWith("real fim") || c.startsWith("termino real") || c.startsWith("avanco fim") || c.startsWith("data termino real")
+
+  const idxRealIni = cols.findIndex(
+    (c) =>
+      c.startsWith("realizado inicio") ||
+      c.startsWith("inicio real") ||
+      c.startsWith("data real ini") ||
+      c.startsWith("real ini") ||
+      c.startsWith("avanco inicio") ||
+      c.startsWith("data inicio real") ||
+      c.startsWith("dt real inicio") ||
+      c.startsWith("dt. real inicio")
   );
-  const idxAvanco = cols.findIndex((c) => 
-    c.startsWith("avanco") || c.startsWith("avanço") || c.startsWith("progresso") || 
-    c.startsWith("% avanco") || c.startsWith("% concluido") || c.startsWith("percentual") || c === "%"
+
+  const idxRealFim = cols.findIndex(
+    (c) =>
+      c.startsWith("realizado fim") ||
+      c.startsWith("fim real") ||
+      c.startsWith("data real fim") ||
+      c.startsWith("real fim") ||
+      c.startsWith("termino real") ||
+      c.startsWith("avanco fim") ||
+      c.startsWith("data termino real") ||
+      c.startsWith("dt real fim") ||
+      c.startsWith("dt. real fim")
   );
-  const idxPavAtual = cols.findIndex((c) => 
-    c.startsWith("pavimento atual") || c.startsWith("pavimento realizado") || 
-    c.startsWith("ultimo pavimento") || c.startsWith("pav atual") || c.startsWith("local atual")
+
+  const idxAvanco = cols.findIndex(
+    (c) =>
+      c.startsWith("avanco") ||
+      c.startsWith("avanço") ||
+      c.startsWith("progresso") ||
+      c.startsWith("% avanco") ||
+      c.startsWith("% avanço") ||
+      c.startsWith("% concluido") ||
+      c.startsWith("% concluído") ||
+      c.startsWith("percentual") ||
+      c === "%"
   );
-  const idxStatus = cols.findIndex((c) => c === "status" || c.startsWith("situacao") || c.startsWith("situaçao"));
+
+  const idxPavAtual = cols.findIndex(
+    (c) =>
+      c.startsWith("pavimento atual") ||
+      c.startsWith("pavimento realizado") ||
+      c.startsWith("ultimo pavimento") ||
+      c.startsWith("último pavimento") ||
+      c.startsWith("pav atual") ||
+      c.startsWith("local atual")
+  );
+
+  const idxStatus = cols.findIndex(
+    (c) =>
+      c === "status" ||
+      c.startsWith("situacao") ||
+      c.startsWith("situaçao") ||
+      c.startsWith("situação")
+  );
+
   const idxModo = cols.findIndex((c) => c === "modo" || c.startsWith("modo"));
   const idxCor = cols.findIndex((c) => c === "cor" || c.startsWith("cor"));
 
   return {
+    idxId,
     idxTorre,
     idxAtiv,
     idxIni,
@@ -103,38 +240,84 @@ export function mapearColunas(headerRow) {
 }
 
 /**
+ * Localiza de maneira inteligente a melhor planilha (aba) para o tipo de importação
+ */
+export function encontrarMelhorPlanilha(wb, tipo) {
+  const sheetNames = wb.SheetNames || [];
+  if (sheetNames.length === 0) return null;
+
+  const prioridades = [];
+  if (tipo === "replanejamento") {
+    prioridades.push("replanejamento", "replan", "cronograma", "atividades", "dados");
+  } else if (tipo === "avanco") {
+    prioridades.push("avanco", "avanço", "apontamento", "medicao", "medição", "dados", "atividades");
+  } else {
+    prioridades.push("atividades", "planejamento", "cronograma", "dados", "plan");
+  }
+
+  const isAbaInstrucao = (nome) => {
+    const n = normalizar(nome);
+    return (
+      n.includes("instru") ||
+      n.includes("ajuda") ||
+      n.includes("help") ||
+      n.includes("readme") ||
+      n.includes("orientac")
+    );
+  };
+
+  // Ordena candidatas priorizando abas com palavras-chave e rebaixando instruções
+  const candidatas = [...sheetNames].sort((a, b) => {
+    const normA = normalizar(a);
+    const normB = normalizar(b);
+    const scoreA = prioridades.some((p) => normA.includes(p))
+      ? 2
+      : isAbaInstrucao(a)
+      ? 0
+      : 1;
+    const scoreB = prioridades.some((p) => normB.includes(p))
+      ? 2
+      : isAbaInstrucao(b)
+      ? 0
+      : 1;
+    return scoreB - scoreA;
+  });
+
+  for (const name of candidatas) {
+    const ws = wb.Sheets[name];
+    if (!ws) continue;
+    const linhas = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+    if (!linhas || linhas.length === 0) continue;
+
+    for (let i = 0; i < Math.min(linhas.length, 30); i++) {
+      const mapa = mapearColunas(linhas[i] || []);
+      if (mapa.valido) {
+        return { sheetName: name, ws, linhas, headerIndex: i, mapa };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Lê e processa arquivo de planilha (Excel ou CSV) para atividades e/ou avanços
  */
 export async function processarArquivoImportacao({ file, tipo, proj, torreAtivaId }) {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
-  const sheetName = wb.SheetNames[0];
-  const ws = wb.Sheets[sheetName];
-  const linhas = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
 
-  if (!linhas || linhas.length === 0) {
-    throw new Error("Arquivo vazio");
+  const melhor = encontrarMelhorPlanilha(wb, tipo);
+  if (!melhor) {
+    throw new Error(
+      "Cabeçalho não encontrado. A planilha precisa ter ao menos a coluna 'Atividade' (ou 'Serviço') e as datas de início/fim."
+    );
   }
 
-  // 1. Localizar cabeçalho
-  let hi = -1;
-  let mapa = null;
-  for (let i = 0; i < Math.min(linhas.length, 25); i++) {
-    const m = mapearColunas(linhas[i] || []);
-    if (m.valido) {
-      hi = i;
-      mapa = m;
-      break;
-    }
-  }
-
-  if (hi < 0 || !mapa) {
-    throw new Error("Cabeçalho não encontrado. A planilha precisa ter ao menos a coluna 'Atividade' (ou 'Serviço').");
-  }
+  const { sheetName, linhas, headerIndex: hi, mapa } = melhor;
 
   // Obter lista de torres e locais existentes
   const torres = proj.torres || [];
-  const locais = proj.locais || [];
   const defaultTorre = torres.find((t) => t.id === torreAtivaId) || torres[0];
 
   if (!defaultTorre && tipo !== "replanejamento") {
@@ -147,6 +330,7 @@ export async function processarArquivoImportacao({ file, tipo, proj, torreAtivaI
     const nome = String(r[mapa.idxAtiv] ?? "").trim();
     if (!nome) continue;
 
+    const id = mapa.idxId >= 0 ? String(r[mapa.idxId] ?? "").trim() : "";
     const torreNome = mapa.idxTorre >= 0 ? String(r[mapa.idxTorre] ?? "").trim() : "";
     const diRaw = mapa.idxIni >= 0 ? parseData(r[mapa.idxIni]) : null;
     const dfRaw = mapa.idxFim >= 0 ? parseData(r[mapa.idxFim]) : null;
@@ -181,6 +365,7 @@ export async function processarArquivoImportacao({ file, tipo, proj, torreAtivaI
 
     registros.push({
       linha: i + 1,
+      id,
       nome,
       torreNome,
       di,
@@ -198,10 +383,10 @@ export async function processarArquivoImportacao({ file, tipo, proj, torreAtivaI
   }
 
   if (registros.length === 0) {
-    throw new Error("Nenhum dado válido encontrado abaixo do cabeçalho.");
+    throw new Error(`Nenhum dado válido encontrado abaixo do cabeçalho na aba '${sheetName}'.`);
   }
 
-  return { registros, mapa };
+  return { registros, mapa, sheetName };
 }
 
 /**
@@ -382,20 +567,51 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
   // 3. Tipo: "replanejamento" -> Atualiza datas planejadas (dataIni e dataFim)
   if (tipo === "replanejamento") {
     const mapaReplan = {};
-    registros.forEach((r) => {
-      const match = novasAtividades.find((a) => {
-        const mesmaAtiv = normalizar(a.nome) === normalizar(r.nome);
-        if (!mesmaAtiv) return false;
-        if (r.torreNome) {
-          const t = proj.torres.find((x) => x.id === a.torreId);
-          return t && normalizar(t.nome) === normalizar(r.torreNome);
-        }
-        return torreAtivaId === "TODAS" || a.torreId === torreAtivaId;
-      });
+    let naoEncontradas = 0;
 
-      if (match && r.di && r.df) {
-        const novaDi = ajustarFimDeSemanaParaSegunda(r.di);
-        let novaDf = ajustarFimDeSemanaParaSegunda(r.df);
+    registros.forEach((r) => {
+      // 1. Casamento direto por ID se existir
+      let match = null;
+      if (r.id) {
+        match = novasAtividades.find((a) => a.id === r.id);
+      }
+
+      // 2. Casamento por Nome + Torre
+      if (!match) {
+        match = novasAtividades.find((a) => {
+          const mesmaAtiv = normalizar(a.nome) === normalizar(r.nome);
+          if (!mesmaAtiv) return false;
+          if (r.torreNome) {
+            const t = proj.torres?.find((x) => x.id === a.torreId);
+            return t && normalizar(t.nome) === normalizar(r.torreNome);
+          }
+          return torreAtivaId === "TODAS" || a.torreId === torreAtivaId;
+        });
+      }
+
+      // 3. Fallback inteligente: se a atividade for única no projeto ou na torre ativa
+      if (!match) {
+        const candidatas = novasAtividades.filter(
+          (a) => normalizar(a.nome) === normalizar(r.nome)
+        );
+        if (candidatas.length === 1) {
+          match = candidatas[0];
+        } else if (candidatas.length > 1 && torreAtivaId && torreAtivaId !== "TODAS") {
+          match = candidatas.find((a) => a.torreId === torreAtivaId);
+        }
+      }
+
+      if (!match) {
+        naoEncontradas++;
+        return;
+      }
+
+      // Atualiza se houver pelo menos início ou fim informado
+      if (r.di || r.df) {
+        const diOriginal = D(match.dataIni);
+        const dfOriginal = D(match.dataFim);
+        const novaDi = r.di ? ajustarFimDeSemanaParaSegunda(r.di) : diOriginal;
+        let novaDf = r.df ? ajustarFimDeSemanaParaSegunda(r.df) : dfOriginal;
         if (novaDf <= novaDi) {
           novaDf = ajustarFimDeSemanaParaSegunda(addDays(novaDi, 7));
         }
@@ -411,14 +627,24 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
       mapaReplan[a.id] ? { ...a, ...mapaReplan[a.id] } : a
     );
 
+    let resumoMsg = "";
+    if (atualizadas > 0) {
+      resumoMsg = `Replanejamento aplicado a ${atualizadas} atividade${atualizadas > 1 ? "s" : ""}`;
+      if (naoEncontradas > 0) {
+        resumoMsg += ` (${naoEncontradas} não correspondida${naoEncontradas > 1 ? "s" : ""})`;
+      }
+    } else if (naoEncontradas > 0) {
+      resumoMsg = "Nenhuma atividade correspondente encontrada na torre para os registros informados.";
+    } else {
+      resumoMsg = "Nenhuma alteração de data válida identificada na planilha.";
+    }
+
     return {
       novoProj: {
         ...proj,
         atividades: novasAtividades,
       },
-      resumo: atualizadas
-        ? `Replanejamento aplicado a ${atualizadas} atividade${atualizadas > 1 ? "s" : ""}`
-        : "Nenhuma atividade correspondente com datas válidas",
+      resumo: resumoMsg,
       criadas: 0,
       atualizadas,
     };

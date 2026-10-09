@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
-import { LABEL_W, TOWER_STRIP, HEADER_H, FONT, ORANGE, BLACK } from "../constants/theme";
-import { D, diffDays, addDays, fmtBR, hoje } from "./dateUtils";
+import { LABEL_W, TOWER_STRIP, HEADER_H, FONT, ORANGE, BLACK } from "../constants/theme.js";
+import { D, diffDays, addDays, fmtBR, hoje } from "./dateUtils.js";
 
 
 /* ─── Utilitários de Download e Exportação ───────────────────── */
@@ -320,35 +320,34 @@ export const exportarModeloReplanejamento = ({ proj, torreId, flash }) => {
       ["MODELO DE REPLANEJAMENTO — " + (proj.nome || "OBRA").toUpperCase()],
       [""],
       ["COMO USAR ESTE ARQUIVO:"],
-      ["1. Não altere os nomes das colunas (linha 8 desta aba)."],
-      ["2. Não altere a coluna 'Atividade' — ela é usada para identificar a atividade no app."],
-      ["3. Edite apenas as colunas 'Inicio' e 'Fim' com as novas datas planejadas."],
-      ["4. Use o formato DD/MM/AAAA para as datas (ex: 25/03/2026)."],
-      ["5. Salve o arquivo e importe-o no app pelo menu Importar → Replanejamento."],
+      ["1. Acesse a aba 'Replanejamento' para visualizar e editar as atividades."],
+      ["2. Edite as colunas 'Inicio' e 'Fim' com as novas datas planejadas (formato DD/MM/AAAA)."],
+      ["3. A identificação das atividades é feita pelo Nome/ID — não altere o nome nem o ID."],
+      ["4. Salve o arquivo e importe-o no app pelo menu Importar → Replanejamento."],
       [""],
-      ["COLUNAS OBRIGATÓRIAS:"],
-      ["  • Atividade  → nome exato da atividade (não altere)"],
+      ["COLUNAS PRINCIPAIS:"],
+      ["  • Atividade  → nome da atividade"],
       ["  • Inicio     → nova data de início planejada (DD/MM/AAAA)"],
       ["  • Fim        → nova data de término planejada (DD/MM/AAAA)"],
       [""],
       ["COLUNAS INFORMATIVAS (não afetam o import):"],
-      ["  • Torre      → referência visual da torre"],
+      ["  • Torre      → referência da torre"],
       ["  • Situação   → situação atual da atividade"],
+      ["  • ID         → identificador interno TxC para precisão de cruzamento"],
       [""],
       ["ATENÇÃO: a data de Fim deve ser posterior à data de Inicio."],
     ];
     const wsInstr = XLSX.utils.aoa_to_sheet(instrucoes);
     wsInstr["!cols"] = [{ wch: 80 }];
-    XLSX.utils.book_append_sheet(wb, wsInstr, "Instruções");
 
-    /* ── Aba de Replanejamento (dados) ── */
+    /* ── Aba de Replanejamento (dados) — primeira aba para abrir diretamente nela ── */
     const atividades = Array.isArray(proj?.atividades)
       ? proj.atividades.filter((a) => torreId === "TODAS" || a.torreId === torreId)
       : [];
     const torres = Array.isArray(proj?.torres) ? proj.torres : [];
 
     // Cabeçalho
-    const cabecalho = ["Atividade", "Inicio", "Fim", "Torre", "Situação"];
+    const cabecalho = ["Atividade", "Inicio", "Fim", "Torre", "Situação", "ID"];
 
     const linhas = [cabecalho];
     atividades.forEach((a) => {
@@ -361,6 +360,7 @@ export const exportarModeloReplanejamento = ({ proj, torreId, flash }) => {
         fmtBR(df),
         torre ? torre.nome : "",
         a.realIni ? "com realizado" : "planejado",
+        a.id || "",
       ]);
     });
 
@@ -373,9 +373,12 @@ export const exportarModeloReplanejamento = ({ proj, torreId, flash }) => {
       { wch: 14 }, // Fim
       { wch: 18 }, // Torre
       { wch: 18 }, // Situação
+      { wch: 14 }, // ID
     ];
 
+    // Replanejamento como primeira aba ativa
     XLSX.utils.book_append_sheet(wb, wsReplan, "Replanejamento");
+    XLSX.utils.book_append_sheet(wb, wsInstr, "Instruções");
 
     const nomeArq = (proj?.nome || "obra").replace(/[\/\\:*?"<>|]/g, "-");
     const nomeCompleto = `modelo-replanejamento-${nomeArq}.xlsx`;

@@ -1,5 +1,5 @@
 // src/utils/statusUtils.js
-import { D, diffDays, fmtBR, hoje, iso } from "./dateUtils";
+import { D, diffDays, fmtBR, hoje, iso } from "./dateUtils.js";
 
 /**
  * Calcula o status de avanço de uma atividade com base no corte da data de referência (linha de corte de hoje).

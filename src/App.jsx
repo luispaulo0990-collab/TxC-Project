@@ -987,6 +987,9 @@ export default function App() {
       });
 
       setProj(resultado.novoProj);
+      if (resultado.atualizadas > 0 || resultado.criadas > 0) {
+        salvar(resultado.novoProj, true);
+      }
       setModal(null);
       flash(resultado.resumo);
     } catch (err) {

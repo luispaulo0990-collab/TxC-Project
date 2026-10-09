@@ -22,7 +22,7 @@ export const ModalReplanejamento = ({
         <Info size={14} style={{ color: ORANGE, marginTop: 1, flexShrink: 0 }} />
         <p className="text-xs leading-relaxed" style={{ color: T.muted }}>
           Torre ativa:{" "}
-          <strong style={{ color: T.text }}>{torreNome}</strong>. Exporte o
+          <strong style={{ color: T.text }}>{torreNome || "Todas as Torres"}</strong>. Exporte o
           modelo com as atividades atuais, edite as datas no Excel e reimporte
           para atualizar o planejamento.
         </p>
@@ -38,9 +38,8 @@ export const ModalReplanejamento = ({
         </div>
         <p className="text-xs mb-3" style={{ color: T.muted, lineHeight: 1.6 }}>
           Gera um <strong style={{ color: T.text }}>.xlsx</strong> com as
-          atividades da torre atual já preenchidas. Inclui aba de instruções.
-          Edite apenas as colunas{" "}
-          <strong style={{ color: T.text }}>Inicio</strong> e{" "}
+          atividades prontas para edição na primeira aba. Edite as colunas{" "}
+          <strong style={{ color: T.text }}>Inicio</strong> e/ou{" "}
           <strong style={{ color: T.text }}>Fim</strong> no formato{" "}
           <strong style={{ color: T.text }}>DD/MM/AAAA</strong>.
         </p>

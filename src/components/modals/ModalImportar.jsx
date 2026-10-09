@@ -53,6 +53,8 @@ export const ModalImportar = ({ T, tipo, onClose, onPickFile, onBaixarModelo }) 
       <p className="text-xs mb-4" style={{ color: T.muted, lineHeight: 1.6 }}>
         {isAvanco
           ? "As atividades serão identificadas pelo nome (e torre, se informada). Os campos de % de avanço, pavimento alcançado e datas reais serão atualizados e representados no gráfico."
+          : tipo === "replanejamento"
+          ? "As atividades existentes serão identificadas pelo nome ou ID. As datas de início e fim serão atualizadas no planejamento da obra."
           : "As novas atividades serão geradas e vinculadas aos pavimentos da torre selecionada com as datas e velocidades calculadas."}
       </p>
 
@@ -60,7 +62,7 @@ export const ModalImportar = ({ T, tipo, onClose, onPickFile, onBaixarModelo }) 
         {onBaixarModelo && (
           <button
             type="button"
-            onClick={() => onBaixarModelo(isAvanco ? "avanco" : "atividades")}
+            onClick={() => onBaixarModelo(isAvanco ? "avanco" : tipo === "replanejamento" ? "replanejamento" : "atividades")}
             className="px-3 py-2.5 text-xs flex items-center justify-center gap-1.5 rounded font-semibold border transition-colors hover:bg-black/5"
             style={{ borderColor: T.line, color: T.text, background: T.raised }}
           >
