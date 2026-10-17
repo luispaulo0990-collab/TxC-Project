@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   Plus, Building2, Trash2, Calendar, Layers, ChevronRight,
-  FolderOpen, LogOut, User, Crown, Code2, Eye, Archive, ArchiveRestore
+  FolderOpen, LogOut, LogIn, User, Crown, Code2, Eye, Archive, ArchiveRestore
 } from "lucide-react";
 import { ORANGE, BLACK, FONT } from "../../constants/theme";
 import { calcularPermissao } from "../../hooks/usePermissao";
@@ -297,6 +297,7 @@ function NovaObraCard({ onClick, tema }) {
 export function HomeScreen({
   salvos, projAtualId, tema, user, userRole,
   onLogout, onSelecionarObra, onNovaObra, onExcluirObra, onArquivarObra,
+  onAbrirLogin,
 }) {
   const [filtroAba, setFiltroAba] = useState("ativas"); // "ativas" | "arquivadas" | "todas"
 
@@ -352,7 +353,7 @@ export function HomeScreen({
           Tempo × Caminho
         </span>
 
-        {user && (
+        {user ? (
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
             {/* Badge de papel */}
             {userRole && <RoleBadge role={userRole} />}
@@ -377,6 +378,52 @@ export function HomeScreen({
               >
                 <LogOut size={13} />
                 <span>Sair</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              style={{
+                fontSize: 11,
+                color: "rgba(255, 255, 255, 0.6)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                background: "rgba(255, 255, 255, 0.06)",
+                padding: "3px 9px",
+                borderRadius: 99,
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }}
+            >
+              <Eye size={12} style={{ color: "#10B981" }} />
+              Acesso Visualizador
+            </span>
+
+            {onAbrirLogin && (
+              <button
+                onClick={onAbrirLogin}
+                style={{
+                  background: ORANGE,
+                  border: "none",
+                  color: "#fff",
+                  padding: "5px 14px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  boxShadow: "0 2px 10px rgba(254,80,0,0.35)",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.1)")}
+                onMouseLeave={(e) => (e.currentTarget.style.filter = "none")}
+                title="Fazer login com perfil de Admin ou Dev"
+              >
+                <LogIn size={13} />
+                <span>Entrar</span>
               </button>
             )}
           </div>

@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronDown,
   LogOut,
+  LogIn,
 } from "lucide-react";
 import { ORANGE, OK, NUM } from "../../constants/theme";
 
@@ -248,7 +249,7 @@ export const SidebarNav = ({
           <span className="text-[10px] text-white/40 uppercase font-bold">{tema}</span>
         </button>
 
-        {user && (
+        {user ? (
           <div
             className="flex items-center justify-between p-2 rounded-xl"
             style={{
@@ -298,6 +299,19 @@ export const SidebarNav = ({
               </button>
             )}
           </div>
+        ) : (
+          <button
+            onClick={() => onAbrirModal && onAbrirModal("login")}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer shadow-md"
+            style={{
+              background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)",
+              boxShadow: "0 2px 10px rgba(254, 80, 0, 0.25)",
+            }}
+            title="Acessar com perfil Admin ou Dev"
+          >
+            <LogIn size={13} />
+            <span>Fazer Login</span>
+          </button>
         )}
       </div>
     </nav>

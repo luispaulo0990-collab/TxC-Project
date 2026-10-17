@@ -311,8 +311,10 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    sincronizarPerfil();
+    if (authLoading) return;
+    if (user) {
+      sincronizarPerfil();
+    }
     carregarMacrofluxos();
     const params = new URLSearchParams(window.location.search);
     const obraId = params.get("obra") || params.get("p") || params.get("projeto");
@@ -321,7 +323,7 @@ export default function App() {
     } else {
       listar();
     }
-  }, [user, listar, sincronizarPerfil, carregarMacrofluxos]);
+  }, [authLoading, user, listar, sincronizarPerfil, carregarMacrofluxos]);
 
   const handleLogout = async () => {
     await logout();
@@ -1409,18 +1411,6 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return (
-      <AuthScreen
-        tema={tema}
-        onLoginSuccess={(loggedUser) => {
-          setUser(loggedUser);
-          listar();
-        }}
-      />
-    );
-  }
-
   if (tela === "home" || !proj) {
     return (
       <>
@@ -1431,11 +1421,24 @@ export default function App() {
           user={user}
           userRole={userRole}
           onLogout={handleLogout}
+          onAbrirLogin={() => setModal("login")}
           onSelecionarObra={selecionarObra}
           onNovaObra={() => setModal("novaObra")}
           onExcluirObra={pedirExcluirObra}
           onArquivarObra={alternarArquivamentoObra}
         />
+        {modal === "login" && (
+          <AuthScreen
+            tema={tema}
+            onClose={() => setModal(null)}
+            onLoginSuccess={(loggedUser) => {
+              setUser(loggedUser);
+              setModal(null);
+              listar();
+              flash(`Login realizado como ${loggedUser.perfil?.nome || loggedUser.email}`);
+            }}
+          />
+        )}
         {modal === "novaObra" && (
           <ModalNovaObra
             T={T}
@@ -1648,6 +1651,7 @@ export default function App() {
                 onDropActivity={handleDropActivityFromSidebar}
                 podeEditar={permissoes.podeEditar}
                 podeImportar={permissoes.podeImportar}
+                user={user}
               />
 
               {/* Barra de Status e Alertas */}
@@ -1799,6 +1803,19 @@ export default function App() {
           proj={proj}
           onSalvar={handleSalvarApontamentoAvanco}
           user={user}
+        />
+      )}
+
+      {modal === "login" && (
+        <AuthScreen
+          tema={tema}
+          onClose={() => setModal(null)}
+          onLoginSuccess={(loggedUser) => {
+            setUser(loggedUser);
+            setModal(null);
+            listar();
+            flash(`Login realizado como ${loggedUser.perfil?.nome || loggedUser.email}`);
+          }}
         />
       )}
     </div>

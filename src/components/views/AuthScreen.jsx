@@ -1,15 +1,16 @@
 import React, { useState } from "react";
-import { Layers, Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
+import { Layers, Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, X } from "lucide-react";
 import { loginComEmail, obterPerfilUsuario } from "../../utils/supabaseClient";
 import { ORANGE, BLACK, FONT, NUM } from "../../constants/theme";
 
-export function AuthScreen({ onLoginSuccess, tema = "escuro" }) {
+export function AuthScreen({ onLoginSuccess, tema = "escuro", onClose }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
+  const isModal = typeof onClose === "function";
   const isDark = tema === "escuro";
   const bg = isDark ? "#0E100D" : "#ECEDEB";
   const cardBg = isDark ? "#171916" : "#FFFFFF";
@@ -62,9 +63,19 @@ export function AuthScreen({ onLoginSuccess, tema = "escuro" }) {
 
   return (
     <div
+      onClick={isModal ? onClose : undefined}
       style={{
-        minHeight: "100vh",
-        background: bg,
+        position: isModal ? "fixed" : "relative",
+        top: isModal ? 0 : undefined,
+        left: isModal ? 0 : undefined,
+        right: isModal ? 0 : undefined,
+        bottom: isModal ? 0 : undefined,
+        zIndex: isModal ? 9999 : undefined,
+        minHeight: isModal ? undefined : "100vh",
+        height: isModal ? "100vh" : undefined,
+        width: isModal ? "100vw" : undefined,
+        background: isModal ? "rgba(0, 0, 0, 0.72)" : bg,
+        backdropFilter: isModal ? "blur(8px)" : undefined,
         fontFamily: FONT,
         color: textColor,
         display: "flex",
@@ -72,11 +83,11 @@ export function AuthScreen({ onLoginSuccess, tema = "escuro" }) {
         alignItems: "center",
         justifyContent: "center",
         padding: "24px",
-        position: "relative",
       }}
     >
       {/* Container Principal */}
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
           maxWidth: 420,
@@ -85,10 +96,44 @@ export function AuthScreen({ onLoginSuccess, tema = "escuro" }) {
           borderRadius: 16,
           padding: "36px 32px",
           boxShadow: isDark
-            ? "0 24px 48px -12px rgba(0,0,0,0.7), 0 4px 16px rgba(0,0,0,0.5)"
-            : "0 20px 40px -12px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)",
+            ? "0 24px 48px -12px rgba(0,0,0,0.8), 0 4px 16px rgba(0,0,0,0.5)"
+            : "0 20px 40px -12px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.05)",
+          position: "relative",
         }}
       >
+        {isModal && (
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: 14,
+              right: 14,
+              background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+              border: `1px solid ${border}`,
+              color: mutedColor,
+              cursor: "pointer",
+              padding: 6,
+              borderRadius: 8,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = textColor;
+              e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = mutedColor;
+              e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)";
+            }}
+            title="Fechar (continuar como visualizador)"
+          >
+            <X size={18} />
+          </button>
+        )}
+
         {/* Cabeçalho do Card */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div
@@ -305,11 +350,39 @@ export function AuthScreen({ onLoginSuccess, tema = "escuro" }) {
             paddingTop: 16,
             borderTop: `1px solid ${border}`,
             textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            alignItems: "center",
           }}
         >
           <span style={{ fontSize: 11.5, color: mutedColor }}>
             🔒 Acesso restrito para usuários autorizados
           </span>
+          {isModal && (
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: ORANGE,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: "4px 8px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                textDecoration: "underline",
+                textUnderlineOffset: 3,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.15)")}
+              onMouseLeave={(e) => (e.currentTarget.style.filter = "none")}
+            >
+              Continuar navegando como visualizador
+            </button>
+          )}
         </div>
       </div>
 

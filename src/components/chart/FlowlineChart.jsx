@@ -27,6 +27,7 @@ import {
   Upload,
   Download,
   Save,
+  LogIn,
 } from "lucide-react";
 
 // ── Flags de Exibição de Linhas Temporais ──
@@ -73,6 +74,7 @@ export const FlowlineChart = ({
   onDropActivity,
   podeEditar = true,
   podeImportar = true,
+  user = null,
 }) => {
   const dataHoje = hoje();
   const xHoje = xOf(dataHoje);
@@ -232,16 +234,32 @@ export const FlowlineChart = ({
 
           {/* Ações no Canto Superior Direito: Importar, Exportar e Salvar Obra */}
           {!podeEditar && (
-            <span
-              className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-              style={{
-                background: "rgba(16, 185, 129, 0.12)",
-                color: "#10B981",
-                border: "1px solid rgba(16, 185, 129, 0.25)",
-              }}
-            >
-              Modo Visualizador
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  background: "rgba(16, 185, 129, 0.12)",
+                  color: "#10B981",
+                  border: "1px solid rgba(16, 185, 129, 0.25)",
+                }}
+              >
+                Modo Visualizador
+              </span>
+              {!user && onAbrirModal && (
+                <button
+                  onClick={() => onAbrirModal("login")}
+                  className="px-2.5 py-1 text-[12px] flex items-center gap-1.5 rounded-lg font-bold text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer shadow-xs"
+                  style={{
+                    background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)",
+                    boxShadow: "0 2px 8px rgba(254, 80, 0, 0.28)",
+                  }}
+                  title="Fazer login com perfil de Administrador ou Desenvolvedor"
+                >
+                  <LogIn size={12} />
+                  <span>Entrar</span>
+                </button>
+              )}
+            </div>
           )}
 
           {onAbrirModal && podeImportar && (
