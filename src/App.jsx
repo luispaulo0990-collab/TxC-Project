@@ -31,9 +31,12 @@ import { ModalNovaObra } from "./components/modals/ModalNovaObra";
 import { ModalAplicarMacrofluxo } from "./components/modals/ModalAplicarMacrofluxo";
 import { HomeScreen } from "./components/views/HomeScreen";
 import { AuthScreen } from "./components/views/AuthScreen";
+import { DefinirSenhaScreen } from "./components/views/DefinirSenhaScreen";
+import { AcessoPendenteScreen } from "./components/views/AcessoPendenteScreen";
+import { ROTA_REDEFINIR_SENHA } from "./constants/acesso";
 import { gerarAtividadesDoMacrofluxo, auditarIncoerenciasPredecessoras, getModelosPadraoMacrofluxo } from "./utils/macrofluxoUtils";
 import { apiClient } from "./utils/apiClient";
-import { obterSessao, logout, supabasePublic, obterPerfilUsuario } from "./utils/supabaseClient";
+import { obterSessao, logout, supabasePublic, obterPerfilUsuario, tipoLinkSenhaInicial } from "./utils/supabaseClient";
 import { usePermissao } from "./hooks/usePermissao";
 import { ModalConfirmarExclusao } from "./components/modals/ModalConfirmarExclusao";
 import { Loader2 } from "lucide-react";
@@ -41,6 +44,10 @@ import { Loader2 } from "lucide-react";
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  // Entrou pelo link de convite ou de "esqueci minha senha": define a senha antes de usar o app
+  const [definirSenha, setDefinirSenha] = useState(
+    () => !!tipoLinkSenhaInicial || window.location.pathname === ROTA_REDEFINIR_SENHA
+  );
   const [tela, setTela] = useState("home"); // "home" | "editor"
   const [proj, setProj] = useState(null);
   const [selId, setSelId] = useState(null);
@@ -71,6 +78,8 @@ export default function App() {
     // 3. app_metadata.role do auth
     // 4. user_metadata.role do auth
     // 5. user.role (apenas se for dev, admin ou member, ignorando 'authenticated' do Supabase)
+    // Perfil ainda não liberado pela gestão vale como visualizador
+    if (user?.inativo) return "member";
     const candidates = [
       user?.perfil?.role,
       user?.profile?.role,
@@ -291,6 +300,24 @@ export default function App() {
     initAuth();
     carregarMacrofluxos();
   }, [carregarMacrofluxos]);
+
+  // Link de "esqueci minha senha" aberto com o app já carregado e token renovado automaticamente
+  useEffect(() => {
+    const { data } = supabasePublic.auth.onAuthStateChange((event, sessao) => {
+      if (event === "PASSWORD_RECOVERY") setDefinirSenha(true);
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && sessao?.access_token) {
+        sessionStorage.setItem("lob:auth_token", sessao.access_token);
+      }
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const sairDaTelaDeSenha = useCallback(() => {
+    setDefinirSenha(false);
+    if (window.location.pathname === ROTA_REDEFINIR_SENHA || window.location.hash) {
+      window.history.replaceState(null, "", "/" + window.location.search);
+    }
+  }, []);
 
   const sincronizarPerfil = useCallback(async () => {
     if (!user) return;
@@ -1409,6 +1436,27 @@ export default function App() {
         <span style={{ fontSize: 13, color: T.muted }}>Carregando autenticação...</span>
       </div>
     );
+  }
+
+  if (definirSenha) {
+    return (
+      <DefinirSenhaScreen
+        tema={tema}
+        email={user?.email}
+        convite={tipoLinkSenhaInicial === "invite"}
+        onVoltar={sairDaTelaDeSenha}
+        onConcluir={async (authUser) => {
+          const enriched = await obterPerfilUsuario(authUser || user);
+          setUser(enriched);
+          sairDaTelaDeSenha();
+          flash("Senha definida com sucesso");
+        }}
+      />
+    );
+  }
+
+  if (user?.inativo) {
+    return <AcessoPendenteScreen tema={tema} email={user.email} onLogout={handleLogout} />;
   }
 
   if (tela === "home" || !proj) {
