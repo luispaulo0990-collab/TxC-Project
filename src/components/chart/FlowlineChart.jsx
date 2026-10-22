@@ -28,6 +28,8 @@ import {
   Download,
   Save,
   LogIn,
+  Expand,
+  Minimize,
 } from "lucide-react";
 
 // ── Flags de Exibição de Linhas Temporais ──
@@ -75,6 +77,8 @@ export const FlowlineChart = ({
   podeEditar = true,
   podeImportar = true,
   user = null,
+  telaCheia = false,
+  onAlternarTelaCheia,
 }) => {
   const dataHoje = hoje();
   const xHoje = xOf(dataHoje);
@@ -227,6 +231,23 @@ export const FlowlineChart = ({
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Tela Cheia: expande o gráfico ocultando a navegação lateral */}
+          {onAlternarTelaCheia && (
+            <button
+              onClick={onAlternarTelaCheia}
+              className="px-2.5 py-1 text-[12px] flex items-center gap-1.5 rounded-lg font-bold transition-all hover:brightness-110 active:scale-95 cursor-pointer"
+              style={
+                telaCheia
+                  ? { background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)", color: "#fff", boxShadow: "0 2px 8px rgba(254, 80, 0, 0.28)" }
+                  : { background: T.raised, color: T.text, border: `1px solid ${T.line}` }
+              }
+              title={telaCheia ? "Sair da tela cheia (Esc)" : "Expandir para tela cheia"}
+            >
+              {telaCheia ? <Minimize size={12} /> : <Expand size={12} />}
+              <span>{telaCheia ? "Sair" : "Tela cheia"}</span>
+            </button>
           )}
 
           {/* Separador vertical sutil */}

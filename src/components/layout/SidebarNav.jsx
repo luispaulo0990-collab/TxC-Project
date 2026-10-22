@@ -17,6 +17,7 @@ import {
   ChevronDown,
   LogOut,
   LogIn,
+  Expand,
 } from "lucide-react";
 import { ORANGE, OK, NUM } from "../../constants/theme";
 
@@ -45,6 +46,7 @@ export const SidebarNav = ({
   user,
   userRole,
   permissoes,
+  onAlternarTelaCheia,
 }) => {
   const isMember = userRole === "member" || permissoes?.isMember || (permissoes && !permissoes.podeEditar);
   const podeVerAbaAvanco = permissoes ? !!permissoes.podeVerAbaAvanco : userRole === "dev";
@@ -248,6 +250,25 @@ export const SidebarNav = ({
           </div>
           <span className="text-[10px] text-white/40 uppercase font-bold">{tema}</span>
         </button>
+
+        {onAlternarTelaCheia && (
+          <button
+            onClick={onAlternarTelaCheia}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all hover:bg-white/10 cursor-pointer"
+            style={{
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              color: "rgba(255, 255, 255, 0.8)",
+            }}
+            title="Expandir a visualização para tela cheia"
+          >
+            <div className="flex items-center gap-2 font-medium">
+              <Expand size={14} />
+              <span>Tela Cheia</span>
+            </div>
+            <span className="text-[10px] text-white/40 uppercase font-bold">Esc p/ sair</span>
+          </button>
+        )}
 
         {user ? (
           <div

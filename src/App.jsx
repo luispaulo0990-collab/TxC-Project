@@ -36,7 +36,7 @@ import { apiClient } from "./utils/apiClient";
 import { obterSessao, logout, supabasePublic, obterPerfilUsuario } from "./utils/supabaseClient";
 import { usePermissao } from "./hooks/usePermissao";
 import { ModalConfirmarExclusao } from "./components/modals/ModalConfirmarExclusao";
-import { Loader2 } from "lucide-react";
+import { Loader2, Minimize } from "lucide-react";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -62,6 +62,28 @@ export default function App() {
   const [vista, setVista] = useState("grafico"); // grafico | avanco | histograma | resumo | metas | macrofluxo
   const [exibirRealizado, setExibirRealizado] = useState(true);
   const [exibirCruzamentos, setExibirCruzamentos] = useState(true);
+  const [telaCheia, setTelaCheia] = useState(false);
+
+  // ─── Modo Tela Cheia ───────────────────────────────────────
+  // Oculta a navegação lateral e, quando suportado, coloca o navegador em fullscreen.
+  // Sincroniza com o ESC/F11 do navegador através do evento "fullscreenchange".
+  useEffect(() => {
+    const onFsChange = () => {
+      if (!document.fullscreenElement) setTelaCheia(false);
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const alternarTelaCheia = useCallback(() => {
+    if (!telaCheia) {
+      setTelaCheia(true);
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      setTelaCheia(false);
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    }
+  }, [telaCheia]);
 
   // ─── Perfil e Permissões do Usuário Logado ─────────────────
   const userRole = useMemo(() => {
@@ -1476,6 +1498,7 @@ export default function App() {
       />
 
       {/* ── Barra de Navegação Lateral (Sleek SidebarNav) ── */}
+      {!telaCheia && (
       <SidebarNav
         proj={proj}
         setProj={setProj}
@@ -1492,10 +1515,24 @@ export default function App() {
         user={user}
         userRole={userRole}
         permissoes={permissoes}
+        onAlternarTelaCheia={alternarTelaCheia}
       />
+      )}
 
       {/* ── Área de Conteúdo Central da Aplicação ── */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+        {/* Botão flutuante para sair da tela cheia nas vistas sem barra de ferramentas própria */}
+        {telaCheia && vista !== "grafico" && (
+          <button
+            onClick={alternarTelaCheia}
+            className="absolute bottom-4 right-4 z-40 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white shadow-lg transition-all hover:brightness-110 active:scale-95 cursor-pointer"
+            style={{ background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)", boxShadow: "0 4px 14px rgba(254, 80, 0, 0.3)" }}
+            title="Sair da tela cheia (Esc)"
+          >
+            <Minimize size={14} />
+            <span>Sair da tela cheia</span>
+          </button>
+        )}
         {vista === "avanco" && permissoes.podeVerAbaAvanco ? (
           <AvancoView
             T={T}
@@ -1652,6 +1689,8 @@ export default function App() {
                 podeEditar={permissoes.podeEditar}
                 podeImportar={permissoes.podeImportar}
                 user={user}
+                telaCheia={telaCheia}
+                onAlternarTelaCheia={alternarTelaCheia}
               />
 
               {/* Barra de Status e Alertas */}
