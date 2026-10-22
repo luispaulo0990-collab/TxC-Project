@@ -18,6 +18,7 @@ import {
   LogOut,
   LogIn,
   Expand,
+  Minimize,
 } from "lucide-react";
 import { ORANGE, OK, NUM } from "../../constants/theme";
 
@@ -46,6 +47,7 @@ export const SidebarNav = ({
   user,
   userRole,
   permissoes,
+  telaCheia = false,
   onAlternarTelaCheia,
 }) => {
   const isMember = userRole === "member" || permissoes?.isMember || (permissoes && !permissoes.podeEditar);
@@ -260,13 +262,13 @@ export const SidebarNav = ({
               border: "1px solid rgba(255, 255, 255, 0.08)",
               color: "rgba(255, 255, 255, 0.8)",
             }}
-            title="Expandir a visualização para tela cheia"
+            title={telaCheia ? "Sair da tela cheia (Esc)" : "Expandir o app para tela cheia"}
           >
             <div className="flex items-center gap-2 font-medium">
-              <Expand size={14} />
-              <span>Tela Cheia</span>
+              {telaCheia ? <Minimize size={14} /> : <Expand size={14} />}
+              <span>{telaCheia ? "Sair da Tela Cheia" : "Tela Cheia"}</span>
             </div>
-            <span className="text-[10px] text-white/40 uppercase font-bold">Esc p/ sair</span>
+            {telaCheia && <span className="text-[10px] text-white/40 uppercase font-bold">Esc</span>}
           </button>
         )}
 
