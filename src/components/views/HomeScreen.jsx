@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import {
   Plus, Building2, Trash2, Calendar, Layers, ChevronRight,
-  FolderOpen, LogOut, LogIn, User, Crown, Code2, Eye, Archive, ArchiveRestore
+  FolderOpen, LogOut, LogIn, User, Crown, Code2, Eye, Archive, ArchiveRestore,
+  Expand, Minimize
 } from "lucide-react";
 import { ORANGE, BLACK, FONT } from "../../constants/theme";
 import { calcularPermissao } from "../../hooks/usePermissao";
@@ -297,7 +298,7 @@ function NovaObraCard({ onClick, tema }) {
 export function HomeScreen({
   salvos, projAtualId, tema, user, userRole,
   onLogout, onSelecionarObra, onNovaObra, onExcluirObra, onArquivarObra,
-  onAbrirLogin,
+  onAbrirLogin, telaCheia = false, onAlternarTelaCheia,
 }) {
   const [filtroAba, setFiltroAba] = useState("ativas"); // "ativas" | "arquivadas" | "todas"
 
@@ -427,6 +428,23 @@ export function HomeScreen({
               </button>
             )}
           </div>
+        )}
+
+        {onAlternarTelaCheia && (
+          <button
+            onClick={onAlternarTelaCheia}
+            style={{
+              background: telaCheia ? ORANGE : "rgba(255,255,255,0.08)",
+              border: telaCheia ? "none" : "1px solid rgba(255,255,255,0.15)",
+              color: "#fff", padding: "4px 10px", borderRadius: 6,
+              fontSize: 11, display: "flex", alignItems: "center",
+              gap: 6, cursor: "pointer", transition: "background 0.15s ease",
+            }}
+            title={telaCheia ? "Sair da tela cheia (Esc)" : "Expandir o app para tela cheia"}
+          >
+            {telaCheia ? <Minimize size={13} /> : <Expand size={13} />}
+            <span>{telaCheia ? "Sair da Tela Cheia" : "Tela Cheia"}</span>
+          </button>
         )}
       </header>
 
