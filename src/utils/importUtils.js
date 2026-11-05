@@ -37,6 +37,140 @@ export function gerarCorAleatoria() {
 }
 
 /**
+ * Extrai número inteiro de uma string ou valor numérico
+ */
+function extrairNumero(str) {
+  const m = String(str ?? "").match(/\d+/);
+  return m ? parseInt(m[0], 10) : null;
+}
+
+/**
+ * Normaliza e simplifica nome de pavimento para chave de comparação
+ */
+function chavePav(str) {
+  return normalizar(str)
+    .replace(/[°ºª]/g, "")
+    .replace(/\b(pavimento|pav|andar|nivel|local)\b/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
+/**
+ * Extrai faixa de pavimentos (ex: "1 a 5", "1 ao 5", "1-5", "1º a 5º")
+ */
+export function extrairFaixaPavimentos(str) {
+  if (!str) return null;
+  const s = normalizar(String(str)).trim();
+  const m = s.match(/^(.+?)\s*(?:ao|a|-|ate|\.\.)\s*(.+)$/);
+  if (m && m[1] && m[2]) {
+    return { ini: m[1].trim(), fim: m[2].trim() };
+  }
+  return null;
+}
+
+/**
+ * Localiza de forma inteligente e tolerante o pavimento na lista de locais
+ */
+export function encontrarLocal(ls, rawVal) {
+  if (!rawVal && rawVal !== 0) return null;
+  const str = String(rawVal).trim();
+  if (!str) return null;
+
+  const nVal = normalizar(str);
+
+  // 1. Casamento direto exato normalizado
+  const exato = ls.find((l) => normalizar(l.nome) === nVal);
+  if (exato) return exato;
+
+  // 2. Térreo
+  const ehTerreo =
+    nVal === "terreo" ||
+    nVal === "0" ||
+    nVal === "t" ||
+    nVal.startsWith("terreo") ||
+    nVal.endsWith("terreo");
+  if (ehTerreo) {
+    const lTerreo = ls.find((l) => l.tipo === "TERREO" || normalizar(l.nome).includes("terreo"));
+    if (lTerreo) return lTerreo;
+  }
+
+  // 3. Fundação
+  const ehFundacao = nVal.includes("fundac") || nVal === "fd";
+  if (ehFundacao) {
+    const lFund = ls.find((l) => l.tipo === "FUNDACAO" || normalizar(l.nome).includes("fundac"));
+    if (lFund) return lFund;
+  }
+
+  // 4. Cobertura / Ático / Barrilete
+  const ehCobertura =
+    nVal.includes("cobert") ||
+    nVal.includes("atico") ||
+    nVal.includes("casa de maquina") ||
+    nVal.includes("barrilete");
+  if (ehCobertura) {
+    const lCob = ls.find(
+      (l) =>
+        l.tipo === "COBERTURA" ||
+        normalizar(l.nome).includes("cobert") ||
+        normalizar(l.nome).includes("atico")
+    );
+    if (lCob) return lCob;
+  }
+
+  // 5. Tampa da cobertura
+  const ehTampa = nVal.includes("tampa");
+  if (ehTampa) {
+    const lTampa = ls.find((l) => l.tipo === "TECNICO" || normalizar(l.nome).includes("tampa"));
+    if (lTampa) return lTampa;
+  }
+
+  // 6. Subsolos
+  const ehSubsolo =
+    nVal.includes("subsolo") ||
+    nVal.includes("ss") ||
+    nVal.startsWith("-") ||
+    nVal.startsWith("sub");
+  if (ehSubsolo) {
+    const numSub = extrairNumero(nVal) || 1;
+    const lSub = ls.find(
+      (l) =>
+        (l.tipo === "SUBSOLO" || normalizar(l.nome).includes("subsolo")) &&
+        extrairNumero(l.nome) === numSub
+    );
+    if (lSub) return lSub;
+    const primeiroSub = ls.find((l) => l.tipo === "SUBSOLO" || normalizar(l.nome).includes("subsolo"));
+    if (primeiroSub) return primeiroSub;
+  }
+
+  // 7. Comparação por Chave Limpa (remove ordinal º/°/ª e palavras 'pavimento', 'andar', etc.)
+  const cVal = chavePav(str);
+  if (cVal) {
+    const matchChave = ls.find((l) => chavePav(l.nome) === cVal);
+    if (matchChave) return matchChave;
+  }
+
+  // 8. Comparação por Número do Pavimento Tipo (ex: '10' ou '10º' ou '10°' -> '10º Pavimento')
+  const numVal = extrairNumero(str);
+  if (numVal !== null && !ehSubsolo) {
+    const matchNum = ls.find((l) => {
+      if (l.tipo === "SUBSOLO") return false;
+      const n = extrairNumero(l.nome);
+      return n === numVal;
+    });
+    if (matchNum) return matchNum;
+  }
+
+  // 9. Prefixo ou Inclusão
+  const matchInclusao = ls.find((l) => {
+    const nNome = normalizar(l.nome);
+    return nNome.startsWith(nVal) || nVal.startsWith(nNome);
+  });
+  if (matchInclusao) return matchInclusao;
+
+  return null;
+}
+
+/**
  * Normaliza e identifica colunas de uma planilha
  */
 export function mapearColunas(headerRow) {
@@ -60,6 +194,7 @@ export function mapearColunas(headerRow) {
       c.startsWith("torre") ||
       c === "edificio" ||
       c === "bloco" ||
+      c.startsWith("bloco ") ||
       c === "tower" ||
       c === "predio"
   );
@@ -85,81 +220,172 @@ export function mapearColunas(headerRow) {
       c.startsWith("activity")
   );
 
+  // Evita que colunas de data capturem colunas com termos de pavimentos/locais
+  const ehColunaPavimento = (c) =>
+    c.includes("pav") ||
+    c.includes("local") ||
+    c.includes("andar") ||
+    c.includes("locini") ||
+    c.includes("locfim") ||
+    c.startsWith("loc ") ||
+    c.startsWith("loc.");
+
   const idxIni = cols.findIndex(
     (c) =>
-      c === "inicio" ||
-      c.startsWith("inicio") ||
-      c === "inicial" ||
-      c.startsWith("inicial") ||
-      c.startsWith("data inicio") ||
-      c.startsWith("data inicial") ||
-      c.startsWith("dt inicio") ||
-      c.startsWith("dt. inicio") ||
-      c.startsWith("dt inicial") ||
-      c.startsWith("dt. inicial") ||
-      c.startsWith("inicio previsto") ||
-      c.startsWith("data ini") ||
-      c.startsWith("dt ini") ||
-      c.startsWith("dt. ini") ||
-      c.startsWith("novo inicio") ||
-      c.startsWith("inicio replanejado") ||
-      c.startsWith("replanejado inicio") ||
-      c === "de_data" ||
-      c === "start" ||
-      c.startsWith("start date")
+      !ehColunaPavimento(c) &&
+      (c === "inicio" ||
+        c.startsWith("inicio") ||
+        c === "inicial" ||
+        c.startsWith("inicial") ||
+        c.startsWith("data inicio") ||
+        c.startsWith("data inicial") ||
+        c.startsWith("dt inicio") ||
+        c.startsWith("dt. inicio") ||
+        c.startsWith("dt inicial") ||
+        c.startsWith("dt. inicial") ||
+        c.startsWith("inicio previsto") ||
+        c.startsWith("data ini") ||
+        c.startsWith("dt ini") ||
+        c.startsWith("dt. ini") ||
+        c.startsWith("novo inicio") ||
+        c.startsWith("inicio replanejado") ||
+        c.startsWith("replanejado inicio") ||
+        c === "de_data" ||
+        c === "start" ||
+        c.startsWith("start date"))
   );
 
   const idxFim = cols.findIndex(
     (c) =>
-      c === "fim" ||
-      c.startsWith("fim") ||
-      c === "final" ||
-      c.startsWith("final") ||
-      c === "termino" ||
-      c.startsWith("termino") ||
-      c.startsWith("data fim") ||
-      c.startsWith("data final") ||
-      c.startsWith("data termino") ||
-      c.startsWith("dt fim") ||
-      c.startsWith("dt. fim") ||
-      c.startsWith("dt final") ||
-      c.startsWith("dt. final") ||
-      c.startsWith("dt termino") ||
-      c.startsWith("dt. termino") ||
-      c.startsWith("fim previsto") ||
-      c.startsWith("termino previsto") ||
-      c.startsWith("novo fim") ||
-      c.startsWith("novo termino") ||
-      c.startsWith("fim replanejado") ||
-      c.startsWith("termino replanejado") ||
-      c.startsWith("replanejado fim") ||
-      c.startsWith("replanejado termino") ||
-      c === "ate_data" ||
-      c === "finish" ||
-      c === "end" ||
-      c.startsWith("finish date") ||
-      c.startsWith("end date")
+      !ehColunaPavimento(c) &&
+      (c === "fim" ||
+        c.startsWith("fim") ||
+        c === "final" ||
+        c.startsWith("final") ||
+        c === "termino" ||
+        c.startsWith("termino") ||
+        c.startsWith("data fim") ||
+        c.startsWith("data final") ||
+        c.startsWith("data termino") ||
+        c.startsWith("dt fim") ||
+        c.startsWith("dt. fim") ||
+        c.startsWith("dt final") ||
+        c.startsWith("dt. final") ||
+        c.startsWith("dt termino") ||
+        c.startsWith("dt. termino") ||
+        c.startsWith("fim previsto") ||
+        c.startsWith("termino previsto") ||
+        c.startsWith("novo fim") ||
+        c.startsWith("novo termino") ||
+        c.startsWith("fim replanejado") ||
+        c.startsWith("termino replanejado") ||
+        c.startsWith("replanejado fim") ||
+        c.startsWith("replanejado termino") ||
+        c === "ate_data" ||
+        c === "finish" ||
+        c === "end" ||
+        c.startsWith("finish date") ||
+        c.startsWith("end date"))
   );
 
-  const idxLocIni = cols.findIndex(
+  let idxLocIni = cols.findIndex(
     (c) =>
       c.startsWith("pavimento inicial") ||
-      c.startsWith("locini") ||
+      c.startsWith("pavimento de inicio") ||
+      c.startsWith("pavimento de inicial") ||
+      c.startsWith("pavimento inicio") ||
       c.startsWith("pav inicial") ||
+      c.startsWith("pav inicio") ||
+      c.startsWith("pav. inicial") ||
+      c.startsWith("pav. inicio") ||
+      c.startsWith("pav.inicio") ||
+      c.startsWith("pav.inicial") ||
+      c.startsWith("pavimento de") ||
+      c.startsWith("pav de") ||
+      c.startsWith("pav. de") ||
+      c.startsWith("de pavimento") ||
       c.startsWith("de_pavimento") ||
+      c.startsWith("inicio pavimento") ||
+      c.startsWith("inicio do pavimento") ||
       c.startsWith("local inicial") ||
-      c === "pavimento de"
+      c.startsWith("local de inicio") ||
+      c.startsWith("local inicio") ||
+      c.startsWith("locini") ||
+      c.startsWith("loc_ini") ||
+      c.startsWith("loc inicial") ||
+      c.startsWith("loc inicio") ||
+      c.startsWith("loc. inicial") ||
+      c.startsWith("loc. inicio") ||
+      c.startsWith("andar inicial") ||
+      c.startsWith("andar inicio") ||
+      c.startsWith("andar de inicio") ||
+      c.startsWith("pavimento origem") ||
+      c.startsWith("local origem")
   );
 
-  const idxLocFim = cols.findIndex(
+  let idxLocFim = cols.findIndex(
     (c) =>
       c.startsWith("pavimento final") ||
-      c.startsWith("locfim") ||
+      c.startsWith("pavimento de final") ||
+      c.startsWith("pavimento termino") ||
+      c.startsWith("pavimento de termino") ||
+      c.startsWith("pavimento fim") ||
+      c.startsWith("pavimento de fim") ||
       c.startsWith("pav final") ||
+      c.startsWith("pav termino") ||
+      c.startsWith("pav fim") ||
+      c.startsWith("pav. final") ||
+      c.startsWith("pav. termino") ||
+      c.startsWith("pav. fim") ||
+      c.startsWith("pav.final") ||
+      c.startsWith("pav.termino") ||
+      c.startsWith("pav.fim") ||
+      c.startsWith("pavimento ate") ||
+      c.startsWith("pav ate") ||
+      c.startsWith("pav. ate") ||
+      c.startsWith("ate pavimento") ||
       c.startsWith("ate_pavimento") ||
+      c.startsWith("termino pavimento") ||
+      c.startsWith("fim pavimento") ||
       c.startsWith("local final") ||
-      c === "pavimento ate"
+      c.startsWith("local de termino") ||
+      c.startsWith("local termino") ||
+      c.startsWith("local fim") ||
+      c.startsWith("local de fim") ||
+      c.startsWith("locfim") ||
+      c.startsWith("loc_fim") ||
+      c.startsWith("loc final") ||
+      c.startsWith("loc termino") ||
+      c.startsWith("loc fim") ||
+      c.startsWith("loc. final") ||
+      c.startsWith("loc. termino") ||
+      c.startsWith("loc. fim") ||
+      c.startsWith("andar final") ||
+      c.startsWith("andar termino") ||
+      c.startsWith("andar fim") ||
+      c.startsWith("andar de termino") ||
+      c.startsWith("pavimento destino") ||
+      c.startsWith("local destino")
   );
+
+  // Se não houver colunas distintas de início e fim, busca por coluna única de pavimento
+  if (idxLocIni < 0 && idxLocFim < 0) {
+    const idxUnico = cols.findIndex(
+      (c) =>
+        c === "pavimento" ||
+        c === "pav" ||
+        c === "pav." ||
+        c === "local" ||
+        c === "andar" ||
+        c === "pavimento unico" ||
+        c.startsWith("pavimento(s)") ||
+        c === "pavimentos"
+    );
+    if (idxUnico >= 0) {
+      idxLocIni = idxUnico;
+      idxLocFim = idxUnico;
+    }
+  }
 
   const idxRealIni = cols.findIndex(
     (c) =>
@@ -217,7 +443,17 @@ export function mapearColunas(headerRow) {
       c.startsWith("situação")
   );
 
-  const idxModo = cols.findIndex((c) => c === "modo" || c.startsWith("modo"));
+  const idxModo = cols.findIndex(
+    (c) =>
+      c === "modo" ||
+      c.startsWith("modo") ||
+      c === "tipo" ||
+      c === "tipo de atividade" ||
+      c === "tipo atividade" ||
+      c === "formato" ||
+      c === "exibicao" ||
+      c.startsWith("tipo de exibicao")
+  );
   const idxCor = cols.findIndex((c) => c === "cor" || c.startsWith("cor"));
 
   return {
@@ -359,7 +595,9 @@ export async function processarArquivoImportacao({ file, tipo, proj, torreAtivaI
     const pavAtualNome = mapa.idxPavAtual >= 0 ? String(r[mapa.idxPavAtual] ?? "").trim() : "";
     const locIniNome = mapa.idxLocIni >= 0 ? String(r[mapa.idxLocIni] ?? "").trim() : "";
     const locFimNome = mapa.idxLocFim >= 0 ? String(r[mapa.idxLocFim] ?? "").trim() : "";
-    const modoStr = mapa.idxModo >= 0 ? String(r[mapa.idxModo] ?? "").toUpperCase().trim() : "";
+    const modoStr = mapa.idxModo >= 0 ? String(r[mapa.idxModo] ?? "").trim() : "";
+    const modoNorm = normalizar(modoStr);
+    const ehBloco = modoNorm === "bloco" || modoNorm === "b" || modoNorm.startsWith("bloc");
     const corStr = mapa.idxCor >= 0 ? String(r[mapa.idxCor] ?? "").trim() : "";
     const statusStr = mapa.idxStatus >= 0 ? String(r[mapa.idxStatus] ?? "").trim() : "";
 
@@ -376,7 +614,7 @@ export async function processarArquivoImportacao({ file, tipo, proj, torreAtivaI
       pavAtualNome,
       locIniNome,
       locFimNome,
-      modo: modoStr === "BLOCO" ? "BLOCO" : "LINHA",
+      modo: ehBloco ? "BLOCO" : "LINHA",
       cor: corStr || "",
       status: statusStr,
     });
@@ -441,17 +679,43 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
 
       if (!ls.length) return;
 
-      // Determinar pavimento inicial e final
-      let locIni = ls[0];
-      let locFim = ls[ls.length - 1];
+      // Determinar pavimento inicial e final de forma inteligente
+      let locIni = null;
+      let locFim = null;
 
-      if (r.locIniNome) {
-        const lMatch = ls.find((l) => normalizar(l.nome) === normalizar(r.locIniNome));
-        if (lMatch) locIni = lMatch;
+      let rawIni = r.locIniNome;
+      let rawFim = r.locFimNome;
+
+      // Se apenas uma coluna veio preenchida com faixa (ex: "1 a 5" ou "1º ao 5º pav")
+      if (rawIni && !rawFim) {
+        const faixa = extrairFaixaPavimentos(rawIni);
+        if (faixa) {
+          rawIni = faixa.ini;
+          rawFim = faixa.fim;
+        }
       }
-      if (r.locFimNome) {
-        const lMatch = ls.find((l) => normalizar(l.nome) === normalizar(r.locFimNome));
-        if (lMatch) locFim = lMatch;
+
+      if (rawIni) {
+        locIni = encontrarLocal(ls, rawIni);
+      }
+      if (rawFim) {
+        locFim = encontrarLocal(ls, rawFim);
+      }
+
+      // Se for modo BLOCO e apenas um dos pavimentos foi especificado ou encontrado:
+      if (r.modo === "BLOCO") {
+        if (locIni && !locFim) locFim = locIni;
+        else if (locFim && !locIni) locIni = locFim;
+      }
+
+      // Fallbacks padrão caso não tenha sido informado na planilha
+      if (!locIni && !locFim) {
+        locIni = ls[0];
+        locFim = ls[ls.length - 1];
+      } else if (!locIni) {
+        locIni = locFim || ls[0];
+      } else if (!locFim) {
+        locFim = locIni || ls[ls.length - 1];
       }
 
       const di = ajustarFimDeSemanaParaSegunda(r.di || D(proj.dataZero || new Date()));
@@ -486,7 +750,7 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
       };
 
       if (r.pavAtualNome) {
-        const pMatch = ls.find((l) => normalizar(l.nome) === normalizar(r.pavAtualNome));
+        const pMatch = encontrarLocal(ls, r.pavAtualNome);
         if (pMatch) nova.pavimentoAtualId = pMatch.id;
       }
 
@@ -531,7 +795,7 @@ export function aplicarImportacaoAoProjeto({ proj, registros, tipo, torreAtivaId
 
         if (r.pavAtualNome) {
           const ls = proj.locais.filter((l) => !l.torreId || l.torreId === match.torreId);
-          const pMatch = ls.find((l) => normalizar(l.nome) === normalizar(r.pavAtualNome));
+          const pMatch = encontrarLocal(ls, r.pavAtualNome);
           if (pMatch) {
             patch.pavimentoAtualId = pMatch.id;
           }

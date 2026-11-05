@@ -2,7 +2,7 @@
 // Suíte de testes automatizados pré-implantação para validação do app TxC
 import * as XLSX from "xlsx";
 import { D, iso, addDays, diffDays, fmtBR, hoje } from "../src/utils/dateUtils.js";
-import { mapearColunas } from "../src/utils/importUtils.js";
+import { mapearColunas, aplicarImportacaoAoProjeto, encontrarLocal } from "../src/utils/importUtils.js";
 import { calcularStatusAtividade } from "../src/utils/statusUtils.js";
 import { calcularPermissao } from "../src/hooks/usePermissao.js";
 import { gerarAtividadesDoMacrofluxo, getModelosPadraoMacrofluxo } from "../src/utils/macrofluxoUtils.js";
@@ -258,6 +258,83 @@ const svgOutput = buildSVG({
 assert(typeof svgOutput === "string" && svgOutput.startsWith("<svg"), "Geração de SVG produziu marcação SVG válida");
 assert(svgOutput.includes("Torre A") && svgOutput.includes("Torre B"), "SVG contém os rótulos de ambas as torres");
 assert(svgOutput.includes("Cobertura"), "SVG contém os pavimentos renderizados");
+
+// -----------------------------------------------------------------------------
+// 9. TESTE DE IMPORTAÇÃO DE ATIVIDADES EM BLOCO E RESOLUÇÃO DE PAVIMENTOS
+// -----------------------------------------------------------------------------
+console.log("\n[9/9] Testando Importação de Atividades no Modo BLOCO e Escopo de Pavimentos...");
+
+// A. Reconhecimento robusto de colunas (com 'Pavimento de Início' e 'Pavimento de Término')
+const cabecalhoBloco = ["Atividade", "Inicio", "Fim", "Torre", "Pavimento de Início", "Pavimento de Término", "Modo"];
+const mapaBloco = mapearColunas(cabecalhoBloco);
+assert(mapaBloco.valido === true, "Cabeçalho com colunas de início/término de pavimento validado");
+assert(mapaBloco.idxLocIni === 4, "Coluna 'Pavimento de Início' identificada na posição 4");
+assert(mapaBloco.idxLocFim === 5, "Coluna 'Pavimento de Término' identificada na posição 5");
+assert(mapaBloco.idxModo === 6, "Coluna 'Modo' identificada na posição 6");
+
+// B. Resolução inteligente de nomes e números de pavimentos
+const locaisTorre1 = obraTeste.locais.filter(l => l.torreId === "torre-1");
+const matchP1 = encontrarLocal(locaisTorre1, "1º Pavimento");
+const matchNum1 = encontrarLocal(locaisTorre1, "1");
+const matchOrd1 = encontrarLocal(locaisTorre1, "1º");
+const matchDeg1 = encontrarLocal(locaisTorre1, "1°");
+assert(matchP1 && matchP1.id === "loc-3", "Encontra pavimento por nome completo");
+assert(matchNum1 && matchNum1.id === "loc-3", "Encontra pavimento informando apenas número ('1' -> '1º Pavimento')");
+assert(matchOrd1 && matchOrd1.id === "loc-3", "Encontra pavimento com símbolo ordinal º ('1º')");
+assert(matchDeg1 && matchDeg1.id === "loc-3", "Encontra pavimento com símbolo de grau ° ('1°')");
+
+const matchCob = encontrarLocal(locaisTorre1, "Cobertura");
+assert(matchCob && matchCob.id === "loc-6", "Encontra Cobertura corretamente");
+
+// C. Importação de Bloco com pavimentos inicial e final definidos (não deve cobrir do térreo à cobertura)
+const registrosImportBloco = [
+  {
+    nome: "Elevador Social",
+    torreNome: "Torre A",
+    di: new Date("2026-03-15"),
+    df: new Date("2026-04-30"),
+    locIniNome: "1º Pavimento",
+    locFimNome: "3º Pavimento",
+    modo: "BLOCO",
+  },
+  {
+    nome: "Subestação de Energia",
+    torreNome: "Torre A",
+    di: new Date("2026-04-01"),
+    df: new Date("2026-04-20"),
+    locIniNome: "2",
+    locFimNome: "2",
+    modo: "BLOCO",
+  },
+  {
+    nome: "Pressurização de Escadas",
+    torreNome: "Torre A",
+    di: new Date("2026-04-10"),
+    df: new Date("2026-05-10"),
+    locIniNome: "3º Pavimento",
+    locFimNome: "",
+    modo: "BLOCO",
+  }
+];
+
+const resImport = aplicarImportacaoAoProjeto({
+  proj: obraTeste,
+  registros: registrosImportBloco,
+  tipo: "plan",
+  torreAtivaId: "torre-1",
+});
+
+const ativElevador = resImport.novoProj.atividades.find(a => a.nome === "Elevador Social");
+const ativSubestacao = resImport.novoProj.atividades.find(a => a.nome === "Subestação de Energia");
+const ativPressurizacao = resImport.novoProj.atividades.find(a => a.nome === "Pressurização de Escadas");
+
+assert(ativElevador && ativElevador.modo === "BLOCO", "Atividade criada como BLOCO");
+assert(ativElevador.locIniId === "loc-3", "Bloco inicia no 1º Pavimento (loc-3) e NÃO no Térreo/Subsolo");
+assert(ativElevador.locFimId === "loc-5", "Bloco termina no 3º Pavimento (loc-5) e NÃO na Cobertura");
+
+assert(ativSubestacao && ativSubestacao.locIniId === "loc-4" && ativSubestacao.locFimId === "loc-4", "Bloco pontual de número único '2' fica restrito ao 2º Pavimento");
+
+assert(ativPressurizacao && ativPressurizacao.locIniId === "loc-5" && ativPressurizacao.locFimId === "loc-5", "Bloco com apenas pavimento inicial informado fica restrito a esse pavimento sem estender à cobertura");
 
 console.log("\n===============================================================");
 console.log(`  RESULTADO: ${passedTests}/${totalTests} TESTES EXECUTADOS COM SUCESSO!`);
