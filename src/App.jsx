@@ -969,6 +969,28 @@ export default function App() {
     });
   };
 
+  // ─── Tecla Delete: excluir a linha/bloco selecionado ──────────
+  // Usa a mesma confirmação do botão "Excluir" do painel de propriedades.
+  const deleteKeyRef = useRef(null);
+  deleteKeyRef.current = () => {
+    if (tela !== "editor" || !proj || vista !== "grafico" || !selId) return;
+    if (modal || modalConfirmacao || modalApontar) return;
+    if (!proj.atividades?.some((a) => a.id === selId)) return;
+    pedirExcluirAtividade(selId);
+  };
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== "Delete" || e.repeat) return;
+      const el = e.target;
+      const tag = el?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+      e.preventDefault();
+      deleteKeyRef.current?.();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   /* ─── Importação de Planilha Excel / CSV ─────────────────────── */
   const abrirImport = (tipo) => {
     if (!permissoes.podeImportar) {

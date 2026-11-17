@@ -239,13 +239,13 @@ export const Sidebar = ({
                         />
                         <div className="min-w-0 flex-1">
                           <div
-                            className="text-[13px] truncate flex items-center gap-1 font-semibold"
+                            className="text-[13px] font-semibold leading-snug break-words"
                             style={{ color: a.visivel === false ? T.dim : T.text }}
                           >
                             {a.nome}
                             {a.realIni && (
                               <span
-                                style={{ width: 6, height: 6, borderRadius: 6, background: ERRO, display: "inline-block" }}
+                                style={{ width: 6, height: 6, borderRadius: 6, background: ERRO, display: "inline-block", marginLeft: 4, verticalAlign: "middle" }}
                                 title="Possui avanço real registrado"
                               />
                             )}

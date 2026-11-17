@@ -39,6 +39,56 @@ const EXIBIR_MARCOS = false;
 const EXIBIR_LINHAS_REALIZADO = false;
 const EXIBIR_PONTO_CORTE_HOJE = false;
 
+// ── Quebra de texto para SVG (texto em <text> não quebra sozinho) ──
+// Divide o texto em linhas que caibam em `larguraPx`, limitado a `maxLinhas`.
+// Palavras maiores que a largura são partidas; se sobrar texto, a última linha termina com "…".
+function quebrarTexto(texto, larguraPx, fontSize, maxLinhas) {
+  const charW = fontSize * 0.6;
+  const maxChars = Math.max(1, Math.floor(larguraPx / charW));
+  const limite = Math.max(1, maxLinhas);
+  const palavras = String(texto ?? "").split(/\s+/).filter(Boolean);
+  const linhas = [];
+  let atual = "";
+  for (let p of palavras) {
+    while (p.length > maxChars) {
+      if (atual) { linhas.push(atual); atual = ""; }
+      linhas.push(p.slice(0, maxChars));
+      p = p.slice(maxChars);
+    }
+    if (!p) continue;
+    const tentativa = atual ? `${atual} ${p}` : p;
+    if (tentativa.length <= maxChars) {
+      atual = tentativa;
+    } else {
+      linhas.push(atual);
+      atual = p;
+    }
+  }
+  if (atual) linhas.push(atual);
+  if (linhas.length > limite) {
+    const cortadas = linhas.slice(0, limite);
+    const ult = cortadas[limite - 1];
+    cortadas[limite - 1] = (ult.length >= maxChars ? ult.slice(0, Math.max(0, maxChars - 1)) : ult) + "…";
+    return cortadas;
+  }
+  return linhas;
+}
+
+// Renderiza as linhas quebradas centralizadas verticalmente em (cx, cy).
+function TextoQuebrado({ linhas, cx, cy, fontSize, ...props }) {
+  const lh = fontSize * 1.15;
+  const y0 = cy - ((linhas.length - 1) * lh) / 2 + fontSize * 0.35;
+  return (
+    <text x={cx} y={y0} fontSize={fontSize} textAnchor="middle" {...props}>
+      {linhas.map((l, idx) => (
+        <tspan key={idx} x={cx} dy={idx === 0 ? 0 : lh}>
+          {l}
+        </tspan>
+      ))}
+    </text>
+  );
+}
+
 export const FlowlineChart = ({
   T,
   proj,
@@ -446,7 +496,13 @@ export const FlowlineChart = ({
                     </span>
                   </div>
                   <div className="flex-1">
-                    {rows.slice(g.ini, g.fim + 1).map((r) => (
+                    {rows.slice(g.ini, g.fim + 1).map((r) => {
+                      // Nomes longos: reduz a fonte para caber em 2 linhas e quebra o texto
+                      const fsBase = Math.min(13.5, Math.max(11, rowH * 0.44));
+                      const cabeUmaLinha = String(r.nome || "").length * fsBase * 0.58 <= LABEL_W - TOWER_STRIP - 12;
+                      const fsLabel = cabeUmaLinha ? fsBase : Math.max(9, Math.min(fsBase, (rowH - 3) / 2.3));
+                      const maxLinhasLabel = Math.max(1, Math.floor((rowH - 2) / (fsLabel * 1.1)));
+                      return (
                       <div
                         key={r.id}
                         className="flex items-center justify-end pr-2"
@@ -457,17 +513,27 @@ export const FlowlineChart = ({
                         }}
                       >
                         <span
+                          title={r.nome}
                           style={{
                             ...NUM,
-                            fontSize: Math.min(13.5, Math.max(11, rowH * 0.44)),
+                            fontSize: fsLabel,
                             fontWeight: 600,
                             color: r.tipo === "TIPO" ? T.label : T.labelAlt,
+                            minWidth: 0,
+                            textAlign: "right",
+                            lineHeight: 1.1,
+                            overflowWrap: "anywhere",
+                            display: "-webkit-box",
+                            WebkitBoxOrient: "vertical",
+                            WebkitLineClamp: maxLinhasLabel,
+                            overflow: "hidden",
                           }}
                         >
                           {r.nome}
                         </span>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -594,9 +660,17 @@ export const FlowlineChart = ({
                   const x = xOf(D(a.dataIni));
                   const w = Math.max(3, xOf(D(a.dataFim)) - x);
                   const on = selId === a.id;
-                  const cabe = w > a.nome.length * 5.4;
                   const tc = contraste(a.cor);
                   const avancoPct = Math.min(100, Math.max(0, a.avanco || 0));
+
+                  // Rótulo com quebra de texto para caber dentro do bloco
+                  const rotuloH = `${a.nome}${avancoPct > 0 && exibirRealizado ? ` (${avancoPct}%)` : ""}`;
+                  const fsH = Math.max(7, Math.min(10.5, (h - 4) * 0.5));
+                  const linhasH = quebrarTexto(rotuloH, w - 6, fsH, Math.floor((h - 6) / (fsH * 1.15)));
+                  const fsV = 9;
+                  const linhasV = quebrarTexto(a.nome, h - 8, fsV, Math.floor((w - 4) / (fsV * 1.15)));
+                  const truncH = linhasH.length > 0 && linhasH[linhasH.length - 1].endsWith("…");
+                  const cabe = w >= h || !truncH;
 
                   return (
                     <g
@@ -654,30 +728,26 @@ export const FlowlineChart = ({
                       })()}
 
                       {cabe ? (
-                        <text
-                          x={x + w / 2}
-                          y={y + h / 2 + 3.5}
+                        <TextoQuebrado
+                          linhas={linhasH}
+                          cx={x + w / 2}
+                          cy={y + h / 2}
                           fill={tc}
                           fontFamily={FONT}
-                          fontSize={Math.min(10.5, h * 0.5)}
+                          fontSize={fsH}
                           fontWeight="700"
-                          textAnchor="middle"
-                        >
-                          {a.nome} {avancoPct > 0 && exibirRealizado ? `(${avancoPct}%)` : ""}
-                        </text>
+                        />
                       ) : (
-                        <text
-                          x={x + w / 2}
-                          y={y + h / 2}
+                        <TextoQuebrado
+                          linhas={linhasV}
+                          cx={x + w / 2}
+                          cy={y + h / 2}
                           fill={tc}
                           fontFamily={FONT}
-                          fontSize={9}
+                          fontSize={fsV}
                           fontWeight="700"
-                          textAnchor="middle"
                           transform={`rotate(-90 ${x + w / 2} ${y + h / 2})`}
-                        >
-                          {a.nome}
-                        </text>
+                        />
                       )}
                     </g>
                   );

@@ -121,8 +121,10 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExc
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontWeight: 700, fontSize: 15, color: textColor,
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            overflowWrap: "anywhere",
             lineHeight: 1.3,
+            // espaço para os selos "Ativa"/"Arquivada" no canto superior
+            paddingRight: obra.arquivado && isAtiva ? 128 : obra.arquivado ? 78 : isAtiva ? 44 : 0,
           }}>
             {obra.nome || "Obra sem nome"}
           </div>
@@ -329,7 +331,7 @@ export function HomeScreen({
 
   return (
     <div style={{
-      minHeight: "100vh", background: bg, fontFamily: FONT,
+      height: "100vh", overflowY: "auto", background: bg, fontFamily: FONT,
       color: textColor, display: "flex", flexDirection: "column",
     }}>
       {/* ── Topo ── */}
@@ -450,7 +452,7 @@ export function HomeScreen({
 
       {/* ── Conteúdo ── */}
       <main style={{
-        flex: 1, maxWidth: 960, width: "100%",
+        flex: "1 0 auto", maxWidth: 960, width: "100%",
         margin: "0 auto", padding: "48px 32px",
       }}>
 
