@@ -254,7 +254,8 @@ function ObraCard({
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
-            gap: 6,
+            flexWrap: "wrap",
+            gap: 4,
             position: "relative",
             opacity: hovered || menuAberto ? 1 : 0,
             pointerEvents: hovered || menuAberto ? "auto" : "none",
@@ -323,12 +324,12 @@ function AcaoBtn({ T, danger = false, children, onClick, title }) {
       onMouseEnter={() => setH(true)}
       onMouseLeave={() => setH(false)}
       style={{
-        display: "inline-flex", alignItems: "center", gap: 5,
-        height: 28, padding: "0 10px", borderRadius: 8,
+        display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, whiteSpace: "nowrap",
+        height: 28, padding: "0 7px", borderRadius: 8,
         border: `1px solid ${danger ? "transparent" : T.line}`,
         background: danger ? (h ? STATUS.error : STATUS.errorSoft) : (h ? T.hover : T.panel),
         color: danger ? (h ? "#fff" : STATUS.error) : T.text,
-        fontSize: 12.5, fontWeight: 500, fontFamily: FONT, cursor: "pointer",
+        fontSize: 12, fontWeight: 500, fontFamily: FONT, cursor: "pointer",
         transition: "background .15s, color .15s",
       }}
     >
@@ -848,7 +849,7 @@ export function HomeScreen({
         {/* Grid de obras */}
         <div style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))",
           gap: 16,
         }}>
           {podeCriar && filtroAba !== "arquivadas" && <NovaObraCard onClick={onNovaObra} T={T} />}
