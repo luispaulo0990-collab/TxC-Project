@@ -23,6 +23,8 @@ export function calcularPermissao(role) {
     podeEditar: isDev || isAdmin,
     /** Pode importar dados de planilhas (Excel, CSV, replanejamento): apenas Dev e Admin */
     podeImportar: isDev || isAdmin,
+    /** Pode organizar a tela inicial em pastas (criar, renomear, excluir pastas e mover obras): Dev e Admin */
+    podeOrganizarPastas: isDev || isAdmin,
     /** Pode excluir obras permanentemente: EXCLUSIVAMENTE Dev */
     podeExcluir: isDev,
     /** Pode exportar informações (PNG, SVG, Excel, etc.): Dev, Admin e Membro */

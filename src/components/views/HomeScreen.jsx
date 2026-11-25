@@ -565,7 +565,7 @@ export function HomeScreen({
   const perm = calcularPermissao(userRole);
   const podeExcluir = perm.podeExcluir; // Apenas Dev pode apagar e arquivar obras
   const podeCriar   = perm.podeCriar;   // Dev e Admin podem criar obras e organizar pastas
-  const podeMover   = podeCriar && typeof onMoverObras === "function";
+  const podeMover   = perm.podeOrganizarPastas && typeof onMoverObras === "function"; // Dev e Admin organizam pastas
 
   const listaPastas = Array.isArray(pastas) ? pastas : [];
   const idsPastas = useMemo(() => new Set(listaPastas.map((p) => p.id)), [listaPastas]);
