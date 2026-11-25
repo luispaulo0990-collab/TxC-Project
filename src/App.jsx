@@ -37,6 +37,7 @@ import { obterSessao, logout, supabasePublic, obterPerfilUsuario } from "./utils
 import { lerRetornoLoginDaUrl, concluirLoginMicrosoft } from "./utils/authMicrosoft";
 import { usePermissao } from "./hooks/usePermissao";
 import { ModalConfirmarExclusao } from "./components/modals/ModalConfirmarExclusao";
+import { NovidadesTour } from "./components/modals/NovidadesTour";
 import { Loader2 } from "lucide-react";
 
 export default function App() {
@@ -1588,6 +1589,7 @@ export default function App() {
           telaCheia={telaCheia}
           onAlternarTelaCheia={alternarTelaCheia}
         />
+        <NovidadesTour user={user} userRole={userRole} tema={tema} />
         {modal === "login" && (
           <AuthScreen
             tema={tema}
@@ -1987,6 +1989,7 @@ export default function App() {
           }}
         />
       )}
+      <NovidadesTour user={user} userRole={userRole} tema={tema} />
     </div>
   );
 }
