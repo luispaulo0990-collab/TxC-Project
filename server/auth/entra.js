@@ -1,7 +1,8 @@
 // server/auth/entra.js
 // Login com Microsoft 365 (Entra ID) · padrão Unità, adaptado ao TxC (Supabase).
 import { createClient } from '@supabase/supabase-js';
-import { randomToken, signSession, verifySession } from './security.js';
+import crypto from 'node:crypto';
+import { randomToken, signSession, verifySession, sealData, openData } from './security.js';
 import { supabaseAdmin, supabaseUrl, supabaseAnonKey } from '../../src/utils/supabaseClient.js';
 
 const env = (k) => process.env[k]?.trim().replace(/^(['"])(.*)\1$/, '$2') || null;
@@ -48,11 +49,16 @@ const db = {
   },
 };
 
-/** 1ª etapa: URL de login da Microsoft + state assinado (vai também no cookie). */
-export function entraAuthorizeUrl() {
+/** 1ª etapa: URL de login da Microsoft + state assinado (vai também no cookie).
+ *  `pedido` (opcional): hash do verificador do iframe, quando o login roda no pop-up do portal. */
+export function entraAuthorizeUrl(pedido = null) {
   if (!entraConfigured()) throw new Error('Login Microsoft ainda não configurado (ENTRA_*).');
+  if (pedido !== null && !pedidoValido(pedido)) throw new Error('Pedido de login inválido. Tente de novo.');
   const nonce = randomToken(16);
-  const state = signSession({ kind: 'user', sub: `state:${nonce}`, exp: Math.floor(Date.now() / 1000) + 600 });
+  const state = signSession({
+    kind: 'user', sub: `state:${nonce}`, exp: Math.floor(Date.now() / 1000) + 600,
+    ...(pedido ? { p: pedido } : {}),
+  });
   const q = new URLSearchParams({
     client_id: env('ENTRA_CLIENT_ID'),
     response_type: 'code',
@@ -121,4 +127,46 @@ export async function createSupabaseSession(userId) {
   if (verifyErr || !session?.access_token) throw new Error('Não foi possível iniciar a sessão. Tente de novo.');
 
   return { access_token: session.access_token, refresh_token: session.refresh_token };
+}
+
+/* ─── Login em pop-up (app dentro do iframe do Portal Unità) ─────────────
+ * O iframe sorteia um verificador e entrega ao pop-up só o hash dele (o pedido).
+ * O callback guarda o resultado (cifrado) com o nome do pedido em public.login_pedidos;
+ * o iframe resgata uma única vez apresentando o verificador. Quem não tem o
+ * verificador não resgata a sessão. */
+const VALIDADE_PEDIDO_S = 600;
+
+export const pedidoValido = (pedido) => typeof pedido === 'string' && /^[0-9a-f]{64}$/.test(pedido);
+
+/** Pedido gravado no state assinado (ou null, no login em aba própria). */
+export function pedidoDoState(state) {
+  const st = verifySession(String(state || ''));
+  return st && pedidoValido(st.p) ? st.p : null;
+}
+
+export async function guardarPedido(pedido, resultado) {
+  const { error } = await supabaseAdmin.from('login_pedidos').upsert({
+    pedido,
+    resultado: sealData(resultado, VALIDADE_PEDIDO_S),
+    expira_em: new Date(Date.now() + VALIDADE_PEDIDO_S * 1000).toISOString(),
+  }, { onConflict: 'pedido' });
+  if (error) throw new Error('Não foi possível concluir o login (pedido). Tente de novo.');
+}
+
+/** { pendente: true } enquanto o pop-up não terminou; depois { tokens } ou { erro } (uma única vez). */
+export async function resgatarPedido(verificador) {
+  if (typeof verificador !== 'string' || verificador.length < 32 || verificador.length > 128) {
+    return { erro: 'Pedido de login inválido.' };
+  }
+  const pedido = crypto.createHash('sha256').update(verificador).digest('hex');
+  // limpeza oportunista de pedidos vencidos
+  supabaseAdmin.from('login_pedidos').delete().lt('expira_em', new Date().toISOString()).then(() => {}, () => {});
+
+  const { data, error } = await supabaseAdmin.from('login_pedidos').delete().eq('pedido', pedido).select('resultado');
+  if (error) return { erro: 'Não foi possível concluir o login. Tente de novo.' };
+  const linha = data?.[0];
+  if (!linha) return { pendente: true };
+  const resultado = openData(linha.resultado);
+  if (!resultado) return { erro: 'Login expirado. Tente entrar de novo.' };
+  return resultado;
 }

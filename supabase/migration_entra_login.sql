@@ -19,7 +19,7 @@ alter table public.profiles add column if not exists last_login_at timestamptz;
 create unique index if not exists idx_profiles_entra_oid on public.profiles(entra_oid) where entra_oid is not null;
 
 -- Os usuários só podem alterar o próprio nome; entra_oid/active/role/last_login_at
--- são gravados pelo servidor (service_role) ou por um Dev.
+-- são gravados pelo servidor (service_role), por um Dev ou pelo painel do Supabase.
 create or replace function public.profiles_proteger_campos_acesso()
 returns trigger
 language plpgsql
@@ -27,7 +27,9 @@ security definer
 set search_path = public
 as $$
 begin
-  if auth.role() = 'service_role' or public.get_user_role(auth.uid()) = 'dev' then
+  -- Painel do Supabase / SQL Editor / servidor (service_role) e Devs: sem restrição
+  if coalesce(auth.role(), '') not in ('authenticated', 'anon')
+     or public.get_user_role(auth.uid()) = 'dev' then
     return new;
   end if;
   new.entra_oid := old.entra_oid;

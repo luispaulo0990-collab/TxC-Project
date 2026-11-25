@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, X, ChevronDown } from "lucide-react";
 import { loginComEmail, obterPerfilUsuario } from "../../utils/supabaseClient";
-import { obterConfigLogin, iniciarLoginMicrosoft } from "../../utils/authMicrosoft";
+import { obterConfigLogin, iniciarLoginMicrosoft, dentroDeIframe, entrarComMicrosoftPopup } from "../../utils/authMicrosoft";
 import {
   ORANGE, ORANGE_HOVER, INK, FONT, FONT_DISPLAY, THEME, RADIUS, SHADOW, OVERLAY, STATUS,
 } from "../../constants/theme";
@@ -48,10 +48,31 @@ export function AuthScreen({ onLoginSuccess, tema = "escuro", onClose, erroInici
     return () => window.removeEventListener("keydown", esc);
   }, [isModal, onClose]);
 
+  // cancela a espera do pop-up se esta tela for fechada
+  const desmontado = useRef(false);
+  useEffect(() => {
+    desmontado.current = false;
+    return () => { desmontado.current = true; };
+  }, []);
+
   const entrarComMicrosoft = () => {
     setErro("");
     setRedirecionando(true);
-    iniciarLoginMicrosoft();
+    if (!dentroDeIframe()) {
+      iniciarLoginMicrosoft(); // aba própria: navega para a Microsoft
+      return;
+    }
+    // Dentro do iframe do portal: login em pop-up (abre ainda dentro do clique)
+    entrarComMicrosoftPopup({ cancelado: () => desmontado.current })
+      .then((r) => {
+        if (!r || desmontado.current) return;
+        onLoginSuccess?.(r.user, r.session);
+      })
+      .catch((e) => {
+        if (desmontado.current) return;
+        setErro(e?.message || "Falha no login com a Microsoft.");
+        setRedirecionando(false);
+      });
   };
 
   const handleSubmit = async (e) => {
@@ -218,7 +239,7 @@ export function AuthScreen({ onLoginSuccess, tema = "escuro", onClose, erroInici
                 <MicrosoftIcon size={14} />
               </span>
             )}
-            <span>{redirecionando ? "Abrindo a Microsoft…" : "Entrar com Microsoft"}</span>
+            <span>{redirecionando ? (dentroDeIframe() ? "Aguardando o login na janela da Microsoft…" : "Abrindo a Microsoft…") : "Entrar com Microsoft"}</span>
           </button>
 
           {!carregando && !microsoftDisponivel && (
