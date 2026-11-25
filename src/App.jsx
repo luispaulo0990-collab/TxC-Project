@@ -34,6 +34,7 @@ import { AuthScreen } from "./components/views/AuthScreen";
 import { gerarAtividadesDoMacrofluxo, auditarIncoerenciasPredecessoras, getModelosPadraoMacrofluxo } from "./utils/macrofluxoUtils";
 import { apiClient } from "./utils/apiClient";
 import { obterSessao, logout, supabasePublic, obterPerfilUsuario } from "./utils/supabaseClient";
+import { lerRetornoLoginDaUrl, concluirLoginMicrosoft } from "./utils/authMicrosoft";
 import { usePermissao } from "./hooks/usePermissao";
 import { ModalConfirmarExclusao } from "./components/modals/ModalConfirmarExclusao";
 import { Loader2 } from "lucide-react";
@@ -41,6 +42,7 @@ import { Loader2 } from "lucide-react";
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [erroLogin, setErroLogin] = useState("");
   const [tela, setTela] = useState("home"); // "home" | "editor"
   const [proj, setProj] = useState(null);
   const [selId, setSelId] = useState(null);
@@ -51,6 +53,8 @@ export default function App() {
   const [tab, setTab] = useState("atividades");
   const [filtroTorre, setFiltroTorre] = useState("TODAS");
   const [salvos, setSalvos] = useState([]);
+  const [pastas, setPastas] = useState([]);
+  const [vinculosPasta, setVinculosPasta] = useState({});
   const [macrofluxos, setMacrofluxos] = useState([]);
   const [status, setStatus] = useState("");
   const [modal, setModal] = useState(null);
@@ -133,7 +137,14 @@ export default function App() {
   }, []);
 
   /* ─── Persistência (Supabase Backend + Local Fallback + Auto Sync) ───────── */
+  const carregarPastas = useCallback(async () => {
+    const { pastas: lista, vinculos } = await apiClient.getPastas();
+    setPastas(lista);
+    setVinculosPasta(vinculos);
+  }, []);
+
   const listar = useCallback(async () => {
+    carregarPastas();
     try {
       let localIdx = [];
       try {
@@ -279,6 +290,23 @@ export default function App() {
   useEffect(() => {
     async function initAuth() {
       try {
+        // Retorno do login Microsoft (?login=microsoft | ?login_erro=...)
+        const retorno = lerRetornoLoginDaUrl();
+        if (retorno?.erro) {
+          setErroLogin(retorno.erro);
+          setModal("login");
+        } else if (retorno?.microsoft) {
+          try {
+            const { user: logado } = await concluirLoginMicrosoft();
+            setUser(logado);
+            flash(`Login realizado como ${logado.perfil?.nome || logado.email}`);
+            return;
+          } catch (e) {
+            setErroLogin(e?.message || "Falha no login com a Microsoft.");
+            setModal("login");
+          }
+        }
+
         const sessao = await obterSessao();
         if (sessao?.user) {
           const enriched = await obterPerfilUsuario(sessao.user);
@@ -635,6 +663,90 @@ export default function App() {
     }
   };
 
+  /* ─── Pastas da tela inicial (Dev e Admin organizam) ─────────── */
+  const criarPasta = async (nome, obraIdsParaMover = []) => {
+    if (!permissoes.podeCriar) {
+      flash("Acesso negado: apenas Admin ou Dev podem organizar pastas.");
+      return;
+    }
+    try {
+      const nova = await apiClient.criarPasta(nome, user);
+      if (obraIdsParaMover.length) {
+        await apiClient.moverObrasParaPasta(obraIdsParaMover, nova.id);
+      }
+      await carregarPastas();
+      flash(
+        obraIdsParaMover.length
+          ? `Pasta "${nome}" criada com ${obraIdsParaMover.length} ${obraIdsParaMover.length === 1 ? "obra" : "obras"}.`
+          : `Pasta "${nome}" criada.`
+      );
+    } catch (err) {
+      console.error("Erro ao criar pasta:", err);
+      throw new Error("Não foi possível criar a pasta. Verifique se a migration de pastas foi aplicada.");
+    }
+  };
+
+  const renomearPasta = async (id, nome) => {
+    try {
+      await apiClient.renomearPasta(id, nome);
+      await carregarPastas();
+      flash(`Pasta renomeada para "${nome}".`);
+    } catch (err) {
+      console.error("Erro ao renomear pasta:", err);
+      throw new Error("Não foi possível renomear a pasta.");
+    }
+  };
+
+  const pedirExcluirPasta = (pasta) => {
+    if (!permissoes.podeCriar) {
+      flash("Acesso negado: apenas Admin ou Dev podem organizar pastas.");
+      return;
+    }
+    setModalConfirmacao({
+      titulo: "Excluir Pasta",
+      mensagem: "A pasta será removida. As obras que estão nela NÃO serão excluídas: elas voltam para Suas Obras.",
+      itemNome: pasta?.nome || "Esta Pasta",
+      textoBotao: "Sim, Excluir Pasta",
+      onConfirmar: async () => {
+        setModalConfirmacao(null);
+        try {
+          await apiClient.excluirPasta(pasta.id);
+          await carregarPastas();
+          flash(`Pasta "${pasta.nome}" excluída. As obras voltaram para Suas Obras.`);
+        } catch (err) {
+          console.error("Erro ao excluir pasta:", err);
+          flash("Erro ao excluir a pasta.");
+        }
+      },
+    });
+  };
+
+  const moverObrasParaPasta = async (obraIds, pastaId) => {
+    if (!permissoes.podeCriar) {
+      flash("Acesso negado: apenas Admin ou Dev podem organizar pastas.");
+      return;
+    }
+    const anterior = vinculosPasta;
+    // atualização otimista
+    setVinculosPasta((prev) => {
+      const next = { ...prev };
+      obraIds.forEach((id) => {
+        if (pastaId) next[id] = pastaId;
+        else delete next[id];
+      });
+      return next;
+    });
+    try {
+      await apiClient.moverObrasParaPasta(obraIds, pastaId);
+      const destino = pastaId ? pastas.find((p) => p.id === pastaId)?.nome : null;
+      flash(destino ? `Obra movida para "${destino}".` : "Obra movida para Suas Obras.");
+    } catch (err) {
+      console.error("Erro ao mover obra:", err);
+      setVinculosPasta(anterior);
+      flash("Erro ao mover a obra de pasta.");
+    }
+  };
+
   const pedirExcluirObra = (id) => {
     if (!permissoes.podeExcluir) {
       flash("Acesso negado: apenas desenvolvedores (Dev) podem apagar obras.");
@@ -719,9 +831,10 @@ export default function App() {
     while (cur <= t1) {
       const ano = cur.getFullYear();
       const mesIdx = cur.getMonth(); // 0 = jan, 11 = dez
-      const isDezOuJan = mesIdx === 11 || mesIdx === 0;
-      const numSemanas = isDezOuJan ? 2 : 4;
-      const diasMes = numSemanas * 5; // Dezembro e Janeiro: exatamente 10 dias (2 semanas de 5 dias). Demais: 20 dias (4 semanas de 5 dias).
+      // Todos os meses (inclusive dezembro e janeiro) exibem 4 semanas de 5 dias = 20 dias.
+      // O planejador decide se planeja ou não atividades no fim/início de ano.
+      const numSemanas = 4;
+      const diasMes = numSemanas * 5;
 
       const semanas = [];
       for (let s = 0; s < numSemanas; s++) {
@@ -1466,15 +1579,23 @@ export default function App() {
           onNovaObra={() => setModal("novaObra")}
           onExcluirObra={pedirExcluirObra}
           onArquivarObra={alternarArquivamentoObra}
+          pastas={pastas}
+          vinculosPasta={vinculosPasta}
+          onCriarPasta={criarPasta}
+          onRenomearPasta={renomearPasta}
+          onExcluirPasta={pedirExcluirPasta}
+          onMoverObras={moverObrasParaPasta}
           telaCheia={telaCheia}
           onAlternarTelaCheia={alternarTelaCheia}
         />
         {modal === "login" && (
           <AuthScreen
             tema={tema}
-            onClose={() => setModal(null)}
+            erroInicial={erroLogin}
+            onClose={() => { setModal(null); setErroLogin(""); }}
             onLoginSuccess={(loggedUser) => {
               setUser(loggedUser);
+              setErroLogin("");
               setModal(null);
               listar();
               flash(`Login realizado como ${loggedUser.perfil?.nome || loggedUser.email}`);
@@ -1855,9 +1976,11 @@ export default function App() {
       {modal === "login" && (
         <AuthScreen
           tema={tema}
-          onClose={() => setModal(null)}
+          erroInicial={erroLogin}
+          onClose={() => { setModal(null); setErroLogin(""); }}
           onLoginSuccess={(loggedUser) => {
             setUser(loggedUser);
+            setErroLogin("");
             setModal(null);
             listar();
             flash(`Login realizado como ${loggedUser.perfil?.nome || loggedUser.email}`);

@@ -31,8 +31,8 @@ export class ErrorBoundary extends React.Component {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            background: "#111310",
-            color: "#ECEDEB",
+            background: "#141211",
+            color: "#F8F7F6",
             fontFamily: FONT,
             padding: 24,
             textAlign: "center",
@@ -42,8 +42,8 @@ export class ErrorBoundary extends React.Component {
             style={{
               maxWidth: 480,
               width: "100%",
-              background: "#1A1C19",
-              border: "1px solid #33352F",
+              background: "#1A1817",
+              border: "1px solid #35312F",
               borderRadius: 16,
               padding: "32px 24px",
               boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
@@ -54,7 +54,7 @@ export class ErrorBoundary extends React.Component {
                 width: 48,
                 height: 48,
                 borderRadius: 12,
-                background: "rgba(214, 69, 69, 0.15)",
+                background: "rgba(198, 40, 40, 0.15)",
                 color: "#E57373",
                 display: "inline-flex",
                 alignItems: "center",
@@ -67,7 +67,7 @@ export class ErrorBoundary extends React.Component {
             <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>
               Ocorreu um problema ao carregar a tela
             </h2>
-            <p style={{ fontSize: 13, color: "#9DA098", margin: "0 0 24px" }}>
+            <p style={{ fontSize: 13, color: "#A19B96", margin: "0 0 24px" }}>
               {this.state.error?.message || "Erro inesperado na aplicação."}
             </p>
             <button

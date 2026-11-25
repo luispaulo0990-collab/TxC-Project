@@ -13,7 +13,7 @@ import {
   Layers,
 } from "lucide-react";
 import { IconBtn } from "../common/IconBtn";
-import { BLACK, ORANGE, NUM } from "../../constants/theme";
+import { BLACK, ORANGE, NUM, INK } from "../../constants/theme";
 
 export const Header = ({
   proj,
@@ -31,7 +31,7 @@ export const Header = ({
   onVoltarHome,
 }) => {
   return (
-    <header className="flex items-center gap-3 px-4 h-14 shrink-0 shadow-sm" style={{ background: BLACK, color: "#fff" }}>
+    <header className="flex items-center gap-3 px-4 h-14 shrink-0 shadow-sm" style={{ background: INK, color: "#fff", borderBottom: `2px solid ${ORANGE}` }}>
       {/* Botão voltar para Home */}
       {onVoltarHome && (
         <button

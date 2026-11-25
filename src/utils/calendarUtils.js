@@ -5,9 +5,8 @@
  * - Finais de semana (Sábados e Domingos) são impossibilitados de planejamento e dias improdutivos.
  * - Meses por padrão possuem somente 4 semanas de 5 dias úteis de trabalho (20 dias úteis/mês).
  * - Feriados nacionais oficiais (fixos e móveis) são desconsiderados na contagem produtiva.
- * - Janeiro e Dezembro: ambos possuem somente 2 semanas úteis em cada mês (10 dias úteis):
- *   - Dezembro: Primeiras 2 semanas úteis (dias 01 a 14); a partir do dia 15 é recesso.
- *   - Janeiro: Primeiras 2 semanas de recesso (dias 01 a 14); a partir do dia 15 são as 2 semanas úteis.
+ * - Dezembro e Janeiro são meses completos, como os demais: não há recesso automático.
+ *   Cabe ao planejador decidir se planeja ou não atividades nesse período.
  */
 
 // Algoritmo de Butcher / Gauss para cálculo da Páscoa (Gregoriano)
@@ -64,21 +63,10 @@ export function getFeriadosNacionais(ano) {
 }
 
 /**
- * Verifica se a data cai no recesso de fim de ano ou início de ano:
- * - Dezembro: somente 2 semanas de 5 dias úteis (dias 1 a 10). A partir do dia 11 é recesso.
- * - Janeiro: somente 2 semanas de 5 dias úteis (dias 1 a 10). A partir do dia 11 é recesso.
+ * Recesso de fim/início de ano DESATIVADO: dezembro e janeiro são meses completos.
+ * Mantida apenas por compatibilidade com quem importa a função; sempre retorna false.
  */
-export function isRecessoFimAno(data) {
-  const d = data instanceof Date ? data : new Date(typeof data === "string" && !data.includes("T") ? data + "T00:00:00" : data);
-  if (isNaN(d.getTime())) return false;
-  const mes = d.getMonth() + 1; // 1..12
-  const dia = d.getDate();
-
-  // Dezembro: Somente 2 semanas de 5 dias cada (10 dias úteis no total)
-  if (mes === 12 && dia > 10) return true;
-  // Janeiro: Somente 2 semanas de 5 dias cada (10 dias úteis no total)
-  if (mes === 1 && dia > 10) return true;
-
+export function isRecessoFimAno(_data) {
   return false;
 }
 
@@ -147,7 +135,7 @@ export function getFeriadoMap(ano) {
 
 /**
  * Retorna o motivo se o dia for improdutivo, ou null se for produtivo.
- * Finais de semana (Sábado e Domingo), recessos e feriados são improdutivos.
+ * Finais de semana (Sábado e Domingo) e feriados são improdutivos.
  */
 export function getMotivoImprodutivo(data) {
   const d = data instanceof Date ? data : new Date(typeof data === "string" && !data.includes("T") ? data + "T00:00:00" : data);
@@ -159,11 +147,6 @@ export function getMotivoImprodutivo(data) {
   }
   if (diaSemana === 6) {
     return "Sábado (Fim de Semana)";
-  }
-
-  if (isRecessoFimAno(d)) {
-    const mes = d.getMonth() + 1;
-    return mes === 12 ? "Recesso de Fim de Ano (Dezembro)" : "Recesso de Início de Ano (Janeiro)";
   }
 
   const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -179,7 +162,6 @@ export function getMotivoImprodutivo(data) {
  * Retorna se o dia é produtivo (útil).
  * Domingo = falso
  * Feriado = falso
- * Recesso fim/início de ano = falso
  */
 export function isDiaProdutivo(data) {
   return getMotivoImprodutivo(data) === null;
@@ -208,7 +190,7 @@ export function calcularDiasProdutivos(dataIni, dataFim) {
 
 /**
  * Adiciona N dias produtivos a partir de uma data inicial.
- * Pula automaticamente domingos, feriados e recessos.
+ * Pula automaticamente finais de semana e feriados.
  */
 export function adicionarDiasProdutivos(dataIni, diasProdutivos) {
   const cur = dataIni instanceof Date ? new Date(dataIni) : new Date(dataIni + "T00:00:00");

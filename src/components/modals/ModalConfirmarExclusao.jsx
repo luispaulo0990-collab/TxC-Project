@@ -44,7 +44,7 @@ export const ModalConfirmarExclusao = ({
         {/* Botão de Fechar no canto superior */}
         <button
           onClick={onCancelar}
-          className="absolute top-4 right-4 p-1 rounded-sm opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
+          className="absolute top-4 right-4 p-1 rounded-lg opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
           title="Fechar"
         >
           <X size={16} style={{ color: T?.dim || "#6B7280" }} />
@@ -55,9 +55,9 @@ export const ModalConfirmarExclusao = ({
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
             style={{
-              background: "rgba(214, 69, 69, 0.12)",
+              background: "rgba(198, 40, 40, 0.12)",
               color: ERRO,
-              border: `1px solid rgba(214, 69, 69, 0.25)`,
+              border: `1px solid rgba(198, 40, 40, 0.25)`,
             }}
           >
             <AlertTriangle size={20} />

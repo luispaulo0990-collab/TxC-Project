@@ -20,7 +20,8 @@ import {
   Expand,
   Minimize,
 } from "lucide-react";
-import { ORANGE, OK, NUM } from "../../constants/theme";
+import { ORANGE, OK, NUM, INK } from "../../constants/theme";
+import { LogoUnita } from "../common/LogoUnita";
 
 export const SidebarNav = ({
   proj,
@@ -79,11 +80,11 @@ export const SidebarNav = ({
 
   return (
     <nav
-      className="w-64 shrink-0 h-full flex flex-col justify-between select-none shadow-xl z-30 transition-all"
+      className="w-60 shrink-0 h-full flex flex-col justify-between select-none z-30 transition-all"
       style={{
-        background: "linear-gradient(180deg, #181A16 0%, #131411 100%)",
+        background: INK,
         color: "#ffffff",
-        borderRight: "1px solid rgba(255, 255, 255, 0.08)",
+        borderRight: `2px solid ${ORANGE}`,
       }}
     >
       {/* ── Topo: Marca & Nome da Obra ── */}
@@ -92,11 +93,10 @@ export const SidebarNav = ({
         {onVoltarHome && (
           <button
             onClick={onVoltarHome}
-            className="flex items-center gap-1.5 text-xs py-1.5 px-3 rounded-full transition-all hover:bg-white/10 active:scale-95 self-start cursor-pointer"
+            className="flex items-center gap-1.5 text-xs py-1.5 px-2.5 transition-colors hover:bg-white/10 hover:text-white self-start cursor-pointer"
             style={{
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              color: "rgba(255, 255, 255, 0.8)",
+              borderRadius: 10,
+              color: "#C9C4C0",
             }}
             title="Voltar para a lista de todas as obras"
           >
@@ -105,34 +105,16 @@ export const SidebarNav = ({
           </button>
         )}
 
-        {/* Card Suave: Logo & Obra */}
-        <div
-          className="p-2.5 rounded-2xl flex flex-col gap-2 transition-all"
-          style={{
-            background: "rgba(255, 255, 255, 0.04)",
-            border: "1px solid rgba(255, 255, 255, 0.07)",
-          }}
-        >
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-md"
-              style={{
-                background: "linear-gradient(135deg, #FE5000 0%, #FF6D2C 100%)",
-                color: "#fff",
-                boxShadow: "0 4px 12px rgba(254, 80, 0, 0.25)",
-              }}
-            >
-              <Layers size={16} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <span
-                className="text-[10px] font-black tracking-widest block uppercase"
-                style={{ color: "rgba(255, 255, 255, 0.5)", letterSpacing: 1.5 }}
-              >
-                TEMPO × CAMINHO
+        {/* Marca & Obra */}
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2.5 px-1">
+            <LogoUnita ink="#fff" height={26} />
+            <div className="min-w-0 flex-1 pl-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.14)" }}>
+              <span className="text-[11.5px] font-semibold block" style={{ color: "#fff", letterSpacing: "0.02em" }}>
+                Tempo × Caminho
               </span>
-              <span className="text-[10.5px] font-bold text-white/90 truncate block">
-                {proj?.incorporador ? `${proj.incorporador}` : "Sistema de Gestão"}
+              <span className="text-[11px] truncate block" style={{ color: "#A19B96" }}>
+                {proj?.incorporador ? `${proj.incorporador}` : "Linha de Balanço"}
               </span>
             </div>
           </div>
@@ -141,10 +123,11 @@ export const SidebarNav = ({
             value={proj?.nome || ""}
             readOnly={permissoes && !permissoes.podeEditar}
             onChange={(e) => setProj((p) => ({ ...p, nome: e.target.value }))}
-            className="text-[13px] outline-none py-1.5 px-2.5 rounded-xl font-semibold transition-all hover:bg-white/[0.08] focus:bg-white/[0.1] focus:ring-1 focus:ring-orange-500/50 border truncate text-white"
+            className="text-[13.5px] outline-none py-2 px-3 font-semibold transition-all hover:bg-white/[0.08] focus:bg-white/[0.1] border truncate text-white"
             style={{
-              background: "rgba(255, 255, 255, 0.05)",
-              borderColor: "rgba(255, 255, 255, 0.08)",
+              background: "rgba(255, 255, 255, 0.06)",
+              borderColor: "rgba(255, 255, 255, 0.10)",
+              borderRadius: 10,
               cursor: permissoes && !permissoes.podeEditar ? "default" : "text",
             }}
             title={permissoes && !permissoes.podeEditar ? "Nome da Obra (somente leitura)" : "Clique para editar o nome da obra"}
@@ -155,8 +138,8 @@ export const SidebarNav = ({
         {/* Filtro de Torre */}
         <div>
           <label
-            className="text-[10.5px] uppercase font-bold tracking-wider block mb-1.5 px-1"
-            style={{ color: "rgba(255, 255, 255, 0.55)" }}
+            className="text-[12px] font-medium block mb-1.5 px-1"
+            style={{ color: "#A19B96" }}
           >
             Torre Ativa
           </label>
@@ -165,10 +148,11 @@ export const SidebarNav = ({
             <select
               value={filtroTorre}
               onChange={(e) => setFiltroTorre(e.target.value)}
-              className="w-full text-[13px] py-2 outline-none rounded-xl transition-all cursor-pointer font-medium text-white appearance-none"
+              className="w-full text-[13px] py-2 outline-none transition-all cursor-pointer font-medium text-white appearance-none"
               style={{
                 background: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid rgba(255, 255, 255, 0.09)",
+                border: "1px solid rgba(255, 255, 255, 0.10)",
+                borderRadius: 10,
                 paddingLeft: "36px",
                 paddingRight: "28px",
               }}
@@ -192,8 +176,8 @@ export const SidebarNav = ({
         {/* Itens de Navegação Principal */}
         <div className="flex flex-col gap-1">
           <span
-            className="text-[10px] uppercase font-bold tracking-wider px-2 mb-0.5"
-            style={{ color: "rgba(255, 255, 255, 0.45)" }}
+            className="text-[12px] font-medium px-2 mb-1"
+            style={{ color: "#A19B96" }}
           >
             Visualizações
           </span>
@@ -204,26 +188,25 @@ export const SidebarNav = ({
               <button
                 key={item.id}
                 onClick={() => setVista(item.id)}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] transition-all font-semibold cursor-pointer active:scale-[0.99]"
+                className={`w-full flex items-center justify-between px-3 py-2 text-[14px] transition-colors cursor-pointer ${active ? "" : "hover:bg-white/10 hover:text-white"}`}
                 style={{
-                  background: active
-                    ? "linear-gradient(135deg, #FE5000 0%, #E04600 100%)"
-                    : "transparent",
-                  color: active ? "#ffffff" : "rgba(255, 255, 255, 0.8)",
-                  boxShadow: active ? "0 4px 14px rgba(254, 80, 0, 0.28)" : "none",
+                  borderRadius: 10,
+                  background: active ? "rgba(255, 255, 255, 0.10)" : "transparent",
+                  color: active ? "#ffffff" : "#C9C4C0",
+                  fontWeight: active ? 600 : 500,
+                  boxShadow: active ? `inset 3px 0 0 ${ORANGE}` : "none",
                 }}
               >
                 <div className="flex items-center gap-2.5">
-                  <Icon size={17} style={{ color: active ? "#ffffff" : "rgba(255, 255, 255, 0.65)" }} />
-                  <span className="font-semibold">{item.label}</span>
+                  <Icon size={17} style={{ color: active ? ORANGE : "#A19B96" }} />
+                  <span>{item.label}</span>
                 </div>
                 {item.badge && !active && (
                   <span
-                    className="text-[9.5px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide"
+                    className="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
                     style={{
-                      background: item.badge === "Em Breve" ? "rgba(245, 158, 11, 0.18)" : `${OK}30`,
-                      color: item.badge === "Em Breve" ? "#FBBF24" : OK,
-                      border: item.badge === "Em Breve" ? "1px solid rgba(245, 158, 11, 0.35)" : "none",
+                      background: item.badge === "Em Breve" ? "rgba(183, 121, 31, 0.22)" : `${OK}30`,
+                      color: item.badge === "Em Breve" ? "#E9B45A" : OK,
                     }}
                   >
                     {item.badge}
@@ -239,28 +222,26 @@ export const SidebarNav = ({
       <div className="p-3 border-t flex flex-col gap-2" style={{ borderColor: "rgba(255, 255, 255, 0.08)" }}>
         <button
           onClick={() => setTema((t) => (t === "claro" ? "escuro" : "claro"))}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all hover:bg-white/10 cursor-pointer"
+          className="w-full flex items-center justify-between px-3 py-2 text-[13px] transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
           style={{
-            background: "rgba(255, 255, 255, 0.05)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            color: "rgba(255, 255, 255, 0.8)",
+            borderRadius: 10,
+            color: "#C9C4C0",
           }}
         >
           <div className="flex items-center gap-2 font-medium">
             {tema === "claro" ? <Moon size={14} /> : <Sun size={14} />}
             <span>Tema {tema === "claro" ? "Escuro" : "Claro"}</span>
           </div>
-          <span className="text-[10px] text-white/40 uppercase font-bold">{tema}</span>
+          <span className="text-[11px] font-medium" style={{ color: "#77716D" }}>{tema}</span>
         </button>
 
         {onAlternarTelaCheia && (
           <button
             onClick={onAlternarTelaCheia}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all hover:bg-white/10 cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2 text-[13px] transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
             style={{
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              color: "rgba(255, 255, 255, 0.8)",
+              borderRadius: 10,
+              color: "#C9C4C0",
             }}
             title={telaCheia ? "Sair da tela cheia (Esc)" : "Expandir o app para tela cheia"}
           >
@@ -268,24 +249,23 @@ export const SidebarNav = ({
               {telaCheia ? <Minimize size={14} /> : <Expand size={14} />}
               <span>{telaCheia ? "Sair da Tela Cheia" : "Tela Cheia"}</span>
             </div>
-            {telaCheia && <span className="text-[10px] text-white/40 uppercase font-bold">Esc</span>}
+            {telaCheia && <span className="text-[11px] font-medium" style={{ color: "#77716D" }}>Esc</span>}
           </button>
         )}
 
         {user ? (
           <div
-            className="flex items-center justify-between p-2 rounded-xl"
+            className="flex items-center justify-between p-2 mt-1"
             style={{
-              background: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.06)",
+              borderRadius: 10,
+              background: "rgba(255, 255, 255, 0.06)",
             }}
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 text-white shadow-xs"
                 style={{
-                  background: "linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.08) 100%)",
-                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: ORANGE,
                 }}
               >
                 {userInicial}
@@ -296,9 +276,9 @@ export const SidebarNav = ({
                 </span>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span
-                    className="text-[9.5px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider"
+                    className="text-[11px] px-2 rounded-full font-medium"
                     style={{
-                      background: userRole === "dev" ? "rgba(59,130,246,0.2)" : userRole === "admin" ? "rgba(254,80,0,0.2)" : "rgba(16,185,129,0.2)",
+                      background: userRole === "dev" ? "rgba(59,130,246,0.2)" : userRole === "admin" ? "rgba(254,80,0,0.2)" : "rgba(30, 138, 76,0.2)",
                       color: userRole === "dev" ? "#60A5FA" : userRole === "admin" ? "#FE5000" : "#34D399",
                     }}
                   >
@@ -325,11 +305,15 @@ export const SidebarNav = ({
         ) : (
           <button
             onClick={() => onAbrirModal && onAbrirModal("login")}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer shadow-md"
+            className="w-full flex items-center justify-center gap-2 px-3 text-[14px] font-medium text-white transition-colors cursor-pointer"
             style={{
-              background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)",
-              boxShadow: "0 2px 10px rgba(254, 80, 0, 0.25)",
+              height: 38,
+              borderRadius: 10,
+              background: ORANGE,
+              boxShadow: "0 2px 8px rgb(254 80 0 / 0.2)",
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#E04700")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = ORANGE)}
             title="Acessar com perfil Admin ou Dev"
           >
             <LogIn size={13} />

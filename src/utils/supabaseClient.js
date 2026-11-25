@@ -11,11 +11,11 @@ const getEnv = (key, viteKey) => {
   return "";
 };
 
-const supabaseUrl =
+export const supabaseUrl =
   getEnv("SUPABASE_URL", "VITE_SUPABASE_URL") ||
   "https://wlvrsjgceqpdbzbqaxqz.supabase.co";
 
-const supabaseAnonKey =
+export const supabaseAnonKey =
   getEnv("SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY") ||
   getEnv("SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_ANON_KEY") ||
   "sb_publishable_BfHPuR4pQCnoMuAFFe_53g_sUbDt-2P";

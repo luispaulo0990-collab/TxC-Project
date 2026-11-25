@@ -1,71 +1,110 @@
 /* ═══════════════════════════════════════════════════════════════
    TEMPO × CAMINHO
-   Identidade: Pantone Orange 021 C · All Black · 447 C · Cool Gray 2 C
-   Tipografia: Helvetica Now (fallback Helvetica Neue / Inter / Arial)
+   Identidade Unità · Padrão visual v2.0 ("soft clean", nov/2026)
+   Marca: Laranja #FE5000 · Grafite #231F20 · neutros quentes (escala ink)
+   Tipografia: Inter (texto) · Sora (títulos)
    ═══════════════════════════════════════════════════════════════ */
 
-/* Paleta oficial da marca */
-export const ORANGE = "#FE5000";   // Pantone Orange 021 C · RGB 254 80 0
-export const BLACK = "#000000";    // All Black
-export const P447 = "#373A36";     // Pantone 447 C · grafite esverdeado
-export const COOL2 = "#D0D0CE";    // Pantone Cool Gray 2 C
-export const ERRO = "#D64545";     // realizado / conflito
-export const OK = "#2E9E63";
+/* Marca */
+export const ORANGE = "#FE5000";        // --color-primary
+export const ORANGE_HOVER = "#E04700";  // --color-primary-hover
+export const ORANGE_SOFT = "#FFF1EA";   // --color-primary-soft
+export const INK = "#231F20";           // --color-secondary (grafite da marca: barras e cabeçalhos)
+export const BLACK = "#000000";         // preto puro (cor de atividade / dados)
+export const P447 = "#373A36";          // legado (paleta de atividades)
+export const COOL2 = "#D0D0CE";         // legado
+
+/* Neutros quentes (escala ink) */
+export const INK_SCALE = {
+  50: "#F8F7F6", 100: "#F0EEEC", 200: "#E2DFDC", 300: "#C9C4C0", 400: "#A19B96",
+  500: "#77716D", 600: "#57524F", 700: "#3D3937", 800: "#2B2827", 900: "#1A1817",
+};
+
+/* Status: cor forte + fundo suave */
+export const ERRO = "#C62828";          // realizado / conflito (--error)
+export const OK = "#1E8A4C";            // --success
+export const STATUS = {
+  success: "#1E8A4C", successSoft: "#E7F5EC",
+  warning: "#B7791F", warningSoft: "#FDF4E3",
+  error: "#C62828", errorSoft: "#FDECEC",
+  info: "#2563A8", infoSoft: "#E8F0FA",
+};
+
+/* Raio e sombras v2 */
+export const RADIUS = { control: 10, card: 16 };
+export const SHADOW = {
+  card: "0 1px 2px rgb(26 24 23 / 0.04), 0 4px 18px rgb(26 24 23 / 0.05)",
+  hover: "0 2px 4px rgb(26 24 23 / 0.05), 0 10px 28px rgb(26 24 23 / 0.08)",
+  overlay: "0 10px 30px rgb(26 24 23 / 0.18)",
+};
+export const OVERLAY = "rgb(26 24 23 / 0.45)";
+export const FOCUS_RING = "rgb(254 80 0 / 0.2)";
+
+const K = INK_SCALE;
 
 export const THEME = {
   claro: {
-    bg: "#ECEDEB",
-    chrome: BLACK,
+    bg: K[50],
+    chrome: INK,
     panel: "#FFFFFF",
-    raised: "#F5F5F3",
-    hover: "#ECEDEA",
-    line: "#DEDEDB",
-    text: BLACK,
-    muted: "#6A6E69",
-    dim: "#A6A8A3",
+    raised: K[50],
+    hover: K[100],
+    line: K[200],
+    lineSoft: K[100],
+    text: K[900],
+    muted: K[500],
+    dim: K[400],
     surface: "#FFFFFF",
-    band: "#F6F6F4",
-    grid: "#E7E7E4",
-    gridMes: "#C6C7C2",
-    row: "#EDEDEA",
-    label: BLACK,
-    labelAlt: "#6A6E69",
+    band: K[50],
+    grid: K[100],
+    gridMes: K[300],
+    row: K[100],
+    label: K[900],
+    labelAlt: K[500],
     labelBg: "#FFFFFF",
-    labelBgAlt: "#F6F6F4",
-    strip: P447,
+    labelBgAlt: K[50],
+    strip: INK,
     stripText: "#FFFFFF",
     input: "#FFFFFF",
+    primarySoft: ORANGE_SOFT,
+    shadow: SHADOW.card,
+    shadowHover: SHADOW.hover,
     scheme: "light",
     logoInk: BLACK,
   },
   escuro: {
-    bg: "#111310",
-    chrome: BLACK,
-    panel: "#1A1C19",
-    raised: "#22241F",
-    hover: "#2A2C27",
-    line: "#33352F",
-    text: "#ECEDEB",
-    muted: "#9DA098",
-    dim: "#63665F",
-    surface: "#15170F",
-    band: "#1B1D16",
-    grid: "#282A22",
-    gridMes: "#3E4138",
-    row: "#212319",
-    label: "#ECEDEB",
-    labelAlt: "#9DA098",
-    labelBg: "#191B14",
-    labelBgAlt: "#1F2119",
-    strip: BLACK,
+    bg: "#141211",
+    chrome: "#0F0D0C",
+    panel: K[900],
+    raised: "#211E1D",
+    hover: K[800],
+    line: "#35312F",
+    lineSoft: "#2A2725",
+    text: K[100],
+    muted: K[400],
+    dim: K[500],
+    surface: "#171514",
+    band: "#1D1A19",
+    grid: "#2A2725",
+    gridMes: "#46413E",
+    row: "#221F1E",
+    label: K[100],
+    labelAlt: K[400],
+    labelBg: "#1A1817",
+    labelBgAlt: "#1F1C1B",
+    strip: "#0F0D0C",
     stripText: "#FFFFFF",
-    input: "#22241F",
+    input: "#211E1D",
+    primarySoft: "rgb(254 80 0 / 0.14)",
+    shadow: "0 1px 2px rgb(0 0 0 / 0.3), 0 4px 18px rgb(0 0 0 / 0.25)",
+    shadowHover: "0 2px 4px rgb(0 0 0 / 0.35), 0 10px 28px rgb(0 0 0 / 0.35)",
     scheme: "dark",
     logoInk: "#FFFFFF",
   },
 };
 
-export const FONT = "'Helvetica Now Display', 'Helvetica Now Text', 'Helvetica Now', 'Helvetica Neue', 'Inter', Helvetica, Arial, sans-serif";
+export const FONT = "'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+export const FONT_DISPLAY = "'Sora', 'Inter', ui-sans-serif, system-ui, sans-serif";
 export const NUM = { fontFamily: FONT, fontVariantNumeric: "tabular-nums", fontFeatureSettings: "'tnum'" };
 
 export const PALETTE = [

@@ -9,6 +9,7 @@ import {
   ERRO,
   OK,
   BLACK,
+  INK,
   DIAS_MES,
 } from "../../constants/theme";
 import { D, fmtBR, diffDays, hoje } from "../../utils/dateUtils";
@@ -161,18 +162,18 @@ export const FlowlineChart = ({
               onClick={() => setExibirRealizado(!exibirRealizado)}
               className="px-2.5 py-1 text-xs flex items-center gap-1.5 rounded-lg transition-all font-semibold cursor-pointer"
               style={{
-                background: exibirRealizado ? "rgba(16, 185, 129, 0.12)" : T.raised,
-                border: `1px solid ${exibirRealizado ? "rgba(16, 185, 129, 0.35)" : T.line}`,
+                background: exibirRealizado ? "rgba(30, 138, 76, 0.12)" : T.raised,
+                border: `1px solid ${exibirRealizado ? "rgba(30, 138, 76, 0.35)" : T.line}`,
                 color: exibirRealizado ? "#059669" : T.muted,
               }}
               title={exibirRealizado ? "Ocultar apontamentos de realizado" : "Exibir apontamentos de realizado"}
             >
-              {exibirRealizado ? <Eye size={13} style={{ color: "#10B981" }} /> : <EyeOff size={13} />}
+              {exibirRealizado ? <Eye size={13} style={{ color: "#1E8A4C" }} /> : <EyeOff size={13} />}
               <span>Visão do Realizado</span>
               <span
                 className="text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider"
                 style={{
-                  background: exibirRealizado ? "#10B981" : "rgba(0,0,0,0.08)",
+                  background: exibirRealizado ? "#1E8A4C" : "rgba(0,0,0,0.08)",
                   color: exibirRealizado ? "#fff" : T.dim,
                 }}
               >
@@ -188,16 +189,16 @@ export const FlowlineChart = ({
               style={{
                 background: exibirCruzamentos ? "rgba(220, 38, 38, 0.12)" : T.raised,
                 border: `1px solid ${exibirCruzamentos ? "rgba(220, 38, 38, 0.35)" : T.line}`,
-                color: exibirCruzamentos ? "#DC2626" : T.muted,
+                color: exibirCruzamentos ? "#C62828" : T.muted,
               }}
               title={exibirCruzamentos ? "Ocultar apontamentos de cruzamentos no gráfico" : "Exibir apontamentos de cruzamentos no gráfico"}
             >
-              <AlertTriangle size={13} style={{ color: exibirCruzamentos ? "#DC2626" : T.dim }} />
+              <AlertTriangle size={13} style={{ color: exibirCruzamentos ? "#C62828" : T.dim }} />
               <span>Cruzamentos</span>
               <span
                 className="text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider"
                 style={{
-                  background: exibirCruzamentos ? "#EF4444" : "rgba(0,0,0,0.08)",
+                  background: exibirCruzamentos ? "#C62828" : "rgba(0,0,0,0.08)",
                   color: exibirCruzamentos ? "#fff" : T.dim,
                 }}
               >
@@ -290,7 +291,7 @@ export const FlowlineChart = ({
               className="px-2.5 py-1 text-[12px] flex items-center gap-1.5 rounded-lg font-bold transition-all hover:brightness-110 active:scale-95 cursor-pointer"
               style={
                 telaCheia
-                  ? { background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)", color: "#fff", boxShadow: "0 2px 8px rgba(254, 80, 0, 0.28)" }
+                  ? { background: "#FE5000", color: "#fff", boxShadow: "0 2px 8px rgb(254 80 0 / 0.2)" }
                   : { background: T.raised, color: T.text, border: `1px solid ${T.line}` }
               }
               title={telaCheia ? "Sair da tela cheia (Esc)" : "Expandir para tela cheia"}
@@ -309,9 +310,9 @@ export const FlowlineChart = ({
               <span
                 className="text-[11px] font-bold px-2 py-0.5 rounded-full"
                 style={{
-                  background: "rgba(16, 185, 129, 0.12)",
-                  color: "#10B981",
-                  border: "1px solid rgba(16, 185, 129, 0.25)",
+                  background: "rgba(30, 138, 76, 0.12)",
+                  color: "#1E8A4C",
+                  border: "1px solid rgba(30, 138, 76, 0.25)",
                 }}
               >
                 Modo Visualizador
@@ -321,8 +322,8 @@ export const FlowlineChart = ({
                   onClick={() => onAbrirModal("login")}
                   className="px-2.5 py-1 text-[12px] flex items-center gap-1.5 rounded-lg font-bold text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer shadow-xs"
                   style={{
-                    background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)",
-                    boxShadow: "0 2px 8px rgba(254, 80, 0, 0.28)",
+                    background: "#FE5000",
+                    boxShadow: "0 2px 8px rgb(254 80 0 / 0.2)",
                   }}
                   title="Fazer login com perfil de Administrador ou Desenvolvedor"
                 >
@@ -370,8 +371,8 @@ export const FlowlineChart = ({
               onClick={() => onSalvar(proj)}
               className="px-3.5 py-1 text-[12.5px] flex items-center gap-1.5 rounded-lg font-bold transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer shadow-xs"
               style={{
-                background: "linear-gradient(135deg, #FE5000 0%, #FF6824 100%)",
-                boxShadow: "0 2px 8px rgba(254, 80, 0, 0.28)",
+                background: "#FE5000",
+                boxShadow: "0 2px 8px rgb(254 80 0 / 0.2)",
               }}
               title="Salvar alterações da obra no Supabase"
             >
@@ -388,7 +389,7 @@ export const FlowlineChart = ({
           <div className="flex sticky top-0" style={{ zIndex: 20 }}>
             <div
               className="sticky left-0 flex items-center justify-between px-3 shadow-sm"
-              style={{ width: LABEL_W, height: HEADER_H, background: BLACK, zIndex: 30 }}
+              style={{ width: LABEL_W, height: HEADER_H, background: INK, zIndex: 30 }}
             >
               <div className="flex flex-col min-w-0">
                 <span style={{ fontSize: 11, letterSpacing: 1.5, color: "#fff", fontWeight: 800 }}>
@@ -401,7 +402,7 @@ export const FlowlineChart = ({
             </div>
 
             <svg ref={axisRef} width={chartW} height={HEADER_H} style={{ display: "block" }}>
-              <rect x={0} y={0} width={chartW} height={HEADER_H} fill={BLACK} />
+              <rect x={0} y={0} width={chartW} height={HEADER_H} fill={INK} />
               {meses.map((m, i) => {
                 const x0 = m.x0 != null ? m.x0 : Math.max(0, xOf(m.ini));
                 const x1 = m.x1 != null ? m.x1 : Math.min(chartW, xOf(m.fim));
@@ -924,7 +925,7 @@ export const FlowlineChart = ({
                         if (!inc) return null;
                         return (
                           <g transform={`translate(${x1 - 18}, ${y1 - 18})`} pointerEvents="none">
-                            <rect x={0} y={0} width={16} height={16} rx={4} fill="#EF4444" stroke="#FFFFFF" strokeWidth={1.5} />
+                            <rect x={0} y={0} width={16} height={16} rx={4} fill="#C62828" stroke="#FFFFFF" strokeWidth={1.5} />
                             <text x={8} y={12} fill="#FFFFFF" fontFamily={FONT} fontSize={10} fontWeight="900" textAnchor="middle">
                               !
                             </text>

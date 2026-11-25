@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { X, Building2, MapPin, Calendar, AlertCircle, Briefcase } from "lucide-react";
-import { ORANGE, BLACK, FONT } from "../../constants/theme";
+import { ORANGE, BLACK, FONT, INK } from "../../constants/theme";
 import { uid } from "../../utils/dateUtils";
 
 /* ─── Campo de formulário ────────────────────────────────────── */
@@ -9,12 +9,12 @@ function Campo({ label, icon: Icon, erro, children }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <label style={{
         fontSize: 12, fontWeight: 600,
-        color: erro ? "#D64545" : "#6A6E69",
+        color: erro ? "#C62828" : "#77716D",
         display: "flex", alignItems: "center", gap: 6,
         textTransform: "uppercase", letterSpacing: 0.5,
       }}>
         {Icon && <Icon size={12} />} {label}
-        {erro && <span style={{ color: "#D64545", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— {erro}</span>}
+        {erro && <span style={{ color: "#C62828", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— {erro}</span>}
       </label>
       {children}
     </div>
@@ -34,10 +34,10 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
 
   const isDark = tema === "escuro";
   const inputStyle = {
-    background: isDark ? "#22241F" : "#F5F5F3",
-    border: `1.5px solid ${isDark ? "#33352F" : "#DEDEDB"}`,
+    background: isDark ? "#211E1D" : "#F8F7F6",
+    border: `1.5px solid ${isDark ? "#35312F" : "#E2DFDC"}`,
     borderRadius: 8, padding: "10px 14px",
-    fontSize: 14, color: isDark ? "#ECEDEB" : BLACK,
+    fontSize: 14, color: isDark ? "#F0EEEC" : BLACK,
     outline: "none", width: "100%",
     fontFamily: FONT, transition: "border-color 0.15s",
     boxSizing: "border-box",
@@ -75,7 +75,7 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div style={{
-        background: isDark ? "#1A1C19" : "#FFFFFF",
+        background: isDark ? "#1A1817" : "#FFFFFF",
         borderRadius: 18,
         width: "100%", maxWidth: 480,
         boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
@@ -83,7 +83,7 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
       }}>
         {/* ─ Cabeçalho ─ */}
         <div style={{
-          background: BLACK, padding: "20px 24px",
+          background: INK, borderBottom: "2px solid #FE5000", padding: "20px 24px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -128,14 +128,14 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
               placeholder="Ex: Residencial Artur Alvim"
               style={{
                 ...inputStyle,
-                borderColor: erroNome ? "#D64545" : (isDark ? "#33352F" : "#DEDEDB"),
+                borderColor: erroNome ? "#C62828" : (isDark ? "#35312F" : "#E2DFDC"),
               }}
               onFocus={(e) => e.currentTarget.style.borderColor = ORANGE}
-              onBlur={(e) => e.currentTarget.style.borderColor = erroNome ? "#D64545" : (isDark ? "#33352F" : "#DEDEDB")}
+              onBlur={(e) => e.currentTarget.style.borderColor = erroNome ? "#C62828" : (isDark ? "#35312F" : "#E2DFDC")}
               autoFocus
             />
             {erroNome && (
-              <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#D64545", fontSize: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#C62828", fontSize: 12 }}>
                 <AlertCircle size={12} /> Informe o nome da obra para continuar
               </div>
             )}
@@ -149,7 +149,7 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
               placeholder="Ex: Cyrela, Trisul, MRV, Mitre..."
               style={inputStyle}
               onFocus={(e) => e.currentTarget.style.borderColor = ORANGE}
-              onBlur={(e) => e.currentTarget.style.borderColor = isDark ? "#33352F" : "#DEDEDB"}
+              onBlur={(e) => e.currentTarget.style.borderColor = isDark ? "#35312F" : "#E2DFDC"}
             />
           </Campo>
 
@@ -161,7 +161,7 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
               placeholder="Ex: Rua dos Bandeirantes, 120 — São Paulo, SP"
               style={inputStyle}
               onFocus={(e) => e.currentTarget.style.borderColor = ORANGE}
-              onBlur={(e) => e.currentTarget.style.borderColor = isDark ? "#33352F" : "#DEDEDB"}
+              onBlur={(e) => e.currentTarget.style.borderColor = isDark ? "#35312F" : "#E2DFDC"}
             />
           </Campo>
 
@@ -173,7 +173,7 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
               onChange={(e) => setDataZero(e.target.value)}
               style={inputStyle}
               onFocus={(e) => e.currentTarget.style.borderColor = ORANGE}
-              onBlur={(e) => e.currentTarget.style.borderColor = isDark ? "#33352F" : "#DEDEDB"}
+              onBlur={(e) => e.currentTarget.style.borderColor = isDark ? "#35312F" : "#E2DFDC"}
             />
           </Campo>
         </div>
@@ -187,14 +187,14 @@ export function ModalNovaObra({ T, tema, onClose, onCriar }) {
             onClick={onClose}
             style={{
               background: "transparent",
-              border: `1.5px solid ${isDark ? "#33352F" : "#DEDEDB"}`,
-              color: isDark ? "#9DA098" : "#6A6E69",
+              border: `1.5px solid ${isDark ? "#35312F" : "#E2DFDC"}`,
+              color: isDark ? "#A19B96" : "#77716D",
               padding: "10px 20px", borderRadius: 9,
               fontSize: 13, fontWeight: 600, cursor: "pointer",
               fontFamily: FONT, transition: "all 0.15s",
             }}
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = isDark ? "#63665F" : "#A6A8A3"}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = isDark ? "#33352F" : "#DEDEDB"}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = isDark ? "#77716D" : "#A19B96"}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = isDark ? "#35312F" : "#E2DFDC"}
           >
             Cancelar
           </button>

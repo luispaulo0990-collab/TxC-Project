@@ -10,7 +10,7 @@ import { apiClient } from "../../utils/apiClient";
 const ROLE_CONFIG = {
   admin: { label: "Admin", icon: Crown, color: "#FE5000", bg: "rgba(254,80,0,0.12)" },
   dev:   { label: "Dev",   icon: Code2, color: "#3B82F6", bg: "rgba(59,130,246,0.12)" },
-  member:{ label: "Membro",icon: Eye,   color: "#10B981", bg: "rgba(16,185,129,0.12)" },
+  member:{ label: "Membro",icon: Eye,   color: "#1E8A4C", bg: "rgba(30, 138, 76,0.12)" },
 };
 
 function RoleBadge({ role, small }) {
@@ -39,7 +39,7 @@ function RoleSelect({ value, onChange, disabled }) {
         disabled={disabled}
         style={{
           appearance: "none", background: "transparent",
-          border: "1.5px solid #33352F", borderRadius: 8,
+          border: "1.5px solid #35312F", borderRadius: 8,
           padding: "4px 26px 4px 10px", fontSize: 12, fontWeight: 600,
           cursor: disabled ? "not-allowed" : "pointer", color: "inherit",
           fontFamily: FONT,
@@ -56,11 +56,11 @@ function RoleSelect({ value, onChange, disabled }) {
 
 export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClose, onRefresh }) {
   const isDark = tema === "escuro";
-  const bg = isDark ? "#1A1C19" : "#FFFFFF";
-  const surfaceBg = isDark ? "#22241F" : "#F8F8F6";
-  const border = isDark ? "#33352F" : "#E2E2DF";
-  const textColor = isDark ? "#ECEDEB" : BLACK;
-  const mutedColor = isDark ? "#9DA098" : "#6A6E69";
+  const bg = isDark ? "#1A1817" : "#FFFFFF";
+  const surfaceBg = isDark ? "#211E1D" : "#F8F7F6";
+  const border = isDark ? "#35312F" : "#E2DFDC";
+  const textColor = isDark ? "#F0EEEC" : BLACK;
+  const mutedColor = isDark ? "#A19B96" : "#77716D";
 
   const [abaAtiva, setAbaAtiva] = useState(grupos[0]?.id ?? "__novo__");
   const [novoGrupoNome, setNovoGrupoNome] = useState("");
@@ -274,8 +274,8 @@ export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClo
           {msg.text && (
             <div style={{
               marginBottom: 16, padding: "10px 14px", borderRadius: 10,
-              background: msg.tipo === "erro" ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)",
-              color: msg.tipo === "erro" ? "#EF4444" : "#10B981",
+              background: msg.tipo === "erro" ? "rgba(239,68,68,0.12)" : "rgba(30, 138, 76,0.12)",
+              color: msg.tipo === "erro" ? "#C62828" : "#1E8A4C",
               fontSize: 13, fontWeight: 500,
             }}>
               {msg.text}
@@ -293,7 +293,7 @@ export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClo
                   padding: "16px 20px", borderRadius: 12,
                   background: "rgba(239, 68, 68, 0.08)",
                   border: "1.5px solid rgba(239, 68, 68, 0.25)",
-                  color: "#EF4444", fontSize: 13, display: "flex", alignItems: "flex-start", gap: 10,
+                  color: "#C62828", fontSize: 13, display: "flex", alignItems: "flex-start", gap: 10,
                 }}>
                   <ShieldAlert size={20} className="shrink-0 mt-0.5" />
                   <div>
@@ -406,7 +406,7 @@ export function ModalGerenciarGrupo({ tema, grupos = [], userRole, userId, onClo
                           title="Remover membro"
                           style={{
                             background: "transparent", border: "none",
-                            cursor: "pointer", color: "#EF4444",
+                            cursor: "pointer", color: "#C62828",
                             padding: 4, borderRadius: 6, display: "flex",
                             opacity: loading ? 0.4 : 1,
                           }}

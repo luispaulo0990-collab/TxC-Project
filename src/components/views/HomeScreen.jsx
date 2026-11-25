@@ -1,16 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus, Building2, Trash2, Calendar, Layers, ChevronRight,
-  FolderOpen, LogOut, LogIn, User, Crown, Code2, Eye, Archive, ArchiveRestore,
-  Expand, Minimize
+  LogOut, LogIn, User, Crown, Code2, Eye, Archive, ArchiveRestore,
+  Expand, Minimize, Folder, FolderPlus, FolderInput, Pencil, Home, X, Check,
 } from "lucide-react";
-import { ORANGE, BLACK, FONT } from "../../constants/theme";
+import {
+  ORANGE, ORANGE_HOVER, INK, FONT, FONT_DISPLAY, THEME, RADIUS, SHADOW, OVERLAY, STATUS,
+} from "../../constants/theme";
 import { calcularPermissao } from "../../hooks/usePermissao";
+import { LogoUnita, SimboloUn } from "../common/LogoUnita";
 
 const ROLE_CONFIG = {
-  admin:  { label: "Admin",  icon: Crown, color: "#FE5000", bg: "rgba(254,80,0,0.12)" },
-  dev:    { label: "Dev",    icon: Code2, color: "#3B82F6", bg: "rgba(59,130,246,0.12)" },
-  member: { label: "Membro", icon: Eye,   color: "#10B981", bg: "rgba(16,185,129,0.12)" },
+  admin:  { label: "Admin",  icon: Crown, color: ORANGE,         bg: "rgb(254 80 0 / 0.16)" },
+  dev:    { label: "Dev",    icon: Code2, color: "#8DB7E8",      bg: "rgb(37 99 168 / 0.28)" },
+  member: { label: "Membro", icon: Eye,   color: "#7FCB9E",      bg: "rgb(30 138 76 / 0.24)" },
 };
 
 function RoleBadge({ role }) {
@@ -19,13 +22,12 @@ function RoleBadge({ role }) {
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 4,
-      background: cfg.bg || "rgba(254,80,0,0.12)", color: cfg.color || "#FE5000",
-      borderRadius: 99, padding: "2px 8px",
-      fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
-      textTransform: "uppercase",
+      background: cfg.bg, color: cfg.color,
+      borderRadius: 999, padding: "2px 10px",
+      fontSize: 12, fontWeight: 500, whiteSpace: "nowrap",
     }}>
-      <Icon size={10} />
-      {cfg.label || "Admin"}
+      <Icon size={12} />
+      {cfg.label}
     </span>
   );
 }
@@ -45,64 +47,147 @@ function dataRelativa(ts) {
   return new Date(ts).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
 }
 
-/* ─── Card de Obra ───────────────────────────────────────────── */
-function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExcluir }) {
-  const [hovered, setHovered] = useState(false);
+/* ─── Botões v2 ──────────────────────────────────────────────── */
+function Btn({ variant = "secondary", size = "md", T, children, style, ...props }) {
+  const [hover, setHover] = useState(false);
+  const h = size === "sm" ? 34 : 40;
+  const base = {
+    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
+    height: h, padding: size === "sm" ? "0 12px" : "0 16px",
+    borderRadius: RADIUS.control, fontFamily: FONT, fontSize: size === "sm" ? 13.5 : 14.5, fontWeight: 500,
+    cursor: props.disabled ? "not-allowed" : "pointer", whiteSpace: "nowrap",
+    border: "1px solid transparent", transition: "background .15s, border-color .15s, color .15s",
+    opacity: props.disabled ? 0.55 : 1,
+  };
+  const v = {
+    primary: { background: hover ? ORANGE_HOVER : ORANGE, color: "#fff", boxShadow: "0 2px 8px rgb(254 80 0 / 0.2)" },
+    secondary: { background: hover ? T.raised : T.panel, color: T.text, borderColor: hover ? T.dim : T.line },
+    ghost: { background: hover ? T.hover : "transparent", color: T.text },
+    danger: { background: hover ? "#A82222" : STATUS.error, color: "#fff" },
+    inverse: { background: hover ? "rgb(255 255 255 / 0.1)" : "transparent", color: hover ? "#fff" : "#E2DFDC" },
+  }[variant];
+  return (
+    <button
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ ...base, ...v, ...style }}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
 
-  const isDark = tema === "escuro";
-  const bg = isDark
-    ? hovered ? "#22241F" : "#1A1C19"
-    : hovered ? "#F0F0EE" : "#FFFFFF";
-  const border = isAtiva ? ORANGE : (isDark ? "#33352F" : "#E2E2DF");
-  const textColor = isDark ? "#ECEDEB" : BLACK;
-  const mutedColor = isDark ? "#9DA098" : "#6A6E69";
+/* ─── Menu "Mover para pasta" ───────────────────────────────── */
+function MenuMoverPasta({ T, pastas, pastaAtualId, onEscolher, onFechar }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const fora = (e) => { if (ref.current && !ref.current.contains(e.target)) onFechar(); };
+    const esc = (e) => { if (e.key === "Escape") onFechar(); };
+    document.addEventListener("mousedown", fora);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", fora); document.removeEventListener("keydown", esc); };
+  }, [onFechar]);
+
+  const item = (id, label, icon) => {
+    const atual = (pastaAtualId || null) === (id || null);
+    return (
+      <button
+        key={id || "raiz"}
+        disabled={atual}
+        onClick={(e) => { e.stopPropagation(); onEscolher(id); }}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", gap: 8,
+          padding: "7px 10px", borderRadius: 8, border: "none",
+          background: "transparent", color: atual ? T.dim : T.text,
+          fontSize: 13.5, fontFamily: FONT, textAlign: "left",
+          cursor: atual ? "default" : "pointer",
+        }}
+        onMouseEnter={(e) => { if (!atual) e.currentTarget.style.background = T.hover; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+      >
+        {icon}
+        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        {atual && <Check size={13} color={ORANGE} />}
+      </button>
+    );
+  };
+
+  return (
+    <div
+      ref={ref}
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: "absolute", right: 0, bottom: "calc(100% + 6px)", zIndex: 40,
+        width: 230, maxHeight: 280, overflowY: "auto",
+        background: T.panel, border: `1px solid ${T.line}`, borderRadius: 12,
+        boxShadow: SHADOW.overlay, padding: 6,
+      }}
+    >
+      <div style={{ fontSize: 12, color: T.muted, padding: "4px 10px 6px" }}>Mover para</div>
+      {item(null, "Suas Obras (sem pasta)", <Home size={14} color={T.muted} />)}
+      {pastas.map((p) => item(p.id, p.nome, <Folder size={14} color={ORANGE} />))}
+      {pastas.length === 0 && (
+        <div style={{ fontSize: 12.5, color: T.dim, padding: "6px 10px" }}>Nenhuma pasta criada ainda.</div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Card de Obra ───────────────────────────────────────────── */
+function ObraCard({
+  obra, isAtiva, onClick, onExcluir, onArquivar, T,
+  podeExcluir, podeMover, pastas, pastaAtualId, onMover,
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [menuAberto, setMenuAberto] = useState(false);
+  const mostrarAcoes = podeExcluir || podeMover;
 
   return (
     <div
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      draggable={podeMover}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/obra-id", String(obra.id));
+        e.dataTransfer.effectAllowed = "move";
+      }}
       style={{
-        background: bg,
-        border: `1.5px solid ${border}`,
-        borderRadius: 14,
-        padding: "20px 20px 14px",
+        background: T.panel,
+        border: `1px solid ${isAtiva ? ORANGE : T.lineSoft}`,
+        borderRadius: RADIUS.card,
+        padding: "16px 18px 12px",
         cursor: "pointer",
-        transition: "all 0.18s ease",
+        transition: "box-shadow .18s ease, transform .18s ease, border-color .18s ease",
         position: "relative",
-        transform: hovered ? "translateY(-3px)" : "translateY(0)",
-        boxShadow: hovered
-          ? isDark ? "0 12px 32px rgba(0,0,0,0.5)" : "0 12px 32px rgba(0,0,0,0.12)"
-          : isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.06)",
+        transform: hovered ? "translateY(-2px)" : "translateY(0)",
+        boxShadow: hovered ? T.shadowHover : T.shadow,
         fontFamily: FONT,
-        minHeight: 170,
+        minHeight: 158,
         display: "flex",
         flexDirection: "column",
-        opacity: obra.arquivado ? 0.85 : 1,
+        opacity: obra.arquivado ? 0.82 : 1,
       }}
     >
-      {/* Badges superiores: Ativa e/ou Arquivada */}
+      {/* Selos: Ativa e/ou Arquivada */}
       <div style={{ position: "absolute", top: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
         {obra.arquivado && (
           <span style={{
-            background: "rgba(100, 116, 139, 0.2)",
-            border: "1px solid rgba(100, 116, 139, 0.35)",
-            color: isDark ? "#94A3B8" : "#475569",
-            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6,
-            padding: "2px 7px", borderRadius: 99,
-            display: "inline-flex", alignItems: "center", gap: 3.5,
-            textTransform: "uppercase",
+            background: T.hover, color: T.muted,
+            fontSize: 12, fontWeight: 500,
+            padding: "2px 9px", borderRadius: 999,
+            display: "inline-flex", alignItems: "center", gap: 4,
           }}>
-            <Archive size={9.5} />
+            <Archive size={11} />
             Arquivada
           </span>
         )}
         {isAtiva && (
           <span style={{
-            background: ORANGE, color: "#fff",
-            fontSize: 10, fontWeight: 700, letterSpacing: 1,
-            padding: "2px 8px", borderRadius: 99,
-            textTransform: "uppercase",
+            background: T.primarySoft, color: ORANGE,
+            fontSize: 12, fontWeight: 600,
+            padding: "2px 9px", borderRadius: 999,
           }}>
             Ativa
           </span>
@@ -110,137 +195,115 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExc
       </div>
 
       {/* Ícone + Nome */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
         <div style={{
-          width: 42, height: 42, borderRadius: 10, flexShrink: 0,
-          background: isAtiva ? ORANGE : (isDark ? "#2A2C27" : "#F0F0EE"),
+          width: 40, height: 40, borderRadius: RADIUS.control, flexShrink: 0,
+          background: isAtiva ? ORANGE : T.primarySoft,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <Building2 size={20} color={isAtiva ? "#fff" : mutedColor} />
+          <Building2 size={19} color={isAtiva ? "#fff" : ORANGE} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontWeight: 700, fontSize: 15, color: textColor,
+            fontWeight: 600, fontSize: 15, color: T.text,
             overflowWrap: "anywhere",
             lineHeight: 1.3,
-            // espaço para os selos "Ativa"/"Arquivada" no canto superior
-            paddingRight: obra.arquivado && isAtiva ? 128 : obra.arquivado ? 78 : isAtiva ? 44 : 0,
+            paddingRight: obra.arquivado && isAtiva ? 140 : obra.arquivado ? 92 : isAtiva ? 48 : 0,
           }}>
             {obra.nome || "Obra sem nome"}
           </div>
           {obra.incorporador && (
-            <div style={{ fontSize: 11, fontWeight: 600, color: ORANGE, marginTop: 2 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 500, color: ORANGE, marginTop: 2 }}>
               {obra.incorporador}
             </div>
           )}
-          <div style={{ fontSize: 11, color: mutedColor, marginTop: 3 }}>
+          <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>
             {dataRelativa(obra.em)}
           </div>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Indicadores */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: "auto", flexWrap: "wrap" }}>
         {obra.nTorres != null && (
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <Layers size={12} color={mutedColor} />
-            <span style={{ fontSize: 12, color: mutedColor }}>
+            <Layers size={13} color={T.muted} />
+            <span style={{ fontSize: 12.5, color: T.muted, fontVariantNumeric: "tabular-nums" }}>
               {obra.nTorres} {obra.nTorres === 1 ? "torre" : "torres"}
             </span>
           </div>
         )}
         {obra.nAtividades != null && (
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <Calendar size={12} color={mutedColor} />
-            <span style={{ fontSize: 12, color: mutedColor }}>
+            <Calendar size={13} color={T.muted} />
+            <span style={{ fontSize: 12.5, color: T.muted, fontVariantNumeric: "tabular-nums" }}>
               {obra.nAtividades} {obra.nAtividades === 1 ? "atividade" : "atividades"}
             </span>
           </div>
         )}
       </div>
 
-      {/* Ações de gerenciamento (Exclusivo Dev: Arquivar e Excluir) */}
-      {podeExcluir && (
+      {/* Ações de gerenciamento: Mover (Dev/Admin) · Arquivar e Excluir (Dev) */}
+      {mostrarAcoes && (
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
             marginTop: 10,
             paddingTop: 8,
-            borderTop: `1px solid ${isDark ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.06)"}`,
+            borderTop: `1px solid ${T.lineSoft}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
             gap: 6,
-            opacity: hovered ? 1 : 0,
-            pointerEvents: hovered ? "auto" : "none",
+            position: "relative",
+            opacity: hovered || menuAberto ? 1 : 0,
+            pointerEvents: hovered || menuAberto ? "auto" : "none",
             transition: "opacity 0.15s ease",
           }}
         >
-          {onArquivar && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onArquivar(obra.id, !obra.arquivado);
-              }}
-              title={obra.arquivado ? "Reativar obra (desarquivar)" : "Arquivar obra"}
-              style={{
-                background: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
-                border: `1px solid ${border}`,
-                cursor: "pointer",
-                padding: "4px 8px", borderRadius: 6,
-                display: "flex", alignItems: "center", gap: 4,
-                color: isDark ? "#CBD5E1" : "#475569",
-                fontSize: 10.5, fontWeight: 600,
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)";
-              }}
-            >
-              {obra.arquivado ? <ArchiveRestore size={11} /> : <Archive size={11} />}
-              <span>{obra.arquivado ? "Reativar" : "Arquivar"}</span>
-            </button>
+          {podeMover && (
+            <AcaoBtn T={T} title="Mover para outra pasta" onClick={() => setMenuAberto((v) => !v)}>
+              <FolderInput size={12} />
+              <span>Mover</span>
+            </AcaoBtn>
+          )}
+          {menuAberto && (
+            <MenuMoverPasta
+              T={T}
+              pastas={pastas}
+              pastaAtualId={pastaAtualId}
+              onFechar={() => setMenuAberto(false)}
+              onEscolher={(pid) => { setMenuAberto(false); onMover(pid); }}
+            />
           )}
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onExcluir();
-            }}
-            title="Excluir obra permanentemente"
-            style={{
-              background: "rgba(214, 69, 69, 0.12)",
-              border: "1px solid rgba(214, 69, 69, 0.35)",
-              cursor: "pointer",
-              padding: "4px 8px", borderRadius: 6,
-              display: "flex", alignItems: "center", gap: 4,
-              color: "#EF4444",
-              fontSize: 10.5, fontWeight: 700,
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(214, 69, 69, 0.22)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(214, 69, 69, 0.12)";
-            }}
-          >
-            <Trash2 size={11} />
-            <span>Excluir</span>
-          </button>
+          {podeExcluir && onArquivar && (
+            <AcaoBtn
+              T={T}
+              title={obra.arquivado ? "Reativar obra (desarquivar)" : "Arquivar obra"}
+              onClick={() => onArquivar(obra.id, !obra.arquivado)}
+            >
+              {obra.arquivado ? <ArchiveRestore size={12} /> : <Archive size={12} />}
+              <span>{obra.arquivado ? "Reativar" : "Arquivar"}</span>
+            </AcaoBtn>
+          )}
+
+          {podeExcluir && (
+            <AcaoBtn T={T} danger title="Excluir obra permanentemente" onClick={onExcluir}>
+              <Trash2 size={12} />
+              <span>Excluir</span>
+            </AcaoBtn>
+          )}
         </div>
       )}
 
-      {/* Seta hover quando não há botões ou para visualizadores */}
-      {!podeExcluir && (
+      {/* Seta hover para visualizadores */}
+      {!mostrarAcoes && (
         <ChevronRight
           size={18}
           style={{
-            position: "absolute", right: 18, top: "50%", marginTop: -9,
-            color: isAtiva ? ORANGE : mutedColor,
+            position: "absolute", right: 16, bottom: 14,
+            color: isAtiva ? ORANGE : T.muted,
             opacity: hovered ? 1 : 0,
             transition: "opacity 0.15s, transform 0.15s",
             transform: hovered ? "translateX(3px)" : "translateX(0)",
@@ -251,42 +314,114 @@ function ObraCard({ obra, isAtiva, onClick, onExcluir, onArquivar, tema, podeExc
   );
 }
 
-/* ─── Card "Nova Obra" ───────────────────────────────────────── */
-function NovaObraCard({ onClick, tema }) {
-  const [hovered, setHovered] = useState(false);
-  const isDark = tema === "escuro";
+function AcaoBtn({ T, danger = false, children, onClick, title }) {
+  const [h, setH] = useState(false);
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      title={title}
+      onMouseEnter={() => setH(true)}
+      onMouseLeave={() => setH(false)}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5,
+        height: 28, padding: "0 10px", borderRadius: 8,
+        border: `1px solid ${danger ? "transparent" : T.line}`,
+        background: danger ? (h ? STATUS.error : STATUS.errorSoft) : (h ? T.hover : T.panel),
+        color: danger ? (h ? "#fff" : STATUS.error) : T.text,
+        fontSize: 12.5, fontWeight: 500, fontFamily: FONT, cursor: "pointer",
+        transition: "background .15s, color .15s",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
+/* ─── Card de Pasta ─────────────────────────────────────────── */
+function PastaCard({ pasta, qtd, T, onAbrir, podeMover, onSoltarObra }) {
+  const [hovered, setHovered] = useState(false);
+  const [alvo, setAlvo] = useState(false);
+  return (
+    <div
+      onClick={onAbrir}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onDragOver={(e) => {
+        if (!podeMover || !e.dataTransfer.types.includes("text/obra-id")) return;
+        e.preventDefault();
+        setAlvo(true);
+      }}
+      onDragLeave={() => setAlvo(false)}
+      onDrop={(e) => {
+        setAlvo(false);
+        const id = e.dataTransfer.getData("text/obra-id");
+        if (id) { e.preventDefault(); onSoltarObra(id); }
+      }}
+      title={podeMover ? "Abrir pasta · arraste uma obra até aqui para movê-la" : "Abrir pasta"}
+      style={{
+        display: "flex", alignItems: "center", gap: 12,
+        background: alvo ? T.primarySoft : T.panel,
+        border: `1px ${alvo ? "dashed" : "solid"} ${alvo ? ORANGE : T.lineSoft}`,
+        borderRadius: RADIUS.card,
+        padding: "14px 16px",
+        cursor: "pointer",
+        boxShadow: hovered ? T.shadowHover : T.shadow,
+        transform: hovered ? "translateY(-2px)" : "translateY(0)",
+        transition: "box-shadow .18s ease, transform .18s ease, background .15s",
+        fontFamily: FONT,
+        minWidth: 0,
+      }}
+    >
+      <div style={{
+        width: 40, height: 40, borderRadius: RADIUS.control, flexShrink: 0,
+        background: T.primarySoft, display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <Folder size={19} color={ORANGE} fill={ORANGE} fillOpacity={0.18} />
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontWeight: 600, fontSize: 14.5, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {pasta.nome}
+        </div>
+        <div style={{ fontSize: 12.5, color: T.muted, fontVariantNumeric: "tabular-nums" }}>
+          {qtd} {qtd === 1 ? "obra" : "obras"}
+        </div>
+      </div>
+      <ChevronRight size={16} color={T.muted} style={{ opacity: hovered ? 1 : 0.4, transition: "opacity .15s" }} />
+    </div>
+  );
+}
+
+/* ─── Card "Nova Obra" ───────────────────────────────────────── */
+function NovaObraCard({ onClick, T }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <div
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        border: `1.5px dashed ${hovered ? ORANGE : (isDark ? "#3E4138" : "#CCCCC9")}`,
-        borderRadius: 14,
-        padding: "20px 20px 14px",
+        border: `1.5px dashed ${hovered ? ORANGE : T.gridMes}`,
+        borderRadius: RADIUS.card,
+        padding: "16px 18px",
         cursor: "pointer",
         transition: "all 0.18s ease",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        minHeight: 170, gap: 12,
-        background: hovered
-          ? isDark ? "rgba(254,80,0,0.06)" : "rgba(254,80,0,0.04)"
-          : "transparent",
-        transform: hovered ? "translateY(-3px)" : "translateY(0)",
+        minHeight: 158, gap: 10,
+        background: hovered ? T.primarySoft : "transparent",
       }}
     >
       <div style={{
-        width: 48, height: 48, borderRadius: 12,
-        background: hovered ? ORANGE : (isDark ? "#22241F" : "#F0F0EE"),
+        width: 44, height: 44, borderRadius: RADIUS.control,
+        background: hovered ? ORANGE : T.hover,
         display: "flex", alignItems: "center", justifyContent: "center",
         transition: "background 0.18s",
       }}>
-        <Plus size={24} color={hovered ? "#fff" : (isDark ? "#63665F" : "#A6A8A3")} />
+        <Plus size={22} color={hovered ? "#fff" : T.muted} />
       </div>
       <span style={{
-        fontSize: 13, fontWeight: 600,
-        color: hovered ? ORANGE : (isDark ? "#63665F" : "#A6A8A3"),
+        fontSize: 14, fontWeight: 500,
+        color: hovered ? ORANGE : T.muted,
         transition: "color 0.18s",
         fontFamily: FONT,
       }}>
@@ -296,250 +431,428 @@ function NovaObraCard({ onClick, tema }) {
   );
 }
 
+/* ─── Modal de pasta (criar / renomear) ─────────────────────── */
+function ModalPasta({ T, modo, nomeInicial = "", sugestoes = [], onSalvar, onFechar }) {
+  const [nome, setNome] = useState(nomeInicial);
+  const [moverIncorp, setMoverIncorp] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const sugestaoEscolhida = sugestoes.find((s) => s.nome.toLowerCase() === nome.trim().toLowerCase());
+
+  const salvar = async () => {
+    if (!nome.trim()) { setErro("Informe o nome da pasta."); return; }
+    setSalvando(true);
+    setErro("");
+    try {
+      await onSalvar(nome.trim(), modo === "criar" && sugestaoEscolhida && moverIncorp ? sugestaoEscolhida.obraIds : []);
+    } catch (e) {
+      setErro(e?.message || "Não foi possível salvar a pasta.");
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={onFechar}
+      style={{ position: "fixed", inset: 0, background: OVERLAY, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 460, background: T.panel, color: T.text,
+          borderRadius: RADIUS.card, boxShadow: SHADOW.overlay, border: `1px solid ${T.lineSoft}`,
+          padding: "20px 22px", fontFamily: FONT,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, margin: 0 }}>
+            {modo === "criar" ? "Nova pasta" : "Renomear pasta"}
+          </h2>
+          <button onClick={onFechar} style={{ border: "none", background: "transparent", color: T.muted, cursor: "pointer", lineHeight: 0, padding: 6, borderRadius: 8 }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: T.muted, marginBottom: 6 }}>
+          Nome da pasta
+        </label>
+        <input
+          ref={inputRef}
+          value={nome}
+          onChange={(e) => { setNome(e.target.value); setErro(""); }}
+          onKeyDown={(e) => { if (e.key === "Enter") salvar(); if (e.key === "Escape") onFechar(); }}
+          placeholder="Ex.: Cyrela, Trisul, Residencial Artur Alvim…"
+          style={{
+            width: "100%", height: 42, borderRadius: RADIUS.control,
+            border: `1px solid ${erro ? STATUS.error : T.line}`, background: T.input, color: T.text,
+            padding: "0 14px", fontSize: 15, fontFamily: FONT, outline: "none",
+          }}
+        />
+        {erro && <div style={{ fontSize: 13, color: STATUS.error, marginTop: 6 }}>{erro}</div>}
+
+        {modo === "criar" && sugestoes.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 13, color: T.muted, marginBottom: 8 }}>
+              Sugestões por incorporador (obras ainda sem pasta)
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {sugestoes.map((s) => {
+                const ativo = sugestaoEscolhida?.nome === s.nome;
+                return (
+                  <button
+                    key={s.nome}
+                    onClick={() => setNome(s.nome)}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      height: 30, padding: "0 12px", borderRadius: 999,
+                      border: `1px solid ${ativo ? ORANGE : T.line}`,
+                      background: ativo ? T.primarySoft : T.panel,
+                      color: ativo ? ORANGE : T.text,
+                      fontSize: 13, fontWeight: 500, fontFamily: FONT, cursor: "pointer",
+                    }}
+                  >
+                    {s.nome}
+                    <span style={{ fontSize: 12, color: ativo ? ORANGE : T.muted, fontVariantNumeric: "tabular-nums" }}>{s.obraIds.length}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {sugestaoEscolhida && (
+              <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 13.5, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={moverIncorp}
+                  onChange={(e) => setMoverIncorp(e.target.checked)}
+                  style={{ accentColor: ORANGE, width: 16, height: 16 }}
+                />
+                Mover as {sugestaoEscolhida.obraIds.length} {sugestaoEscolhida.obraIds.length === 1 ? "obra" : "obras"} de “{sugestaoEscolhida.nome}” para esta pasta
+              </label>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+          <Btn T={T} variant="secondary" onClick={onFechar}>Cancelar</Btn>
+          <Btn T={T} variant="primary" onClick={salvar} disabled={salvando}>
+            {salvando ? "Salvando…" : modo === "criar" ? "Criar pasta" : "Salvar"}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Tela Principal ─────────────────────────────────────────── */
 export function HomeScreen({
   salvos, projAtualId, tema, user, userRole,
   onLogout, onSelecionarObra, onNovaObra, onExcluirObra, onArquivarObra,
   onAbrirLogin, telaCheia = false, onAlternarTelaCheia,
+  pastas = [], vinculosPasta = {},
+  onCriarPasta, onRenomearPasta, onExcluirPasta, onMoverObras,
 }) {
   const [filtroAba, setFiltroAba] = useState("ativas"); // "ativas" | "arquivadas" | "todas"
+  const [pastaAtualId, setPastaAtualId] = useState(null);
+  const [modalPasta, setModalPasta] = useState(null); // null | "criar" | "renomear"
+  const [alvoRaiz, setAlvoRaiz] = useState(false);
 
-  const isDark = tema === "escuro";
-  const bg = isDark ? "#111310" : "#ECEDEB";
-  const textColor = isDark ? "#ECEDEB" : BLACK;
-  const mutedColor = isDark ? "#9DA098" : "#6A6E69";
-  const subtleColor = isDark ? "#1A1C19" : "#FFFFFF";
-  const border = isDark ? "#33352F" : "#E2E2DF";
+  const T = THEME[tema] || THEME.claro;
 
   const perm = calcularPermissao(userRole);
-  const podeExcluir = perm.podeExcluir; // Apenas Dev pode apagar obras e arquivar
-  const podeCriar   = perm.podeCriar;   // Dev e Admin podem criar obras
+  const podeExcluir = perm.podeExcluir; // Apenas Dev pode apagar e arquivar obras
+  const podeCriar   = perm.podeCriar;   // Dev e Admin podem criar obras e organizar pastas
+  const podeMover   = podeCriar && typeof onMoverObras === "function";
+
+  const listaPastas = Array.isArray(pastas) ? pastas : [];
+  const idsPastas = useMemo(() => new Set(listaPastas.map((p) => p.id)), [listaPastas]);
+  const pastaDe = (obraId) => {
+    const pid = vinculosPasta?.[obraId];
+    return pid && idsPastas.has(pid) ? pid : null;
+  };
+  const pastaAtual = listaPastas.find((p) => p.id === pastaAtualId) || null;
+
+  // Se a pasta aberta deixou de existir, volta para a raiz
+  useEffect(() => {
+    if (pastaAtualId && !pastaAtual) setPastaAtualId(null);
+  }, [pastaAtualId, pastaAtual]);
 
   // Separação de obras por status de arquivamento
   const todasObras = Array.isArray(salvos) ? salvos : [];
   const obrasAtivas = todasObras.filter((o) => !o.arquivado);
   const obrasArquivadas = todasObras.filter((o) => !!o.arquivado);
 
-  const obrasExibidas =
+  const obrasDaAba =
     filtroAba === "ativas"
       ? obrasAtivas
       : filtroAba === "arquivadas"
       ? obrasArquivadas
       : todasObras;
 
+  // Obras do nível atual (raiz = sem pasta; dentro da pasta = só as dela)
+  const obrasExibidas = obrasDaAba.filter((o) => pastaDe(o.id) === (pastaAtualId || null));
+  const qtdPorPasta = (pid) => obrasDaAba.filter((o) => pastaDe(o.id) === pid).length;
+
+  // Contagens das abas respeitam o nível atual
+  const noNivel = (lista) => lista.filter((o) => pastaDe(o.id) === (pastaAtualId || null)).length;
+
   const temObras = obrasExibidas.length > 0;
+  const mostrarPastas = !pastaAtualId && listaPastas.length > 0;
+
+  // Sugestões: incorporadores das obras ainda sem pasta
+  const sugestoes = useMemo(() => {
+    const mapa = new Map();
+    todasObras.forEach((o) => {
+      const inc = (o.incorporador || "").trim();
+      if (!inc || pastaDe(o.id)) return;
+      const k = inc.toLowerCase();
+      if (!mapa.has(k)) mapa.set(k, { nome: inc, obraIds: [] });
+      mapa.get(k).obraIds.push(o.id);
+    });
+    const nomesPastas = new Set(listaPastas.map((p) => p.nome.trim().toLowerCase()));
+    return [...mapa.values()]
+      .filter((s) => !nomesPastas.has(s.nome.toLowerCase()))
+      .sort((a, b) => b.obraIds.length - a.obraIds.length || a.nome.localeCompare(b.nome, "pt-BR"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todasObras, listaPastas, vinculosPasta]);
+
+  const excluirPastaAtual = () => {
+    if (!pastaAtual || !onExcluirPasta) return;
+    onExcluirPasta(pastaAtual);
+  };
 
   return (
     <div style={{
-      height: "100vh", overflowY: "auto", background: bg, fontFamily: FONT,
-      color: textColor, display: "flex", flexDirection: "column",
+      height: "100vh", overflowY: "auto", background: T.bg, fontFamily: FONT,
+      color: T.text, display: "flex", flexDirection: "column",
     }}>
-      {/* ── Topo ── */}
+      {/* ── Barra superior (grafite · borda laranja) ── */}
       <header style={{
-        background: BLACK, color: "#fff",
-        padding: "0 32px", height: 56,
-        display: "flex", alignItems: "center", gap: 12,
+        position: "sticky", top: 0, zIndex: 30,
+        background: INK, color: "#fff",
+        borderBottom: `2px solid ${ORANGE}`,
+        padding: "0 24px", minHeight: 64,
+        display: "flex", alignItems: "center", gap: 14,
         flexShrink: 0,
       }}>
-        <div style={{
-          width: 28, height: 28, borderRadius: 6,
-          background: ORANGE, display: "flex",
-          alignItems: "center", justifyContent: "center",
-          color: "#fff",
-        }}>
-          <Layers size={16} />
-        </div>
-        <span style={{
-          fontSize: 12, letterSpacing: 2, fontWeight: 700,
-          color: "#fff", textTransform: "uppercase",
-        }}>
+        <LogoUnita ink="#fff" height={30} />
+        <span style={{ width: 1, height: 26, background: "rgb(255 255 255 / 0.16)" }} />
+        <span style={{ fontSize: 15, fontWeight: 600, color: "#fff", letterSpacing: "0.01em", whiteSpace: "nowrap" }}>
           Tempo × Caminho
         </span>
+        <span style={{ fontSize: 13, color: "#A19B96", whiteSpace: "nowrap" }} className="hidden md:inline">
+          Linha de Balanço
+        </span>
 
-        {user ? (
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-            {/* Badge de papel */}
-            {userRole && <RoleBadge role={userRole} />}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+          {user ? (
+            <>
+              {userRole && <RoleBadge role={userRole} />}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, color: "#E2DFDC" }}>
+                <User size={15} color="#A19B96" />
+                <span>{user.email || user.user_metadata?.email || "Usuário"}</span>
+              </div>
+              {onLogout && (
+                <Btn T={T} variant="inverse" size="sm" onClick={onLogout} title="Desconectar do sistema">
+                  <LogOut size={14} />
+                  <span>Sair</span>
+                </Btn>
+              )}
+            </>
+          ) : (
+            <>
+              <span style={{
+                fontSize: 12.5, color: "#C9C4C0",
+                display: "inline-flex", alignItems: "center", gap: 5,
+                background: "rgb(255 255 255 / 0.08)",
+                padding: "3px 10px", borderRadius: 999,
+              }}>
+                <Eye size={13} color="#7FCB9E" />
+                Acesso Visualizador
+              </span>
+              {onAbrirLogin && (
+                <Btn T={T} variant="primary" size="sm" onClick={onAbrirLogin} title="Entrar com a sua conta">
+                  <LogIn size={14} />
+                  <span>Entrar</span>
+                </Btn>
+              )}
+            </>
+          )}
 
-            {/* Email */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
-              <User size={14} color="rgba(255,255,255,0.5)" />
-              <span>{user.email || user.user_metadata?.email || "Usuário"}</span>
-            </div>
-
-            {onLogout && (
-              <button
-                onClick={onLogout}
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  color: "#fff", padding: "4px 10px", borderRadius: 6,
-                  fontSize: 11, display: "flex", alignItems: "center",
-                  gap: 6, cursor: "pointer", transition: "background 0.15s ease",
-                }}
-                title="Desconectar do sistema"
-              >
-                <LogOut size={13} />
-                <span>Sair</span>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-            <span
-              style={{
-                fontSize: 11,
-                color: "rgba(255, 255, 255, 0.6)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                background: "rgba(255, 255, 255, 0.06)",
-                padding: "3px 9px",
-                borderRadius: 99,
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-              }}
+          {onAlternarTelaCheia && (
+            <Btn
+              T={T}
+              variant={telaCheia ? "primary" : "inverse"}
+              size="sm"
+              onClick={onAlternarTelaCheia}
+              title={telaCheia ? "Sair da tela cheia (Esc)" : "Expandir o app para tela cheia"}
             >
-              <Eye size={12} style={{ color: "#10B981" }} />
-              Acesso Visualizador
-            </span>
-
-            {onAbrirLogin && (
-              <button
-                onClick={onAbrirLogin}
-                style={{
-                  background: ORANGE,
-                  border: "none",
-                  color: "#fff",
-                  padding: "5px 14px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  boxShadow: "0 2px 10px rgba(254,80,0,0.35)",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.1)")}
-                onMouseLeave={(e) => (e.currentTarget.style.filter = "none")}
-                title="Fazer login com perfil de Admin ou Dev"
-              >
-                <LogIn size={13} />
-                <span>Entrar</span>
-              </button>
-            )}
-          </div>
-        )}
-
-        {onAlternarTelaCheia && (
-          <button
-            onClick={onAlternarTelaCheia}
-            style={{
-              background: telaCheia ? ORANGE : "rgba(255,255,255,0.08)",
-              border: telaCheia ? "none" : "1px solid rgba(255,255,255,0.15)",
-              color: "#fff", padding: "4px 10px", borderRadius: 6,
-              fontSize: 11, display: "flex", alignItems: "center",
-              gap: 6, cursor: "pointer", transition: "background 0.15s ease",
-            }}
-            title={telaCheia ? "Sair da tela cheia (Esc)" : "Expandir o app para tela cheia"}
-          >
-            {telaCheia ? <Minimize size={13} /> : <Expand size={13} />}
-            <span>{telaCheia ? "Sair da Tela Cheia" : "Tela Cheia"}</span>
-          </button>
-        )}
+              {telaCheia ? <Minimize size={14} /> : <Expand size={14} />}
+              <span>{telaCheia ? "Sair da Tela Cheia" : "Tela Cheia"}</span>
+            </Btn>
+          )}
+        </div>
       </header>
 
       {/* ── Conteúdo ── */}
       <main style={{
-        flex: "1 0 auto", maxWidth: 960, width: "100%",
-        margin: "0 auto", padding: "48px 32px",
+        flex: "1 0 auto", maxWidth: 1180, width: "100%",
+        margin: "0 auto", padding: "28px 24px 40px",
       }}>
-
-        {/* Saudação e Abas de Filtro */}
-        <div style={{ marginBottom: 32, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{
-              fontSize: 28, fontWeight: 800, color: textColor,
-              margin: 0, letterSpacing: -0.5, lineHeight: 1.2,
-            }}>
+        {/* Navegação de pastas (breadcrumb) */}
+        {pastaAtual && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 13.5 }}>
+            <button
+              onClick={() => setPastaAtualId(null)}
+              onDragOver={(e) => {
+                if (!podeMover || !e.dataTransfer.types.includes("text/obra-id")) return;
+                e.preventDefault();
+                setAlvoRaiz(true);
+              }}
+              onDragLeave={() => setAlvoRaiz(false)}
+              onDrop={(e) => {
+                setAlvoRaiz(false);
+                const id = e.dataTransfer.getData("text/obra-id");
+                if (id) { e.preventDefault(); onMoverObras([id], null); }
+              }}
+              title={podeMover ? "Voltar · solte uma obra aqui para tirá-la da pasta" : "Voltar para Suas Obras"}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                border: alvoRaiz ? `1px dashed ${ORANGE}` : "1px solid transparent",
+                background: alvoRaiz ? T.primarySoft : "transparent",
+                color: T.muted, cursor: "pointer", padding: "3px 8px", borderRadius: 8,
+                fontFamily: FONT, fontSize: 13.5,
+              }}
+            >
+              <Home size={14} />
               Suas Obras
+            </button>
+            <ChevronRight size={14} color={T.dim} />
+            <span style={{ color: T.text, fontWeight: 500 }}>{pastaAtual.nome}</span>
+          </div>
+        )}
+
+        {/* Título, descrição e ações */}
+        <div style={{ marginBottom: 20, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{
+              fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 600, color: T.text,
+              margin: 0, letterSpacing: "-0.01em", lineHeight: 1.2,
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              {pastaAtual ? (<><Folder size={24} color={ORANGE} />{pastaAtual.nome}</>) : "Suas Obras"}
             </h1>
-            <p style={{ fontSize: 13, color: mutedColor, marginTop: 6 }}>
+            <p style={{ fontSize: 14, color: T.muted, margin: "4px 0 0" }}>
               {todasObras.length > 0
-                ? `${obrasAtivas.length} obras ativas · ${obrasArquivadas.length} arquivadas`
+                ? pastaAtual
+                  ? `${noNivel(obrasAtivas)} obras ativas · ${noNivel(obrasArquivadas)} arquivadas nesta pasta`
+                  : `${obrasAtivas.length} obras ativas · ${obrasArquivadas.length} arquivadas${listaPastas.length ? ` · ${listaPastas.length} ${listaPastas.length === 1 ? "pasta" : "pastas"}` : ""}`
                 : "Nenhuma obra cadastrada ainda · comece criando sua primeira obra"}
             </p>
           </div>
 
-          {/* Abas Ativas / Arquivadas / Todas */}
-          <div style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-            padding: "4px",
-            borderRadius: 12,
-            border: `1px solid ${border}`,
-          }}>
-            {[
-              { id: "ativas", label: "Ativas", count: obrasAtivas.length },
-              { id: "arquivadas", label: "Arquivadas", count: obrasArquivadas.length, icon: Archive },
-              { id: "todas", label: "Todas", count: todasObras.length },
-            ].map((tab) => {
-              const ativo = filtroAba === tab.id;
-              const TabIcon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setFiltroAba(tab.id)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "6px 12px",
-                    borderRadius: 8,
-                    fontSize: 12,
-                    fontWeight: ativo ? 700 : 500,
-                    cursor: "pointer",
-                    border: "none",
-                    background: ativo
-                      ? (isDark ? "rgba(254,80,0,0.2)" : "rgba(254,80,0,0.12)")
-                      : "transparent",
-                    color: ativo ? (isDark ? "#FFA273" : ORANGE) : mutedColor,
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  {TabIcon && <TabIcon size={12} />}
-                  <span>{tab.label}</span>
-                  <span
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {podeMover && !pastaAtual && onCriarPasta && (
+              <Btn T={T} variant="secondary" size="sm" onClick={() => setModalPasta("criar")}>
+                <FolderPlus size={15} />
+                Nova pasta
+              </Btn>
+            )}
+            {podeMover && pastaAtual && (
+              <>
+                {onRenomearPasta && (
+                  <Btn T={T} variant="ghost" size="sm" onClick={() => setModalPasta("renomear")} title="Renomear pasta">
+                    <Pencil size={14} />
+                    Renomear
+                  </Btn>
+                )}
+                {onExcluirPasta && (
+                  <Btn T={T} variant="ghost" size="sm" onClick={excluirPastaAtual} title="Excluir pasta (as obras voltam para Suas Obras)" style={{ color: STATUS.error }}>
+                    <Trash2 size={14} />
+                    Excluir pasta
+                  </Btn>
+                )}
+              </>
+            )}
+
+            {/* Abas segmentadas: Ativas / Arquivadas / Todas */}
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 2,
+              background: T.hover, padding: 3, borderRadius: 12,
+            }}>
+              {[
+                { id: "ativas", label: "Ativas", count: noNivel(obrasAtivas) },
+                { id: "arquivadas", label: "Arquivadas", count: noNivel(obrasArquivadas), icon: Archive },
+                { id: "todas", label: "Todas", count: noNivel(todasObras) },
+              ].map((tab) => {
+                const ativo = filtroAba === tab.id;
+                const TabIcon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setFiltroAba(tab.id)}
                     style={{
-                      fontSize: 10,
-                      padding: "1px 6px",
-                      borderRadius: 99,
-                      background: ativo ? ORANGE : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
-                      color: ativo ? "#fff" : mutedColor,
-                      fontWeight: 700,
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      height: 32, padding: "0 12px", borderRadius: 9,
+                      fontSize: 13.5, fontWeight: ativo ? 600 : 500, fontFamily: FONT,
+                      cursor: "pointer", border: "none",
+                      background: ativo ? T.panel : "transparent",
+                      boxShadow: ativo ? T.shadow : "none",
+                      color: ativo ? T.text : T.muted,
+                      transition: "all 0.15s ease",
                     }}
                   >
-                    {tab.count}
-                  </span>
-                </button>
-              );
-            })}
+                    {TabIcon && <TabIcon size={13} />}
+                    <span>{tab.label}</span>
+                    <span style={{
+                      fontSize: 12, padding: "0 7px", borderRadius: 999,
+                      background: ativo ? T.primarySoft : "transparent",
+                      color: ativo ? ORANGE : T.muted,
+                      fontWeight: 600, fontVariantNumeric: "tabular-nums",
+                    }}>
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
+
+        {/* Pastas (somente na raiz) */}
+        {mostrarPastas && (
+          <section style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: T.muted, marginBottom: 10 }}>Pastas</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+              {listaPastas.map((p) => (
+                <PastaCard
+                  key={p.id}
+                  pasta={p}
+                  qtd={qtdPorPasta(p.id)}
+                  T={T}
+                  podeMover={podeMover}
+                  onAbrir={() => setPastaAtualId(p.id)}
+                  onSoltarObra={(obraId) => onMoverObras([obraId], p.id)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {mostrarPastas && (temObras || (podeCriar && filtroAba !== "arquivadas")) && (
+          <div style={{ fontSize: 13, fontWeight: 500, color: T.muted, marginBottom: 10 }}>Obras sem pasta</div>
+        )}
 
         {/* Grid de obras */}
         <div style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
           gap: 16,
         }}>
-          {/* Card nova obra — só para quem pode criar e se não estiver na aba arquivadas */}
-          {podeCriar && filtroAba !== "arquivadas" && <NovaObraCard onClick={onNovaObra} tema={tema} />}
+          {podeCriar && filtroAba !== "arquivadas" && <NovaObraCard onClick={onNovaObra} T={T} />}
 
-          {/* Cards das obras existentes */}
           {obrasExibidas.map((obra) => (
             <ObraCard
               key={obra.id}
@@ -548,52 +861,60 @@ export function HomeScreen({
               onClick={() => onSelecionarObra(obra.id)}
               onExcluir={() => onExcluirObra(obra.id)}
               onArquivar={onArquivarObra}
-              tema={tema}
+              T={T}
               podeExcluir={podeExcluir}
+              podeMover={podeMover}
+              pastas={listaPastas}
+              pastaAtualId={pastaDe(obra.id)}
+              onMover={(pid) => onMoverObras([obra.id], pid)}
             />
           ))}
         </div>
 
-        {/* Dica quando vazio */}
-        {!temObras && (
+        {/* Estado vazio */}
+        {!temObras && !(mostrarPastas && filtroAba !== "arquivadas" && !podeCriar) && (
           <div style={{
-            marginTop: 48, padding: "28px 32px", borderRadius: 14,
-            background: subtleColor,
-            border: `1px solid ${isDark ? "#33352F" : "#E2E2DF"}`,
-            display: "flex", alignItems: "center", gap: 20,
+            marginTop: 24, padding: "22px 24px", borderRadius: RADIUS.card,
+            background: T.panel, border: `1px solid ${T.lineSoft}`, boxShadow: T.shadow,
+            display: "flex", alignItems: "center", gap: 18,
           }}>
-            <div style={{
-              width: 48, height: 48, borderRadius: 10, flexShrink: 0,
-              background: isDark ? "#22241F" : "#F5F5F3",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <FolderOpen size={22} color={ORANGE} />
-            </div>
+            <SimboloUn height={36} style={{ opacity: 0.9 }} />
             <div>
               {filtroAba === "arquivadas" ? (
                 <>
-                  <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: textColor }}>
-                    Nenhuma obra arquivada
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 15, color: T.text }}>
+                    Nenhuma obra arquivada{pastaAtual ? " nesta pasta" : ""}
                   </p>
-                  <p style={{ margin: "4px 0 0", fontSize: 13, color: mutedColor }}>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: T.muted }}>
                     Obras arquivadas por desenvolvedores (Dev) aparecem nesta aba para consulta ou reativação a qualquer momento.
+                  </p>
+                </>
+              ) : pastaAtual ? (
+                <>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 15, color: T.text }}>
+                    Pasta vazia
+                  </p>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: T.muted }}>
+                    {podeMover
+                      ? <>Use <strong style={{ color: T.text }}>Mover</strong> no card de uma obra, ou arraste a obra até a pasta em Suas Obras.</>
+                      : "Nenhuma obra foi colocada nesta pasta ainda."}
                   </p>
                 </>
               ) : podeCriar ? (
                 <>
-                  <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: textColor }}>
-                    Comece criando sua primeira obra
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 15, color: T.text }}>
+                    {listaPastas.length ? "Todas as obras estão organizadas em pastas" : "Comece criando sua primeira obra"}
                   </p>
-                  <p style={{ margin: "4px 0 0", fontSize: 13, color: mutedColor }}>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: T.muted }}>
                     Clique em <strong style={{ color: ORANGE }}>+ Nova Obra</strong> para configurar um novo empreendimento com torres, pavimentos e atividades.
                   </p>
                 </>
               ) : (
                 <>
-                  <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: textColor }}>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 15, color: T.text }}>
                     Nenhuma obra disponível
                   </p>
-                  <p style={{ margin: "4px 0 0", fontSize: 13, color: mutedColor }}>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: T.muted }}>
                     Aguarde um <strong>Admin</strong> ou <strong>Dev</strong> criar obras no seu grupo.
                   </p>
                 </>
@@ -605,17 +926,35 @@ export function HomeScreen({
 
       {/* ── Rodapé ── */}
       <footer style={{
-        padding: "16px 40px",
-        borderTop: `1px solid ${isDark ? "#22241F" : "#DEDEDB"}`,
+        padding: "14px 24px",
+        borderTop: `1px solid ${T.lineSoft}`,
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <span style={{ fontSize: 11, color: mutedColor }}>
-          Tempo × Caminho · Linha de Balanço
+        <span style={{ fontSize: 12.5, color: T.muted }}>
+          Tempo × Caminho · Linha de Balanço · Unità Engenharia
         </span>
-        <span style={{ fontSize: 11, color: isDark ? "#33352F" : "#CCCCC9" }}>
+        <span style={{ fontSize: 12.5, color: T.dim }}>
           v1.0
         </span>
       </footer>
+
+      {modalPasta && (
+        <ModalPasta
+          T={T}
+          modo={modalPasta}
+          nomeInicial={modalPasta === "renomear" ? pastaAtual?.nome || "" : ""}
+          sugestoes={modalPasta === "criar" ? sugestoes : []}
+          onFechar={() => setModalPasta(null)}
+          onSalvar={async (nome, obraIds) => {
+            if (modalPasta === "criar") {
+              await onCriarPasta(nome, obraIds);
+            } else if (pastaAtual) {
+              await onRenomearPasta(pastaAtual.id, nome);
+            }
+            setModalPasta(null);
+          }}
+        />
+      )}
     </div>
   );
 }

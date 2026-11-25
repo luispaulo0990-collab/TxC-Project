@@ -99,7 +99,7 @@ export const PropertiesPanel = ({
             {!podeEditar && (
               <div
                 className="mb-3 py-1 px-2.5 rounded-md text-[10.5px] font-bold text-center uppercase tracking-wider"
-                style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981", border: "1px solid rgba(16, 185, 129, 0.25)" }}
+                style={{ background: "rgba(30, 138, 76, 0.12)", color: "#1E8A4C", border: "1px solid rgba(30, 138, 76, 0.25)" }}
               >
                 Modo Visualizador (Somente Leitura)
               </div>
@@ -258,7 +258,7 @@ export const PropertiesPanel = ({
               };
 
               return (
-                <div className="mt-3 p-3 rounded-sm border" style={{ background: T.raised, borderColor: T.line }}>
+                <div className="mt-3 p-3 rounded-lg border" style={{ background: T.raised, borderColor: T.line }}>
                   <div className="flex items-center justify-between mb-2">
                     <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: corStatus, fontWeight: 700 }} className="flex items-center gap-1">
                       <TrendingUp size={12} /> AVANÇO FÍSICO (% REALIZADO)
@@ -311,7 +311,7 @@ export const PropertiesPanel = ({
                       onClick={() => onAbrirModalApontar(sel)}
                       className="w-full text-xs py-2 px-3 rounded-md font-bold text-white flex items-center justify-center gap-1.5 transition-all shadow-sm hover:brightness-110 active:scale-[0.99] mb-2.5 cursor-pointer"
                       style={{
-                        background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
+                        background: "#FE5000",
                       }}
                       title="Apontar avanço indicando quantidade de homens e cargos para o Histograma"
                     >
@@ -435,7 +435,7 @@ export const PropertiesPanel = ({
             })()}
 
             {sel.modo === "LINHA" && (
-              <div className="mt-3 p-3 rounded-sm" style={{ background: T.raised, border: `1px solid ${T.line}` }}>
+              <div className="mt-3 p-3 rounded-lg" style={{ background: T.raised, border: `1px solid ${T.line}` }}>
                 <div className="flex items-center justify-between mb-2">
                   <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: T.dim, fontWeight: 700 }}>
                     INCLINAÇÃO & VELOCIDADE
@@ -490,7 +490,7 @@ export const PropertiesPanel = ({
               </div>
             )}
 
-            <div className="mt-3 p-3 rounded-sm" style={{ background: T.raised, border: `1px solid ${T.line}` }}>
+            <div className="mt-3 p-3 rounded-lg" style={{ background: T.raised, border: `1px solid ${T.line}` }}>
               <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: T.dim, fontWeight: 700, marginBottom: 8 }}>
                 MÉTRICAS CALCULADAS
               </div>
@@ -501,7 +501,7 @@ export const PropertiesPanel = ({
             </div>
 
             {alertasSel.length > 0 && (
-              <div className="mt-3 p-3 rounded-sm" style={{ background: "rgba(214,69,69,0.08)", border: `1px solid rgba(214,69,69,0.35)` }}>
+              <div className="mt-3 p-3 rounded-lg" style={{ background: "rgba(198, 40, 40,0.08)", border: `1px solid rgba(198, 40, 40,0.35)` }}>
                 <div className="text-xs flex items-center gap-1.5 mb-2 font-bold" style={{ color: ERRO }}>
                   <AlertTriangle size={12} /> {alertasSel.length} cruzamento{alertasSel.length > 1 ? "s" : ""}
                 </div>
