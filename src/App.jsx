@@ -666,7 +666,7 @@ export default function App() {
 
   /* ─── Pastas da tela inicial (Dev e Admin organizam) ─────────── */
   const criarPasta = async (nome, obraIdsParaMover = []) => {
-    if (!permissoes.podeCriar) {
+    if (!permissoes.podeOrganizarPastas) {
       flash("Acesso negado: apenas Admin ou Dev podem organizar pastas.");
       return;
     }
@@ -699,7 +699,7 @@ export default function App() {
   };
 
   const pedirExcluirPasta = (pasta) => {
-    if (!permissoes.podeCriar) {
+    if (!permissoes.podeOrganizarPastas) {
       flash("Acesso negado: apenas Admin ou Dev podem organizar pastas.");
       return;
     }
@@ -723,7 +723,7 @@ export default function App() {
   };
 
   const moverObrasParaPasta = async (obraIds, pastaId) => {
-    if (!permissoes.podeCriar) {
+    if (!permissoes.podeOrganizarPastas) {
       flash("Acesso negado: apenas Admin ou Dev podem organizar pastas.");
       return;
     }
