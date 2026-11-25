@@ -158,14 +158,14 @@ export const ModalApontarAvanco = ({
           className="p-4 sm:p-5 border-b flex items-start justify-between gap-3 shrink-0"
           style={{
             borderColor: T.line,
-            background: "linear-gradient(180deg, rgba(254, 80, 0, 0.08) 0%, transparent 100%)",
+            background: "rgb(254 80 0 / 0.06)",
           }}
         >
           <div className="flex items-start gap-3 min-w-0">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shrink-0 shadow-md"
               style={{
-                background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
+                background: "#FE5000",
               }}
             >
               <HardHat size={20} />
@@ -349,8 +349,8 @@ export const ModalApontarAvanco = ({
               <div
                 className="px-3 py-1.5 rounded-xl border flex items-center gap-2 shadow-xs"
                 style={{
-                  background: "linear-gradient(135deg, rgba(254, 80, 0, 0.15) 0%, rgba(254, 80, 0, 0.05) 100%)",
-                  borderColor: "rgba(254, 80, 0, 0.3)",
+                  background: "rgb(254 80 0 / 0.1)",
+                  borderColor: "rgb(254 80 0 / 0.2)",
                 }}
               >
                 <Users size={15} style={{ color: ORANGE }} />
@@ -514,8 +514,8 @@ export const ModalApontarAvanco = ({
             disabled={salvando}
             className="text-xs px-5 py-2.5 rounded-xl font-bold text-white flex items-center gap-2 shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50"
             style={{
-              background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
-              boxShadow: "0 4px 14px rgba(254, 80, 0, 0.35)",
+              background: "#FE5000",
+              boxShadow: "0 4px 14px rgb(254 80 0 / 0.2)",
             }}
           >
             <CheckCircle2 size={15} />

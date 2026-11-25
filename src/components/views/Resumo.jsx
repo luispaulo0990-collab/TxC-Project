@@ -34,7 +34,7 @@ export const Resumo = ({ T, proj, metrica, pavimentoHoje, rowIdx, onVoltar, onSe
   })();
 
   const Card = ({ icon: Ic, label, valor, sub, cor }) => (
-    <div className="p-4 rounded-sm shadow-sm" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
+    <div className="p-4 rounded-lg shadow-sm" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
       <div className="flex items-center gap-2 mb-2" style={{ color: T.muted }}>
         <Ic size={15} style={{ color: cor || ORANGE }} />
         <span style={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase" }}>{label}</span>
@@ -50,7 +50,7 @@ export const Resumo = ({ T, proj, metrica, pavimentoHoje, rowIdx, onVoltar, onSe
         <div className="flex items-center gap-3 mb-1">
           <button
             onClick={onVoltar}
-            className="p-1.5 rounded-sm transition-colors hover:brightness-95"
+            className="p-1.5 rounded-lg transition-colors hover:brightness-95"
             style={{ color: T.muted, border: `1px solid ${T.line}`, background: T.panel }}
             title="Voltar ao gráfico"
           >
@@ -88,7 +88,7 @@ export const Resumo = ({ T, proj, metrica, pavimentoHoje, rowIdx, onVoltar, onSe
         </div>
 
         {/* Situação e pavimento atual de cada atividade */}
-        <div className="mt-6 rounded-sm shadow-sm" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
+        <div className="mt-6 rounded-lg shadow-sm" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${T.line}` }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>Situação por atividade</span>
             <span style={{ fontSize: 10.5, color: T.dim }}>referência: hoje, {fmtBR(h)}</span>

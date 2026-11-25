@@ -512,6 +512,64 @@ export const apiClient = {
     }
   },
 
+  /* ─── Pastas de obras (tela inicial) ─────────────────────────── */
+  async getPastas() {
+    try {
+      const [pastasRes, vincRes] = await Promise.all([
+        supabasePublic.from('pastas').select('id, nome, cor, ordem, created_at').order('ordem', { ascending: true }).order('nome', { ascending: true }),
+        supabasePublic.from('projeto_pastas').select('projeto_id, pasta_id'),
+      ]);
+      if (pastasRes.error) {
+        console.warn('getPastas error (migration_pastas_obras.sql aplicada?):', pastasRes.error);
+        return { pastas: [], vinculos: {} };
+      }
+      const vinculos = {};
+      (vincRes.data || []).forEach((v) => { vinculos[v.projeto_id] = v.pasta_id; });
+      return { pastas: pastasRes.data || [], vinculos };
+    } catch (err) {
+      console.warn('Erro ao buscar pastas:', err);
+      return { pastas: [], vinculos: {} };
+    }
+  },
+
+  async criarPasta(nome, user = null) {
+    const u = user || getCurrentUser();
+    const { data, error } = await supabasePublic
+      .from('pastas')
+      .insert({ nome: nome.trim(), criado_por: u?.email || null })
+      .select('id, nome, cor, ordem, created_at')
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async renomearPasta(id, nome) {
+    const { error } = await supabasePublic.from('pastas').update({ nome: nome.trim() }).eq('id', id);
+    if (error) throw error;
+  },
+
+  async excluirPasta(id) {
+    // as obras voltam para a raiz (vínculos apagados em cascata)
+    const { error } = await supabasePublic.from('pastas').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Move obras para a pasta (pastaId null = raiz). */
+  async moverObrasParaPasta(projetoIds, pastaId) {
+    const ids = (projetoIds || []).map(String).filter(Boolean);
+    if (!ids.length) return;
+    if (!pastaId) {
+      const { error } = await supabasePublic.from('projeto_pastas').delete().in('projeto_id', ids);
+      if (error) throw error;
+      return;
+    }
+    const now = new Date().toISOString();
+    const { error } = await supabasePublic
+      .from('projeto_pastas')
+      .upsert(ids.map((projeto_id) => ({ projeto_id, pasta_id: pastaId, updated_at: now })), { onConflict: 'projeto_id' });
+    if (error) throw error;
+  },
+
   /* ─── Perfis de Usuários (para vinculação em grupos) ────────── */
   async getPerfisDisponiveis() {
     try {

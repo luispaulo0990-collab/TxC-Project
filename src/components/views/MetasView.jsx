@@ -177,7 +177,7 @@ export const MetasView = ({
   };
 
   const CardKPI = ({ icon: Ic, label, valor, sub, cor }) => (
-    <div className="p-4 rounded-sm shadow-sm" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
+    <div className="p-4 rounded-lg shadow-sm" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
       <div className="flex items-center gap-2 mb-2" style={{ color: T.muted }}>
         <Ic size={15} style={{ color: cor || ORANGE }} />
         <span style={{ fontSize: 10, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase" }}>
@@ -196,7 +196,7 @@ export const MetasView = ({
         <div className="flex items-center gap-3 mb-4">
           <button
             onClick={onVoltar}
-            className="p-1.5 rounded-sm transition-colors hover:brightness-95"
+            className="p-1.5 rounded-lg transition-colors hover:brightness-95"
             style={{ color: T.muted, border: `1px solid ${T.line}`, background: T.panel }}
             title="Voltar ao gráfico"
           >
@@ -223,7 +223,7 @@ export const MetasView = ({
 
         {/* Barra de Filtros e Período */}
         <div
-          className="p-4 mb-5 rounded-sm shadow-sm flex flex-wrap items-center justify-between gap-4"
+          className="p-4 mb-5 rounded-lg shadow-sm flex flex-wrap items-center justify-between gap-4"
           style={{ background: T.panel, border: `1px solid ${T.line}` }}
         >
           {/* Seleção do Período de Metas */}
@@ -433,7 +433,7 @@ export const MetasView = ({
         {modoVisao === "cards" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {atividadesFiltradas.length === 0 ? (
-              <div className="col-span-2 p-8 text-center rounded-sm" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
+              <div className="col-span-2 p-8 text-center rounded-lg" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
                 <p className="text-xs font-semibold" style={{ color: T.muted }}>
                   Nenhuma atividade com meta encontrada para os filtros selecionados.
                 </p>
@@ -443,7 +443,7 @@ export const MetasView = ({
                 return (
                   <div
                     key={a.id}
-                    className="p-4 rounded-sm shadow-sm transition-all hover:border-orange-500 cursor-pointer flex flex-col justify-between"
+                    className="p-4 rounded-lg shadow-sm transition-all hover:border-orange-500 cursor-pointer flex flex-col justify-between"
                     style={{ background: T.panel, border: `1px solid ${T.line}` }}
                     onClick={() => onSelectAtividade(a.id)}
                   >
@@ -564,7 +564,7 @@ export const MetasView = ({
 
         {/* VISÃO 2: TABELA DE METAS POR PAVIMENTO */}
         {modoVisao === "tabela" && (
-          <div className="rounded-sm shadow-sm overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
+          <div className="rounded-lg shadow-sm overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.line}` }}>
             <div className="overflow-x-auto">
               <table className="w-full" style={{ ...NUM, fontSize: 11.5, borderCollapse: "collapse" }}>
                 <thead>
@@ -665,7 +665,7 @@ export const MetasView = ({
           <div className="space-y-2.5">
             <button
               onClick={() => exportarMetas("xlsx")}
-              className="w-full p-3.5 rounded-sm flex items-center gap-3 transition-colors hover:brightness-95 text-left border"
+              className="w-full p-3.5 rounded-lg flex items-center gap-3 transition-colors hover:brightness-95 text-left border"
               style={{ background: T.raised, borderColor: T.line }}
             >
               <div

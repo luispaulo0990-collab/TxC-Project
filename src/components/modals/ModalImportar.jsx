@@ -13,7 +13,7 @@ export const ModalImportar = ({ T, tipo, onClose, onPickFile, onBaixarModelo }) 
 
   return (
     <Modal T={T} titulo={`Importar · ${rotulo}`} onClose={onClose}>
-      <div className="mb-3 p-3 rounded-sm border" style={{ ...NUM, fontSize: 11, background: T.raised, borderColor: T.line }}>
+      <div className="mb-3 p-3 rounded-lg border" style={{ ...NUM, fontSize: 11, background: T.raised, borderColor: T.line }}>
         <div className="text-[10px] uppercase font-bold tracking-wider mb-2" style={{ color: T.dim }}>
           Exemplo de Colunas Suportadas na Planilha:
         </div>

@@ -419,7 +419,7 @@ export const MacrofluxoView = ({
                   </button>
                 </div>
               ) : (
-                <div className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+                <div className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(30, 138, 76, 0.12)", color: "#1E8A4C", border: "1px solid rgba(30, 138, 76, 0.25)" }}>
                   Modo Leitura
                 </div>
               )}
@@ -466,7 +466,7 @@ export const MacrofluxoView = ({
                       <button
                         onClick={() => handleCorrigirIncoerencia(inc.atividadeId)}
                         className="px-2.5 py-1.5 rounded text-[11px] font-bold text-white flex items-center gap-1.5 transition-all hover:brightness-110 active:scale-95 shadow-xs shrink-0"
-                        style={{ background: "#EF4444" }}
+                        style={{ background: "#C62828" }}
                         title="Ajustar automaticamente a data de início para respeitar a predecessora"
                       >
                         <RefreshCw size={12} />
@@ -480,9 +480,9 @@ export const MacrofluxoView = ({
               <div
                 className="p-3 rounded-lg border flex items-center gap-2.5 text-xs font-medium"
                 style={{
-                  background: "rgba(16, 185, 129, 0.08)",
-                  borderColor: "rgba(16, 185, 129, 0.25)",
-                  color: "#10B981",
+                  background: "rgba(30, 138, 76, 0.08)",
+                  borderColor: "rgba(30, 138, 76, 0.25)",
+                  color: "#1E8A4C",
                 }}
               >
                 <CheckCircle2 size={16} />

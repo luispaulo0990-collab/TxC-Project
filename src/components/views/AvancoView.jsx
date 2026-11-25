@@ -262,7 +262,7 @@ export const AvancoView = ({
         {/* ── Cards de Indicadores Globais ── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
           {/* Card 1: % Médio */}
-          <div className="p-3 rounded-sm border flex flex-col justify-between" style={{ background: T.raised, borderColor: T.line }}>
+          <div className="p-3 rounded-lg border flex flex-col justify-between" style={{ background: T.raised, borderColor: T.line }}>
             <span className="text-[10.5px] uppercase font-bold tracking-wider" style={{ color: T.dim }}>
               Avanço Geral
             </span>
@@ -282,7 +282,7 @@ export const AvancoView = ({
           {/* Card 2: Concluídas */}
           <div
             onClick={() => setFiltroStatus(filtroStatus === "CONCLUIDAS" ? "TODAS" : "CONCLUIDAS")}
-            className="p-3 rounded-sm border cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between"
+            className="p-3 rounded-lg border cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between"
             style={{
               background: filtroStatus === "CONCLUIDAS" ? `${OK}15` : T.raised,
               borderColor: filtroStatus === "CONCLUIDAS" ? OK : T.line,
@@ -305,7 +305,7 @@ export const AvancoView = ({
           {/* Card 3: Em Andamento */}
           <div
             onClick={() => setFiltroStatus(filtroStatus === "EM_ANDAMENTO" ? "TODAS" : "EM_ANDAMENTO")}
-            className="p-3 rounded-sm border cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between"
+            className="p-3 rounded-lg border cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between"
             style={{
               background: filtroStatus === "EM_ANDAMENTO" ? `${ORANGE}15` : T.raised,
               borderColor: filtroStatus === "EM_ANDAMENTO" ? ORANGE : T.line,
@@ -328,7 +328,7 @@ export const AvancoView = ({
           {/* Card 4: Com Atraso */}
           <div
             onClick={() => setFiltroStatus(filtroStatus === "ATRASADAS" ? "TODAS" : "ATRASADAS")}
-            className="p-3 rounded-sm border cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between"
+            className="p-3 rounded-lg border cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between"
             style={{
               background: filtroStatus === "ATRASADAS" ? `${ERRO}15` : T.raised,
               borderColor: filtroStatus === "ATRASADAS" ? ERRO : T.line,
@@ -351,7 +351,7 @@ export const AvancoView = ({
           {/* Card 5: Não Iniciadas */}
           <div
             onClick={() => setFiltroStatus(filtroStatus === "NAO_INICIADAS" ? "TODAS" : "NAO_INICIADAS")}
-            className="p-3 rounded-sm border cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between"
+            className="p-3 rounded-lg border cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between"
             style={{
               background: filtroStatus === "NAO_INICIADAS" ? `${T.dim}20` : T.raised,
               borderColor: filtroStatus === "NAO_INICIADAS" ? T.dim : T.line,
@@ -372,7 +372,7 @@ export const AvancoView = ({
           </div>
 
           {/* Card 6: Data de Medição */}
-          <div className="p-3 rounded-sm border flex flex-col justify-between" style={{ background: T.raised, borderColor: T.line }}>
+          <div className="p-3 rounded-lg border flex flex-col justify-between" style={{ background: T.raised, borderColor: T.line }}>
             <span className="text-[10.5px] uppercase font-bold tracking-wider flex items-center gap-1" style={{ color: T.dim }}>
               <Calendar size={11} /> Data de Corte
             </span>
@@ -501,7 +501,7 @@ export const AvancoView = ({
             return (
               <div
                 key={a.id}
-                className="p-4 rounded-sm border transition-all hover:shadow-sm"
+                className="p-4 rounded-lg border transition-all hover:shadow-sm"
                 style={{ background: T.panel, borderColor: T.line }}
               >
                 <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -574,7 +574,7 @@ export const AvancoView = ({
                             onClick={() => onAbrirModalApontar(a)}
                             className="text-xs px-3 py-1 rounded font-bold text-white flex items-center gap-1.5 transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
                             style={{
-                              background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
+                              background: "#FE5000",
                             }}
                             title="Registrar avanço físico com detalhamento de homens e cargos para o Histograma"
                           >

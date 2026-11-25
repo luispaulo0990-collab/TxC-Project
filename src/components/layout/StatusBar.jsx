@@ -30,9 +30,9 @@ export const StatusBar = ({
               onClick={() => setExibirCruzamentos(!exibirCruzamentos)}
               className="text-[10.5px] px-2 py-0.5 rounded font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0"
               style={{
-                background: exibirCruzamentos ? "rgba(214, 69, 69, 0.12)" : T.raised,
+                background: exibirCruzamentos ? "rgba(198, 40, 40, 0.12)" : T.raised,
                 color: exibirCruzamentos ? ERRO : T.muted,
-                border: `1px solid ${exibirCruzamentos ? "rgba(214, 69, 69, 0.35)" : T.line}`,
+                border: `1px solid ${exibirCruzamentos ? "rgba(198, 40, 40, 0.35)" : T.line}`,
               }}
               title={exibirCruzamentos ? "Clique para ocultar os apontamentos no gráfico" : "Clique para exibir os apontamentos no gráfico"}
             >

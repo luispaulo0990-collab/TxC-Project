@@ -42,11 +42,11 @@ export const ModalImportMenu = ({ T, torreNome, onClose, onSelectTipo, onBaixarM
           <button
             key={k}
             onClick={() => onSelectTipo(k)}
-            className="w-full text-left p-3.5 rounded-sm flex items-start gap-3 transition-all hover:brightness-95 border"
+            className="w-full text-left p-3.5 rounded-lg flex items-start gap-3 transition-all hover:brightness-95 border"
             style={{ border: `1px solid ${T.line}`, background: T.raised }}
           >
             <div
-              className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0"
+              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
               style={{ background: `${cor}15`, color: cor }}
             >
               <Ic size={18} />
@@ -72,7 +72,7 @@ export const ModalImportMenu = ({ T, torreNome, onClose, onSelectTipo, onBaixarM
       </div>
 
       {onBaixarModelo && (
-        <div className="p-3 rounded-sm flex items-center justify-between gap-2 border" style={{ background: T.panel, borderColor: T.line }}>
+        <div className="p-3 rounded-lg flex items-center justify-between gap-2 border" style={{ background: T.panel, borderColor: T.line }}>
           <div className="flex items-center gap-2">
             <FileSpreadsheet size={16} style={{ color: ORANGE }} />
             <span className="text-xs" style={{ color: T.text }}>Precisa do modelo padrão?</span>

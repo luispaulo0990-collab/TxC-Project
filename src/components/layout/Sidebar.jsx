@@ -128,7 +128,7 @@ export const Sidebar = ({
           {!podeEditar && (
             <div
               className="mx-2.5 mt-2.5 py-1 px-2 rounded-md text-[10.5px] font-bold text-center uppercase tracking-wider"
-              style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981", border: "1px solid rgba(16, 185, 129, 0.25)" }}
+              style={{ background: "rgba(30, 138, 76, 0.12)", color: "#1E8A4C", border: "1px solid rgba(30, 138, 76, 0.25)" }}
             >
               Modo Visualizador (Somente Leitura)
             </div>

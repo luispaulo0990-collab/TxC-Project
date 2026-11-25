@@ -1,23 +1,58 @@
-import React, { useState } from "react";
-import { Layers, Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, X, ChevronDown } from "lucide-react";
 import { loginComEmail, obterPerfilUsuario } from "../../utils/supabaseClient";
-import { ORANGE, BLACK, FONT, NUM } from "../../constants/theme";
+import { obterConfigLogin, iniciarLoginMicrosoft } from "../../utils/authMicrosoft";
+import {
+  ORANGE, ORANGE_HOVER, INK, FONT, FONT_DISPLAY, THEME, RADIUS, SHADOW, OVERLAY, STATUS,
+} from "../../constants/theme";
+import { LogoUnita } from "../common/LogoUnita";
 
-export function AuthScreen({ onLoginSuccess, tema = "escuro", onClose }) {
+/* Logo Microsoft (4 quadrados) */
+const MicrosoftIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 21 21" aria-hidden="true">
+    <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+    <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+    <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+    <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+  </svg>
+);
+
+export function AuthScreen({ onLoginSuccess, tema = "escuro", onClose, erroInicial = "" }) {
+  const [config, setConfig] = useState(null);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [erro, setErro] = useState("");
+  const [redirecionando, setRedirecionando] = useState(false);
+  const [erro, setErro] = useState(erroInicial || "");
 
   const isModal = typeof onClose === "function";
-  const isDark = tema === "escuro";
-  const bg = isDark ? "#0E100D" : "#ECEDEB";
-  const cardBg = isDark ? "#171916" : "#FFFFFF";
-  const border = isDark ? "#282A25" : "#E2E2DF";
-  const textColor = isDark ? "#ECEDEB" : BLACK;
-  const mutedColor = isDark ? "#9DA098" : "#6A6E69";
-  const inputBg = isDark ? "#121411" : "#F7F7F6";
+  const T = THEME[tema] || THEME.claro;
+
+  useEffect(() => {
+    let vivo = true;
+    obterConfigLogin().then((c) => {
+      if (!vivo) return;
+      setConfig(c);
+      // modo dev sem Entra configurado: abre direto o formulário de e-mail/senha
+      if (c.devLogin && !c.entraConfigured) setMostrarSenha(true);
+    });
+    return () => { vivo = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!isModal) return;
+    const esc = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [isModal, onClose]);
+
+  const entrarComMicrosoft = () => {
+    setErro("");
+    setRedirecionando(true);
+    iniciarLoginMicrosoft();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -61,324 +96,227 @@ export function AuthScreen({ onLoginSuccess, tema = "escuro", onClose }) {
     }
   };
 
+  const carregando = config === null;
+  const microsoftDisponivel = !!config?.entraConfigured;
+  const senhaDisponivel = !!config?.devLogin;
+
+  const inputStyle = {
+    width: "100%", height: 42, borderRadius: RADIUS.control,
+    border: `1px solid ${T.line}`, background: T.input, color: T.text,
+    padding: "0 40px", fontSize: 15, fontFamily: FONT, outline: "none",
+    transition: "border-color .15s, box-shadow .15s",
+  };
+
   return (
     <div
       onClick={isModal ? onClose : undefined}
       style={{
         position: isModal ? "fixed" : "relative",
-        top: isModal ? 0 : undefined,
-        left: isModal ? 0 : undefined,
-        right: isModal ? 0 : undefined,
-        bottom: isModal ? 0 : undefined,
+        inset: isModal ? 0 : undefined,
         zIndex: isModal ? 9999 : undefined,
-        minHeight: isModal ? undefined : "100vh",
-        height: isModal ? "100vh" : undefined,
-        width: isModal ? "100vw" : undefined,
-        background: isModal ? "rgba(0, 0, 0, 0.72)" : bg,
-        backdropFilter: isModal ? "blur(8px)" : undefined,
+        minHeight: "100vh",
+        background: isModal ? OVERLAY : T.bg,
+        backdropFilter: isModal ? "blur(4px)" : undefined,
         fontFamily: FONT,
-        color: textColor,
+        color: T.text,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: "24px",
+        padding: 24,
       }}
     >
-      {/* Container Principal */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
           maxWidth: 420,
-          background: cardBg,
-          border: `1px solid ${border}`,
-          borderRadius: 16,
-          padding: "36px 32px",
-          boxShadow: isDark
-            ? "0 24px 48px -12px rgba(0,0,0,0.8), 0 4px 16px rgba(0,0,0,0.5)"
-            : "0 20px 40px -12px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.05)",
+          background: T.panel,
+          border: `1px solid ${T.lineSoft}`,
+          borderRadius: RADIUS.card,
+          boxShadow: SHADOW.overlay,
+          overflow: "hidden",
           position: "relative",
         }}
       >
-        {isModal && (
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              position: "absolute",
-              top: 14,
-              right: 14,
-              background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-              border: `1px solid ${border}`,
-              color: mutedColor,
-              cursor: "pointer",
-              padding: 6,
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = textColor;
-              e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = mutedColor;
-              e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)";
-            }}
-            title="Fechar (continuar como visualizador)"
-          >
-            <X size={18} />
-          </button>
-        )}
-
-        {/* Cabeçalho do Card */}
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: ORANGE,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              marginBottom: 16,
-              boxShadow: "0 8px 20px rgba(254,80,0,0.3)",
-            }}
-          >
-            <Layers size={26} />
-          </div>
-
-          <h1
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              letterSpacing: 0.5,
-              margin: "0 0 6px 0",
-              color: textColor,
-            }}
-          >
-            TEMPO × CAMINHO
-          </h1>
-          <p style={{ margin: 0, fontSize: 13, color: mutedColor }}>
-            Linha de Balanço & Planejamento de Obras
-          </p>
+        {/* Faixa da marca */}
+        <div style={{
+          background: INK, borderBottom: `2px solid ${ORANGE}`,
+          padding: "18px 22px", display: "flex", alignItems: "center", gap: 12,
+          position: "relative", overflow: "hidden",
+        }}>
+          <img
+            src="/brand/pattern-un.png" alt="" aria-hidden="true"
+            style={{ position: "absolute", left: 0, bottom: -6, width: "220%", maxWidth: "none", opacity: 0.07, pointerEvents: "none" }}
+          />
+          <LogoUnita ink="#fff" height={28} />
+          <span style={{ width: 1, height: 22, background: "rgb(255 255 255 / 0.16)" }} />
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 14.5 }}>Tempo × Caminho</span>
+          {isModal && (
+            <button
+              type="button"
+              onClick={onClose}
+              title="Fechar (continuar como visualizador)"
+              style={{
+                marginLeft: "auto", position: "relative",
+                background: "transparent", border: "none", color: "#C9C4C0",
+                cursor: "pointer", padding: 6, borderRadius: 8, lineHeight: 0,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgb(255 255 255 / 0.1)"; e.currentTarget.style.color = "#fff"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#C9C4C0"; }}
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
 
-        {/* Mensagem de Erro */}
-        {erro && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "12px 14px",
-              borderRadius: 8,
-              background: "rgba(214, 69, 69, 0.12)",
-              border: "1px solid rgba(214, 69, 69, 0.3)",
-              color: "#E57373",
-              fontSize: 13,
-              marginBottom: 20,
-            }}
-          >
-            <AlertCircle size={17} style={{ flexShrink: 0 }} />
-            <span>{erro}</span>
+        <div style={{ padding: "26px 26px 22px" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: ORANGE }}>
+            Acesso
           </div>
-        )}
+          <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 600, margin: "4px 0 4px", letterSpacing: "-0.01em" }}>
+            Entrar no sistema
+          </h1>
+          <p style={{ margin: 0, fontSize: 14, color: T.muted }}>
+            Use a sua conta corporativa Microsoft 365 da Unità.
+          </p>
 
-        {/* Formulário de Login */}
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Campo Email */}
-          <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 11.5,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                color: mutedColor,
-                marginBottom: 6,
-                textTransform: "uppercase",
-              }}
-            >
-              Email
-            </label>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                background: inputBg,
-                border: `1px solid ${border}`,
-                borderRadius: 8,
-                padding: "0 12px",
-                transition: "border-color 0.15s ease",
-              }}
-            >
-              <Mail size={16} color={mutedColor} style={{ marginRight: 10, flexShrink: 0 }} />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu.email@empresa.com"
-                disabled={loading}
-                autoFocus
-                style={{
-                  width: "100%",
-                  height: 42,
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  fontSize: 14,
-                  color: textColor,
-                  fontFamily: FONT,
-                }}
-              />
+          {erro && (
+            <div style={{
+              marginTop: 18, display: "flex", alignItems: "flex-start", gap: 8,
+              background: STATUS.errorSoft, color: STATUS.error,
+              borderRadius: RADIUS.control, padding: "10px 12px", fontSize: 13.5,
+            }}>
+              <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>{erro}</span>
             </div>
-          </div>
+          )}
 
-          {/* Campo Senha */}
-          <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 11.5,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                color: mutedColor,
-                marginBottom: 6,
-                textTransform: "uppercase",
-              }}
-            >
-              Senha
-            </label>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                background: inputBg,
-                border: `1px solid ${border}`,
-                borderRadius: 8,
-                padding: "0 12px",
-                transition: "border-color 0.15s ease",
-              }}
-            >
-              <Lock size={16} color={mutedColor} style={{ marginRight: 10, flexShrink: 0 }} />
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  height: 42,
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  fontSize: 14,
-                  color: textColor,
-                  fontFamily: FONT,
-                }}
-              />
+          {/* Botão Microsoft */}
+          <button
+            type="button"
+            onClick={entrarComMicrosoft}
+            disabled={carregando || !microsoftDisponivel || redirecionando}
+            style={{
+              marginTop: 20, width: "100%", height: 44,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+              borderRadius: RADIUS.control, border: "1px solid transparent",
+              background: ORANGE, color: "#fff",
+              fontSize: 15.5, fontWeight: 500, fontFamily: FONT,
+              cursor: carregando || !microsoftDisponivel || redirecionando ? "not-allowed" : "pointer",
+              opacity: carregando || !microsoftDisponivel ? 0.55 : 1,
+              boxShadow: "0 2px 8px rgb(254 80 0 / 0.2)",
+              transition: "background .15s",
+            }}
+            onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = ORANGE_HOVER; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = ORANGE; }}
+          >
+            {redirecionando || carregando ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <span style={{ background: "#fff", borderRadius: 4, padding: 3, lineHeight: 0 }}>
+                <MicrosoftIcon size={14} />
+              </span>
+            )}
+            <span>{redirecionando ? "Abrindo a Microsoft…" : "Entrar com Microsoft"}</span>
+          </button>
+
+          {!carregando && !microsoftDisponivel && (
+            <p style={{ margin: "8px 0 0", fontSize: 12.5, color: T.muted, textAlign: "center" }}>
+              {config?.offline
+                ? "Servidor de login indisponível no momento."
+                : "Login Microsoft ainda não configurado neste ambiente."}
+            </p>
+          )}
+
+          {/* E-mail e senha: apenas em modo desenvolvimento */}
+          {senhaDisponivel && (
+            <div style={{ marginTop: 18, borderTop: `1px solid ${T.lineSoft}`, paddingTop: 14 }}>
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setMostrarSenha((v) => !v)}
                 style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 4,
-                  color: mutedColor,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                  background: "transparent", border: "none", cursor: "pointer",
+                  color: T.muted, fontSize: 13.5, fontFamily: FONT, padding: "2px 0",
                 }}
-                title={showPassword ? "Ocultar senha" : "Ver senha"}
               >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                <span>Entrar com e-mail e senha <span style={{ color: STATUS.warning }}>(modo desenvolvimento)</span></span>
+                <ChevronDown size={15} style={{ transform: mostrarSenha ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
               </button>
+
+              {mostrarSenha && (
+                <form onSubmit={handleSubmit} style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: T.muted }}>E-mail</span>
+                    <span style={{ position: "relative" }}>
+                      <Mail size={16} color={T.dim} style={{ position: "absolute", left: 13, top: 13 }} />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="seu.email@unita.com.br"
+                        autoComplete="email"
+                        style={inputStyle}
+                      />
+                    </span>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: T.muted }}>Senha</span>
+                    <span style={{ position: "relative" }}>
+                      <Lock size={16} color={T.dim} style={{ position: "absolute", left: 13, top: 13 }} />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete="current-password"
+                        style={inputStyle}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                        style={{ position: "absolute", right: 8, top: 8, background: "transparent", border: "none", cursor: "pointer", color: T.muted, padding: 4, lineHeight: 0 }}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </span>
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      height: 42, borderRadius: RADIUS.control,
+                      border: `1px solid ${T.line}`, background: T.panel, color: T.text,
+                      fontSize: 15, fontWeight: 500, fontFamily: FONT,
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1,
+                    }}
+                  >
+                    {loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+                    <span>{loading ? "Entrando..." : "Entrar no Sistema"}</span>
+                  </button>
+                </form>
+              )}
             </div>
+          )}
+
+          <div style={{ marginTop: 18, textAlign: "center", fontSize: 12.5, color: T.muted }}>
+            Acesso restrito a usuários liberados no app.
           </div>
 
-          {/* Botão Entrar */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              marginTop: 10,
-              height: 44,
-              borderRadius: 8,
-              background: ORANGE,
-              color: "#fff",
-              border: "none",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: loading ? "not-allowed" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              transition: "all 0.18s ease",
-              opacity: loading ? 0.8 : 1,
-              boxShadow: "0 4px 14px rgba(254,80,0,0.35)",
-            }}
-          >
-            {loading ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                <span>Entrando...</span>
-              </>
-            ) : (
-              <>
-                <span>Entrar no Sistema</span>
-                <ArrowRight size={16} />
-              </>
-            )}
-          </button>
-        </form>
-
-        {/* Rodapé do Card */}
-        <div
-          style={{
-            marginTop: 24,
-            paddingTop: 16,
-            borderTop: `1px solid ${border}`,
-            textAlign: "center",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            alignItems: "center",
-          }}
-        >
-          <span style={{ fontSize: 11.5, color: mutedColor }}>
-            🔒 Acesso restrito para usuários autorizados
-          </span>
           {isModal && (
             <button
               type="button"
               onClick={onClose}
               style={{
-                background: "transparent",
-                border: "none",
-                color: ORANGE,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-                padding: "4px 8px",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                textDecoration: "underline",
-                textUnderlineOffset: 3,
+                marginTop: 10, width: "100%", height: 38, borderRadius: RADIUS.control,
+                background: "transparent", border: "none", color: T.text,
+                fontSize: 14, fontWeight: 500, fontFamily: FONT, cursor: "pointer",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.15)")}
-              onMouseLeave={(e) => (e.currentTarget.style.filter = "none")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = T.hover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               Continuar navegando como visualizador
             </button>
@@ -386,9 +324,8 @@ export function AuthScreen({ onLoginSuccess, tema = "escuro", onClose }) {
         </div>
       </div>
 
-      {/* Versão no Rodapé da Página */}
-      <div style={{ marginTop: 24, fontSize: 11, color: mutedColor }}>
-        Tempo × Caminho · Supabase Auth
+      <div style={{ marginTop: 16, fontSize: 12, color: isModal ? "#E2DFDC" : T.muted }}>
+        Tempo × Caminho · Unità Engenharia
       </div>
     </div>
   );

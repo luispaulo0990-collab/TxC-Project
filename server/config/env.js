@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 
-dotenv.config();
+// .env.local (segredos locais) tem prioridade sobre .env
+dotenv.config({ path: ['.env.local', '.env'], quiet: true });
 
 const requiredEnv = [
   'SUPABASE_URL',

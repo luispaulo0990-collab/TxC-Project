@@ -10,7 +10,7 @@ export const ModalExport = ({ T, nomePadrao, onClose, onOk }) => {
   return (
     <Modal T={T} titulo="Exportar Empreendimento" onClose={onClose}>
       <Campo T={T} label="Nome do arquivo base">
-        <div className="flex items-center rounded-sm" style={{ border: `1px solid ${T.line}`, background: T.input }}>
+        <div className="flex items-center rounded-lg" style={{ border: `1px solid ${T.line}`, background: T.input }}>
           <input
             value={nome}
             onChange={(e) => setNome(e.target.value)}
@@ -33,7 +33,7 @@ export const ModalExport = ({ T, nomePadrao, onClose, onOk }) => {
             onOk("xlsx", nome);
             onClose();
           }}
-          className="p-3.5 rounded-sm flex flex-col items-start gap-2 transition-all hover:brightness-95 text-left border"
+          className="p-3.5 rounded-lg flex flex-col items-start gap-2 transition-all hover:brightness-95 text-left border"
           style={{
             background: T.raised,
             borderColor: T.line,
@@ -61,7 +61,7 @@ export const ModalExport = ({ T, nomePadrao, onClose, onOk }) => {
             onOk("png", nome);
             onClose();
           }}
-          className="p-3.5 rounded-sm flex flex-col items-start gap-2 transition-all hover:brightness-105 text-left border"
+          className="p-3.5 rounded-lg flex flex-col items-start gap-2 transition-all hover:brightness-105 text-left border"
           style={{
             background: ORANGE,
             borderColor: ORANGE,

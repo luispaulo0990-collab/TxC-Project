@@ -585,8 +585,8 @@ export const HistogramaView = ({
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-md"
               style={{
-                background: "linear-gradient(135deg, #FE5000 0%, #FF7839 100%)",
-                boxShadow: "0 4px 14px rgba(254, 80, 0, 0.28)",
+                background: "#FE5000",
+                boxShadow: "0 4px 14px rgb(254 80 0 / 0.2)",
               }}
             >
               <Users size={22} />
@@ -615,7 +615,7 @@ export const HistogramaView = ({
                 onClick={() => onAbrirModalApontar()}
                 className="text-xs px-3.5 py-2 rounded-xl font-bold text-white flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 style={{
-                  background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
+                  background: "#FE5000",
                 }}
               >
                 <Plus size={14} /> Registrar Apontamento
@@ -1476,8 +1476,8 @@ export const HistogramaView = ({
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-md relative"
               style={{
-                background: "linear-gradient(135deg, rgba(254, 80, 0, 0.15) 0%, rgba(254, 80, 0, 0.05) 100%)",
-                border: "1px solid rgba(254, 80, 0, 0.3)",
+                background: "rgb(254 80 0 / 0.1)",
+                border: "1px solid rgb(254 80 0 / 0.2)",
               }}
             >
               <Construction size={32} style={{ color: "#FE5000" }} />
@@ -1507,8 +1507,8 @@ export const HistogramaView = ({
                 onClick={onVoltarAoGrafico}
                 className="mt-2 w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white flex items-center justify-center gap-2 transition-all shadow-md hover:brightness-110 active:scale-[0.99] cursor-pointer"
                 style={{
-                  background: "linear-gradient(135deg, #FE5000 0%, #E04600 100%)",
-                  boxShadow: "0 4px 14px rgba(254, 80, 0, 0.28)",
+                  background: "#FE5000",
+                  boxShadow: "0 4px 14px rgb(254 80 0 / 0.2)",
                 }}
               >
                 Voltar ao Gráfico TxC
