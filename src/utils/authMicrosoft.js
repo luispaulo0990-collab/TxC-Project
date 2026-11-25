@@ -3,8 +3,9 @@
 // aqui só iniciamos o login e recebemos a sessão Supabase criada por ele.
 import { supabasePublic, obterPerfilUsuario } from "./supabaseClient";
 
-const API_BASE_URL = import.meta.env?.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, "") : "";
-const apiUrl = (path) => `${API_BASE_URL}${path}`;
+// O login roda SEMPRE no mesmo endereço do app (não usa VITE_API_URL): a redirect URI
+// cadastrada no Entra e os cookies temporários do login pertencem a esse endereço.
+const apiUrl = (path) => path;
 
 /** { mode: 'entra'|'dev', entraConfigured, devLogin } — com fallback se o servidor não responder. */
 export async function obterConfigLogin() {
