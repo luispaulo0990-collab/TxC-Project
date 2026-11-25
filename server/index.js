@@ -50,6 +50,7 @@ app.use(
  rateLimit({
    windowMs: 15 * 60 * 1000,
    max: 200,
+    skip: (req) => req.path === '/api/auth/microsoft/concluir',
    standardHeaders: true,
    legacyHeaders: false,
  })

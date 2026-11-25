@@ -7,6 +7,7 @@ import { supabaseAdmin } from '../../src/utils/supabaseClient.js';
 import {
   authMode, entraConfigured, devLoginAllowed, appUrl,
   entraAuthorizeUrl, entraCallback, createSupabaseSession,
+  pedidoValido, pedidoDoState, guardarPedido, resgatarPedido,
 } from '../auth/entra.js';
 import { sealData, openData, readCookie, setCookie, clearCookie } from '../auth/security.js';
 
@@ -16,8 +17,11 @@ const router = Router();
 const STATE_COOKIE = 'txc_entra_state';
 const HANDOFF_COOKIE = 'txc_entra_handoff';
 const cookieOpts = () => ({ path: '/api/auth', secure: appUrl().startsWith('https://') });
-const voltarComErro = (res, msg) =>
-  res.redirect(302, `${appUrl()}/?login_erro=${encodeURIComponent(String(msg || 'Falha no login.').slice(0, 200))}`);
+const voltarComErro = (res, msg, popup = false) =>
+  res.redirect(
+    302,
+    `${appUrl()}/?${popup ? 'login-microsoft=fim&' : ''}login_erro=${encodeURIComponent(String(msg || 'Falha no login.').slice(0, 200))}`
+  );
 
 // GET /api/auth/config - o que a tela de login deve mostrar
 router.get('/config', (_req, res) => {
@@ -25,14 +29,16 @@ router.get('/config', (_req, res) => {
   res.json({ mode: authMode(), entraConfigured: entraConfigured(), devLogin: devLoginAllowed() });
 });
 
-// GET /api/auth/microsoft/login - 1ª etapa: redireciona para a Microsoft
-router.get('/microsoft/login', (_req, res) => {
+// GET /api/auth/microsoft/login[?pedido=<hash>] - 1ª etapa: redireciona para a Microsoft
+// (com `pedido`, o login está rodando no pop-up aberto pelo app dentro do iframe do portal)
+router.get('/microsoft/login', (req, res) => {
+  const pedido = pedidoValido(req.query.pedido) ? String(req.query.pedido) : null;
   try {
-    const { url, state } = entraAuthorizeUrl();
+    const { url, state } = entraAuthorizeUrl(pedido);
     setCookie(res, STATE_COOKIE, state, { ...cookieOpts(), maxAge: 600 });
     res.redirect(302, url);
   } catch (err) {
-    voltarComErro(res, err.message);
+    voltarComErro(res, err.message, !!pedido);
   }
 });
 
@@ -41,12 +47,19 @@ router.get('/microsoft/callback', async (req, res) => {
   const { code, state, error, error_description: errorDescription } = req.query;
   const cookieState = readCookie(req, STATE_COOKIE);
   clearCookie(res, STATE_COOKIE, cookieOpts());
+  const pedido = pedidoDoState(state);
+
+  // No pop-up do portal o resultado (sucesso ou erro) fica guardado para o iframe resgatar
+  const falhar = async (msg) => {
+    if (pedido) await guardarPedido(pedido, { erro: msg }).catch(() => null);
+    return voltarComErro(res, msg, !!pedido);
+  };
 
   if (error) {
     const cancelado = error === 'access_denied';
-    return voltarComErro(res, cancelado ? 'Login cancelado.' : `A Microsoft recusou o login. ${String(errorDescription || '').split('\r\n')[0]}`);
+    return falhar(cancelado ? 'Login cancelado.' : `A Microsoft recusou o login. ${String(errorDescription || '').split('\r\n')[0]}`);
   }
-  if (!code || !state) return voltarComErro(res, 'Retorno de login inválido. Tente de novo.');
+  if (!code || !state) return falhar('Retorno de login inválido. Tente de novo.');
 
   try {
     if (!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY)) {
@@ -54,12 +67,30 @@ router.get('/microsoft/callback', async (req, res) => {
     }
     const userId = await entraCallback(String(code), String(state), cookieState);
     const tokens = await createSupabaseSession(userId);
+    if (pedido) {
+      await guardarPedido(pedido, { tokens });
+      return res.redirect(302, `${appUrl()}/?login-microsoft=fim`);
+    }
     // Os tokens vão cifrados num cookie httpOnly de 2 min e o app os busca uma única vez (nunca pela URL)
     setCookie(res, HANDOFF_COOKIE, sealData(tokens, 120), { ...cookieOpts(), maxAge: 120 });
     return res.redirect(302, `${appUrl()}/?login=microsoft`);
   } catch (err) {
     console.warn('Login Microsoft falhou:', err.message);
-    return voltarComErro(res, err.message);
+    return falhar(err.message);
+  }
+});
+
+// POST /api/auth/microsoft/concluir { verificador } - iframe do portal resgata o resultado do pop-up
+router.post('/microsoft/concluir', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const r = await resgatarPedido(req.body?.verificador);
+    if (r.pendente) return res.json({ pendente: true });
+    if (r.erro) return res.status(401).json({ error: r.erro });
+    return res.json(r.tokens);
+  } catch (err) {
+    console.warn('Resgate do login falhou:', err.message);
+    return res.status(500).json({ error: 'Não foi possível concluir o login. Tente de novo.' });
   }
 });
 
