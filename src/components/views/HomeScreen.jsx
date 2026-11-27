@@ -89,7 +89,7 @@ function MenuMoverPasta({ T, pastas, pastaAtualId, onEscolher, onFechar }) {
     return () => { document.removeEventListener("mousedown", fora); document.removeEventListener("keydown", esc); };
   }, [onFechar]);
 
-  const item = (id, label, icon) => {
+  const item = (id, label, icon, nivel = 0) => {
     const atual = (pastaAtualId || null) === (id || null);
     return (
       <button
@@ -98,7 +98,7 @@ function MenuMoverPasta({ T, pastas, pastaAtualId, onEscolher, onFechar }) {
         onClick={(e) => { e.stopPropagation(); onEscolher(id); }}
         style={{
           width: "100%", display: "flex", alignItems: "center", gap: 8,
-          padding: "7px 10px", borderRadius: 8, border: "none",
+          padding: `7px 10px 7px ${10 + nivel * 14}px`, borderRadius: 8, border: "none",
           background: "transparent", color: atual ? T.dim : T.text,
           fontSize: 13.5, fontFamily: FONT, textAlign: "left",
           cursor: atual ? "default" : "pointer",
@@ -119,14 +119,15 @@ function MenuMoverPasta({ T, pastas, pastaAtualId, onEscolher, onFechar }) {
       onClick={(e) => e.stopPropagation()}
       style={{
         position: "absolute", right: 0, bottom: "calc(100% + 6px)", zIndex: 40,
-        width: 230, maxHeight: 280, overflowY: "auto",
+        width: 250, maxHeight: 280, overflowY: "auto",
         background: T.panel, border: `1px solid ${T.line}`, borderRadius: 12,
         boxShadow: SHADOW.overlay, padding: 6,
       }}
     >
       <div style={{ fontSize: 12, color: T.muted, padding: "4px 10px 6px" }}>Mover para</div>
       {item(null, "Suas Obras (sem pasta)", <Home size={14} color={T.muted} />)}
-      {pastas.map((p) => item(p.id, p.nome, <Folder size={14} color={ORANGE} />))}
+      {/* pastas: [{ pasta, nivel }] em ordem de árvore (subpastas recuadas) */}
+      {pastas.map(({ pasta, nivel }) => item(pasta.id, pasta.nome, <Folder size={14} color={ORANGE} />, nivel))}
       {pastas.length === 0 && (
         <div style={{ fontSize: 12.5, color: T.dim, padding: "6px 10px" }}>Nenhuma pasta criada ainda.</div>
       )}
@@ -339,7 +340,7 @@ function AcaoBtn({ T, danger = false, children, onClick, title }) {
 }
 
 /* ─── Card de Pasta ─────────────────────────────────────────── */
-function PastaCard({ pasta, qtd, T, onAbrir, podeMover, onSoltarObra }) {
+function PastaCard({ pasta, qtd, qtdSub = 0, T, onAbrir, podeMover, onSoltarObra }) {
   const [hovered, setHovered] = useState(false);
   const [alvo, setAlvo] = useState(false);
   return (
@@ -385,6 +386,7 @@ function PastaCard({ pasta, qtd, T, onAbrir, podeMover, onSoltarObra }) {
         </div>
         <div style={{ fontSize: 12.5, color: T.muted, fontVariantNumeric: "tabular-nums" }}>
           {qtd} {qtd === 1 ? "obra" : "obras"}
+          {qtdSub > 0 && ` · ${qtdSub} ${qtdSub === 1 ? "subpasta" : "subpastas"}`}
         </div>
       </div>
       <ChevronRight size={16} color={T.muted} style={{ opacity: hovered ? 1 : 0.4, transition: "opacity .15s" }} />
@@ -433,7 +435,7 @@ function NovaObraCard({ onClick, T }) {
 }
 
 /* ─── Modal de pasta (criar / renomear) ─────────────────────── */
-function ModalPasta({ T, modo, nomeInicial = "", sugestoes = [], onSalvar, onFechar }) {
+function ModalPasta({ T, modo, nomeInicial = "", sugestoes = [], pastaMaeNome = null, onSalvar, onFechar }) {
   const [nome, setNome] = useState(nomeInicial);
   const [moverIncorp, setMoverIncorp] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -471,13 +473,19 @@ function ModalPasta({ T, modo, nomeInicial = "", sugestoes = [], onSalvar, onFec
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, margin: 0 }}>
-            {modo === "criar" ? "Nova pasta" : "Renomear pasta"}
+            {modo === "criar" ? (pastaMaeNome ? "Nova subpasta" : "Nova pasta") : "Renomear pasta"}
           </h2>
           <button onClick={onFechar} style={{ border: "none", background: "transparent", color: T.muted, cursor: "pointer", lineHeight: 0, padding: 6, borderRadius: 8 }}>
             <X size={16} />
           </button>
         </div>
 
+        {modo === "criar" && pastaMaeNome && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, color: T.muted, marginBottom: 12 }}>
+            <Folder size={14} color={ORANGE} />
+            Dentro de <strong style={{ color: T.text, fontWeight: 500 }}>{pastaMaeNome}</strong>
+          </div>
+        )}
         <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: T.muted, marginBottom: 6 }}>
           Nome da pasta
         </label>
@@ -575,6 +583,43 @@ export function HomeScreen({
   };
   const pastaAtual = listaPastas.find((p) => p.id === pastaAtualId) || null;
 
+  // Hierarquia: parent_id ausente/inválido = pasta na raiz
+  const paiDe = (p) => (p?.parent_id && p.parent_id !== p.id && idsPastas.has(p.parent_id) ? p.parent_id : null);
+  const subpastasDe = (pid) => listaPastas.filter((p) => paiDe(p) === (pid || null));
+  const subpastasNivel = subpastasDe(pastaAtualId);
+
+  // Caminho da raiz até a pasta aberta (para o breadcrumb)
+  const caminhoAtual = useMemo(() => {
+    const porId = new Map(listaPastas.map((p) => [p.id, p]));
+    const cadeia = [];
+    const vistos = new Set();
+    let p = pastaAtual;
+    while (p && !vistos.has(p.id)) {
+      vistos.add(p.id);
+      cadeia.unshift(p);
+      p = porId.get(paiDe(p));
+    }
+    return cadeia;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listaPastas, pastaAtual]);
+
+  // Todas as pastas em ordem de árvore, com nível (para o menu "Mover para")
+  const pastasEmArvore = useMemo(() => {
+    const saida = [];
+    const vistos = new Set();
+    const visitar = (pid, nivel) => {
+      listaPastas.filter((p) => paiDe(p) === pid).forEach((p) => {
+        if (vistos.has(p.id)) return;
+        vistos.add(p.id);
+        saida.push({ pasta: p, nivel });
+        visitar(p.id, nivel + 1);
+      });
+    };
+    visitar(null, 0);
+    return saida;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listaPastas]);
+
   // Se a pasta aberta deixou de existir, volta para a raiz
   useEffect(() => {
     if (pastaAtualId && !pastaAtual) setPastaAtualId(null);
@@ -600,7 +645,7 @@ export function HomeScreen({
   const noNivel = (lista) => lista.filter((o) => pastaDe(o.id) === (pastaAtualId || null)).length;
 
   const temObras = obrasExibidas.length > 0;
-  const mostrarPastas = !pastaAtualId && listaPastas.length > 0;
+  const mostrarPastas = subpastasNivel.length > 0;
 
   // Sugestões: incorporadores das obras ainda sem pasta
   const sugestoes = useMemo(() => {
@@ -704,33 +749,45 @@ export function HomeScreen({
       }}>
         {/* Navegação de pastas (breadcrumb) */}
         {pastaAtual && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 13.5 }}>
-            <button
-              onClick={() => setPastaAtualId(null)}
-              onDragOver={(e) => {
-                if (!podeMover || !e.dataTransfer.types.includes("text/obra-id")) return;
-                e.preventDefault();
-                setAlvoRaiz(true);
-              }}
-              onDragLeave={() => setAlvoRaiz(false)}
-              onDrop={(e) => {
-                setAlvoRaiz(false);
-                const id = e.dataTransfer.getData("text/obra-id");
-                if (id) { e.preventDefault(); onMoverObras([id], null); }
-              }}
-              title={podeMover ? "Voltar · solte uma obra aqui para tirá-la da pasta" : "Voltar para Suas Obras"}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                border: alvoRaiz ? `1px dashed ${ORANGE}` : "1px solid transparent",
-                background: alvoRaiz ? T.primarySoft : "transparent",
-                color: T.muted, cursor: "pointer", padding: "3px 8px", borderRadius: 8,
-                fontFamily: FONT, fontSize: 13.5,
-              }}
-            >
-              <Home size={14} />
-              Suas Obras
-            </button>
-            <ChevronRight size={14} color={T.dim} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 13.5, flexWrap: "wrap" }}>
+            {[{ id: null, nome: "Suas Obras" }, ...caminhoAtual.slice(0, -1)].map((p) => {
+              const alvo = alvoRaiz === (p.id || "raiz");
+              return (
+                <React.Fragment key={p.id || "raiz"}>
+                  <button
+                    onClick={() => setPastaAtualId(p.id)}
+                    onDragOver={(e) => {
+                      if (!podeMover || !e.dataTransfer.types.includes("text/obra-id")) return;
+                      e.preventDefault();
+                      setAlvoRaiz(p.id || "raiz");
+                    }}
+                    onDragLeave={() => setAlvoRaiz(false)}
+                    onDrop={(e) => {
+                      setAlvoRaiz(false);
+                      const id = e.dataTransfer.getData("text/obra-id");
+                      if (id) { e.preventDefault(); onMoverObras([id], p.id); }
+                    }}
+                    title={
+                      p.id
+                        ? podeMover ? `Abrir "${p.nome}" · solte uma obra aqui para movê-la` : `Abrir "${p.nome}"`
+                        : podeMover ? "Voltar · solte uma obra aqui para tirá-la da pasta" : "Voltar para Suas Obras"
+                    }
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      border: alvo ? `1px dashed ${ORANGE}` : "1px solid transparent",
+                      background: alvo ? T.primarySoft : "transparent",
+                      color: T.muted, cursor: "pointer", padding: "3px 8px", borderRadius: 8,
+                      fontFamily: FONT, fontSize: 13.5, maxWidth: 220,
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}
+                  >
+                    {p.id ? <Folder size={14} /> : <Home size={14} />}
+                    {p.nome}
+                  </button>
+                  <ChevronRight size={14} color={T.dim} />
+                </React.Fragment>
+              );
+            })}
             <span style={{ color: T.text, fontWeight: 500 }}>{pastaAtual.nome}</span>
           </div>
         )}
@@ -748,17 +805,20 @@ export function HomeScreen({
             <p style={{ fontSize: 14, color: T.muted, margin: "4px 0 0" }}>
               {todasObras.length > 0
                 ? pastaAtual
-                  ? `${noNivel(obrasAtivas)} obras ativas · ${noNivel(obrasArquivadas)} arquivadas nesta pasta`
+                  ? `${noNivel(obrasAtivas)} obras ativas · ${noNivel(obrasArquivadas)} arquivadas nesta pasta${subpastasNivel.length ? ` · ${subpastasNivel.length} ${subpastasNivel.length === 1 ? "subpasta" : "subpastas"}` : ""}`
                   : `${obrasAtivas.length} obras ativas · ${obrasArquivadas.length} arquivadas${listaPastas.length ? ` · ${listaPastas.length} ${listaPastas.length === 1 ? "pasta" : "pastas"}` : ""}`
                 : "Nenhuma obra cadastrada ainda · comece criando sua primeira obra"}
             </p>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {podeMover && !pastaAtual && onCriarPasta && (
-              <Btn T={T} variant="secondary" size="sm" onClick={() => setModalPasta("criar")}>
+            {podeMover && onCriarPasta && (
+              <Btn
+                T={T} variant="secondary" size="sm" onClick={() => setModalPasta("criar")}
+                title={pastaAtual ? `Criar uma pasta dentro de "${pastaAtual.nome}"` : "Criar uma pasta"}
+              >
                 <FolderPlus size={15} />
-                Nova pasta
+                {pastaAtual ? "Nova subpasta" : "Nova pasta"}
               </Btn>
             )}
             {podeMover && pastaAtual && (
@@ -822,16 +882,17 @@ export function HomeScreen({
           </div>
         </div>
 
-        {/* Pastas (somente na raiz) */}
+        {/* Pastas do nível atual (na raiz ou subpastas da pasta aberta) */}
         {mostrarPastas && (
           <section style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: T.muted, marginBottom: 10 }}>Pastas</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: T.muted, marginBottom: 10 }}>{pastaAtual ? "Subpastas" : "Pastas"}</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
-              {listaPastas.map((p) => (
+              {subpastasNivel.map((p) => (
                 <PastaCard
                   key={p.id}
                   pasta={p}
                   qtd={qtdPorPasta(p.id)}
+                  qtdSub={subpastasDe(p.id).length}
                   T={T}
                   podeMover={podeMover}
                   onAbrir={() => setPastaAtualId(p.id)}
@@ -843,7 +904,7 @@ export function HomeScreen({
         )}
 
         {mostrarPastas && (temObras || (podeCriar && filtroAba !== "arquivadas")) && (
-          <div style={{ fontSize: 13, fontWeight: 500, color: T.muted, marginBottom: 10 }}>Obras sem pasta</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: T.muted, marginBottom: 10 }}>{pastaAtual ? "Obras nesta pasta" : "Obras sem pasta"}</div>
         )}
 
         {/* Grid de obras */}
@@ -865,7 +926,7 @@ export function HomeScreen({
               T={T}
               podeExcluir={podeExcluir}
               podeMover={podeMover}
-              pastas={listaPastas}
+              pastas={pastasEmArvore}
               pastaAtualId={pastaDe(obra.id)}
               onMover={(pid) => onMoverObras([obra.id], pid)}
             />
@@ -873,7 +934,7 @@ export function HomeScreen({
         </div>
 
         {/* Estado vazio */}
-        {!temObras && !(mostrarPastas && filtroAba !== "arquivadas" && !podeCriar) && (
+        {!temObras && !(mostrarPastas && filtroAba !== "arquivadas" && (pastaAtual || !podeCriar)) && (
           <div style={{
             marginTop: 24, padding: "22px 24px", borderRadius: RADIUS.card,
             background: T.panel, border: `1px solid ${T.lineSoft}`, boxShadow: T.shadow,
@@ -944,11 +1005,12 @@ export function HomeScreen({
           T={T}
           modo={modalPasta}
           nomeInicial={modalPasta === "renomear" ? pastaAtual?.nome || "" : ""}
-          sugestoes={modalPasta === "criar" ? sugestoes : []}
+          sugestoes={modalPasta === "criar" && !pastaAtual ? sugestoes : []}
+          pastaMaeNome={modalPasta === "criar" ? pastaAtual?.nome || null : null}
           onFechar={() => setModalPasta(null)}
           onSalvar={async (nome, obraIds) => {
             if (modalPasta === "criar") {
-              await onCriarPasta(nome, obraIds);
+              await onCriarPasta(nome, obraIds, pastaAtual?.id || null);
             } else if (pastaAtual) {
               await onRenomearPasta(pastaAtual.id, nome);
             }

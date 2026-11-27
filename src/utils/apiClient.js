@@ -515,10 +515,17 @@ export const apiClient = {
   /* ─── Pastas de obras (tela inicial) ─────────────────────────── */
   async getPastas() {
     try {
-      const [pastasRes, vincRes] = await Promise.all([
-        supabasePublic.from('pastas').select('id, nome, cor, ordem, created_at').order('ordem', { ascending: true }).order('nome', { ascending: true }),
+      const buscarPastas = (campos) => supabasePublic
+        .from('pastas').select(campos)
+        .order('ordem', { ascending: true }).order('nome', { ascending: true });
+      let [pastasRes, vincRes] = await Promise.all([
+        buscarPastas('id, nome, cor, ordem, created_at, parent_id'),
         supabasePublic.from('projeto_pastas').select('projeto_id, pasta_id'),
       ]);
+      if (pastasRes.error) {
+        // migration_pastas_subpastas.sql ainda não aplicada: sem parent_id, tudo fica na raiz
+        pastasRes = await buscarPastas('id, nome, cor, ordem, created_at');
+      }
       if (pastasRes.error) {
         console.warn('getPastas error (migration_pastas_obras.sql aplicada?):', pastasRes.error);
         return { pastas: [], vinculos: {} };
@@ -532,12 +539,15 @@ export const apiClient = {
     }
   },
 
-  async criarPasta(nome, user = null) {
+  /** Cria uma pasta (parentId null = na raiz; senão, subpasta). */
+  async criarPasta(nome, user = null, parentId = null) {
     const u = user || getCurrentUser();
+    const linha = { nome: nome.trim(), criado_por: u?.email || null };
+    if (parentId) linha.parent_id = parentId;
     const { data, error } = await supabasePublic
       .from('pastas')
-      .insert({ nome: nome.trim(), criado_por: u?.email || null })
-      .select('id, nome, cor, ordem, created_at')
+      .insert(linha)
+      .select(parentId ? 'id, nome, cor, ordem, created_at, parent_id' : 'id, nome, cor, ordem, created_at')
       .single();
     if (error) throw error;
     return data;
@@ -549,7 +559,7 @@ export const apiClient = {
   },
 
   async excluirPasta(id) {
-    // as obras voltam para a raiz (vínculos apagados em cascata)
+    // subpastas são apagadas em cascata; as obras voltam para a raiz (vínculos apagados em cascata)
     const { error } = await supabasePublic.from('pastas').delete().eq('id', id);
     if (error) throw error;
   },

@@ -665,13 +665,13 @@ export default function App() {
   };
 
   /* ─── Pastas da tela inicial (Dev e Admin organizam) ─────────── */
-  const criarPasta = async (nome, obraIdsParaMover = []) => {
+  const criarPasta = async (nome, obraIdsParaMover = [], parentId = null) => {
     if (!permissoes.podeOrganizarPastas) {
       flash("Acesso negado: apenas Admin ou Dev podem organizar pastas.");
       return;
     }
     try {
-      const nova = await apiClient.criarPasta(nome, user);
+      const nova = await apiClient.criarPasta(nome, user, parentId);
       if (obraIdsParaMover.length) {
         await apiClient.moverObrasParaPasta(obraIdsParaMover, nova.id);
       }
@@ -683,7 +683,11 @@ export default function App() {
       );
     } catch (err) {
       console.error("Erro ao criar pasta:", err);
-      throw new Error("Não foi possível criar a pasta. Verifique se a migration de pastas foi aplicada.");
+      throw new Error(
+        parentId
+          ? "Não foi possível criar a subpasta. Verifique se a migration de subpastas (migration_pastas_subpastas.sql) foi aplicada."
+          : "Não foi possível criar a pasta. Verifique se a migration de pastas foi aplicada."
+      );
     }
   };
 
@@ -703,9 +707,12 @@ export default function App() {
       flash("Acesso negado: apenas Admin ou Dev podem organizar pastas.");
       return;
     }
+    const temSubpastas = pastas.some((p) => p.parent_id === pasta?.id);
     setModalConfirmacao({
       titulo: "Excluir Pasta",
-      mensagem: "A pasta será removida. As obras que estão nela NÃO serão excluídas: elas voltam para Suas Obras.",
+      mensagem: temSubpastas
+        ? "A pasta e todas as subpastas dela serão removidas. As obras que estão nelas NÃO serão excluídas: elas voltam para Suas Obras."
+        : "A pasta será removida. As obras que estão nela NÃO serão excluídas: elas voltam para Suas Obras.",
       itemNome: pasta?.nome || "Esta Pasta",
       textoBotao: "Sim, Excluir Pasta",
       onConfirmar: async () => {
