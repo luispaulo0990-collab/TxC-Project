@@ -1,0 +1,281 @@
+/*
+ * Tela de login Unità — modelo único para as ferramentas (Identidade Visual v2).
+ * Origem: Cadastro de Fornecedores (layout do Relatório de Aporte, com a marca Unità).
+ *
+ * ISOLADO: tudo fica dentro de .ul-login e as classes começam com "ul-".
+ * Não há reset global, nem regra em html/body, nem variável fora de .ul-login,
+ * então o resto da ferramenta não muda em nada.
+ *
+ * Fontes: Sora (títulos) e Inter (texto). Se a ferramenta já carrega as duas, pode apagar o @import.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap');
+
+.ul-login {
+  /* Marca Unità */
+  --ul-laranja: #fe5000;
+  --ul-laranja-hover: #e04700;
+  --ul-laranja-suave: #fff1ea;
+  --ul-laranja-anel: rgb(254 80 0 / 0.2);
+  --ul-grafite: #231f20;
+  /* Neutros quentes */
+  --ul-texto: #1a1817;
+  --ul-texto-2: #3d3937;
+  --ul-texto-suave: #77716d;
+  --ul-texto-apagado: #a19b96;
+  --ul-borda: #e2dfdc;
+  --ul-superficie: #ffffff;
+  /* Avisos */
+  --ul-erro: #c62828;
+  --ul-erro-suave: #fdecec;
+  --ul-info: #2563a8;
+  --ul-info-suave: #e8f0fa;
+  /* Tipografia e forma */
+  --ul-fonte: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ul-fonte-titulo: 'Sora', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --ul-raio: 10px;
+
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(360px, 1.05fr) 1fr;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  background: var(--ul-superficie);
+  color: var(--ul-texto);
+  font-family: var(--ul-fonte);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-align: left;
+}
+.ul-login *, .ul-login *::before, .ul-login *::after { box-sizing: border-box; }
+.ul-login :where(h1, h2, p, ul) { margin: 0; }
+.ul-login :focus-visible { outline: 2px solid var(--ul-laranja); outline-offset: 2px; }
+
+/* ------------------------------------------------------------ painel da marca (esquerda) */
+.ul-marca {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 56px;
+  padding: 56px 64px;
+  color: #fff;
+  background:
+    radial-gradient(900px 520px at 0% 0%, rgb(255 255 255 / 0.08), transparent 60%),
+    var(--ul-grafite);
+}
+/* Faixa laranja no topo: o único acento do painel */
+.ul-marca::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--ul-laranja);
+}
+/* Padrão "Diversos UN" como textura, a 7% (o manual pede 7–8%) */
+.ul-padrao {
+  position: absolute;
+  left: 0;
+  bottom: -8px;
+  width: 160%;
+  max-width: none;
+  opacity: 0.07;
+  filter: invert(1);
+  pointer-events: none;
+  user-select: none;
+}
+.ul-logo {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: min(300px, 72%);
+  height: auto;
+}
+.ul-marca-texto { position: relative; z-index: 1; max-width: 480px; }
+.ul-marca-texto .ul-sobretitulo { color: rgb(255 255 255 / 0.7); }
+.ul-marca-texto h2 {
+  margin-top: 12px;
+  font-family: var(--ul-fonte-titulo);
+  font-size: clamp(32px, 3.2vw, 44px);
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fff;
+}
+.ul-marca-texto p:not(.ul-sobretitulo) {
+  margin-top: 14px;
+  font-size: 18px;
+  line-height: 1.625;
+  color: rgb(255 255 255 / 0.8);
+}
+
+/* ------------------------------------------------------------ painel de acesso (direita) */
+.ul-acesso {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px 24px;
+  background:
+    radial-gradient(700px 420px at 100% 100%, var(--ul-laranja-suave), transparent 70%),
+    var(--ul-superficie);
+}
+.ul-cartao { width: 100%; max-width: 380px; margin: auto 0; animation: ul-aparecer 0.25s ease-out; }
+.ul-sobretitulo {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.ul-cartao .ul-sobretitulo { color: var(--ul-laranja); }
+.ul-cartao h1 {
+  margin-top: 10px;
+  font-family: var(--ul-fonte-titulo);
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--ul-texto);
+}
+.ul-cartao .ul-subtitulo {
+  margin: 10px 0 28px;
+  font-size: 18px;
+  line-height: 1.625;
+  color: var(--ul-texto-suave);
+}
+/* Onde entram os botões / formulário da ferramenta */
+.ul-conteudo { display: grid; gap: 14px; }
+.ul-rodape {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 32px;
+  font-size: 12px;
+  color: var(--ul-texto-apagado);
+}
+.ul-rodape::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ul-laranja);
+}
+
+/* ------------------------------------------------------------ peças do cartão */
+.ul-botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--ul-raio);
+  background: var(--ul-laranja);
+  color: #fff;
+  font: 500 15px/1 var(--ul-fonte);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.ul-botao:hover { background: var(--ul-laranja-hover); color: #fff; }
+.ul-botao:disabled, .ul-botao[aria-disabled='true'] { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
+.ul-botao-secundario {
+  background: var(--ul-superficie);
+  color: var(--ul-texto);
+  border: 1px solid var(--ul-borda);
+}
+.ul-botao-secundario:hover { background: #f0eeec; color: var(--ul-texto); }
+.ul-ms-logo {
+  box-sizing: content-box;
+  width: 20px;
+  height: 20px;
+  padding: 3px;
+  border-radius: 4px;
+  background: #fff;
+  flex-shrink: 0;
+}
+.ul-nota { font-size: 12px; text-align: center; color: var(--ul-texto-suave); }
+.ul-link {
+  justify-self: center;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  font: 500 14px var(--ul-fonte);
+  color: var(--ul-laranja);
+  cursor: pointer;
+  text-decoration: none;
+}
+.ul-link:hover { text-decoration: underline; }
+
+.ul-aviso {
+  padding: 12px 16px;
+  border: 1px solid rgb(198 40 40 / 0.3);
+  border-radius: var(--ul-raio);
+  background: var(--ul-erro-suave);
+  color: var(--ul-erro);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ul-aviso-info { border-color: rgb(37 99 168 / 0.3); background: var(--ul-info-suave); color: var(--ul-info); }
+.ul-aviso b, .ul-aviso strong { display: block; font-weight: 600; }
+.ul-aviso[hidden] { display: none; }
+.ul-cartao > .ul-aviso { margin-bottom: 14px; }
+
+/* Formulário de e-mail e senha (opcional, durante a transição para a Microsoft) */
+.ul-campo { display: grid; gap: 6px; }
+.ul-campo label { font-size: 14px; font-weight: 500; color: var(--ul-texto-2); }
+.ul-campo input, .ul-campo select {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--ul-borda);
+  border-radius: var(--ul-raio);
+  background: var(--ul-superficie);
+  color: var(--ul-texto);
+  font: 400 15px var(--ul-fonte);
+}
+.ul-campo input:focus, .ul-campo select:focus {
+  outline: none;
+  border-color: var(--ul-laranja);
+  box-shadow: 0 0 0 4px var(--ul-laranja-anel);
+}
+.ul-separador {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ul-texto-apagado);
+}
+.ul-separador::before, .ul-separador::after { content: ''; flex: 1; height: 1px; background: var(--ul-borda); }
+
+.ul-girando {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: ul-girar 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes ul-aparecer { from { opacity: 0; transform: translateY(6px); } }
+@keyframes ul-girar { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------------------ celular: o painel vira faixa no topo */
+@media (max-width: 767px) {
+  .ul-login { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .ul-marca { flex-direction: row; align-items: center; padding: 28px 24px; }
+  .ul-logo { width: auto; height: 48px; }
+  .ul-marca-texto { display: none; }
+  .ul-acesso { padding: 40px 16px 24px; justify-content: flex-start; }
+  .ul-cartao { margin: 0 0 auto; }
+  .ul-cartao h1 { font-size: 30px; }
+  .ul-cartao .ul-subtitulo { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ul-cartao, .ul-girando { animation: none; }
+}
